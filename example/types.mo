@@ -27,6 +27,9 @@ module {
     };
 
     public type CustomNode = {
+        init : {
+            ledger: Principal;
+        };
         variables : {
             var interval_sec: NumVariant;
             var max_amount: NumVariant;
@@ -37,6 +40,9 @@ module {
     };
 
     public type CustomNodeShared = {
+        init : {
+            ledger: Principal;
+        };
         variables: {
             interval_sec: NumVariant;
             max_amount: NumVariant;
@@ -49,6 +55,7 @@ module {
     public module CustomNode {
         public func toShared(node: CustomNode) : CustomNodeShared {
             {
+                init = node.init;
                 variables = {
                     interval_sec = node.variables.interval_sec;
                     max_amount = node.variables.max_amount;

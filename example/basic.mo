@@ -21,8 +21,6 @@ actor class () = this {
     // Throttle vector
     // It will send X amount of tokens every Y seconds
 
-    // stable let nodes = Map.new<T.NodeId, T.Node>();
-    // stable var next_node_id : T.NodeId = 0;
 
     let NTN_LEDGER = Principal.fromText("f54if-eqaaa-aaaaq-aacea-cai");
     let NODE_FEE = 1_0000_0000;
@@ -42,9 +40,21 @@ actor class () = this {
 
 
     stable let node_mem = Node.Mem<T.CustomNode>();
-    let nodes = Node.Node<T.CustomNode, T.CustomNodeShared>({ 
+    let nodes = Node.Node<system, T.CustomNode, T.CustomNodeShared>({ 
         mem = node_mem; 
         dvf;
+        nodeCreateFee = func(node) { // Pricing could depend on the vector being created
+            {
+                amount = NODE_FEE;
+                ledger = NTN_LEDGER;
+            };
+        };
+        settings = {
+            Node.DEFAULT_SETTINGS with 
+            MAX_SOURCES = 1:Nat8;
+            MAX_DESTINATIONS = 1:Nat8;
+        };
+        toShared = T.CustomNode.toShared;
     });
 
     // Main DeVeFi logic
@@ -61,30 +71,27 @@ actor class () = this {
         func() : async () {
             let now = Nat64.fromNat(Int.abs(Time.now()));
             label vloop for ((vid, vec) in nodes.entries()) {
-                let ?destination = vec.destination else continue vloop;
-                let from_subaccount = T.port2subaccount({
-                    vid;
-                    flow = #input;
-                    id = 0;
-                });
+                
+                if (not nodes.hasDestination(vec, 0)) continue vloop;
 
-                let bal = dvf.balance(vec.ledger, ?from_subaccount);
+                let ?source = nodes.getSource(vec, 0) else continue vloop;
+                let bal = source.balance();
 
-                let fee = dvf.fee(vec.ledger);
+                let fee = source.fee();
                 if (bal <= fee * 100) continue vloop;
 
-                if (now > vec.internals.wait_until_ts) {
-                    switch (vec.variables.interval_sec) {
+                if (now > vec.custom.internals.wait_until_ts) {
+                    switch (vec.custom.variables.interval_sec) {
                         case (#fixed(fixed)) {
-                            vec.internals.wait_until_ts := now + fixed*1_000_000_000;
+                            vec.custom.internals.wait_until_ts := now + fixed*1_000_000_000;
                         };
                         case (#rnd({ min; max })) {
                             let dur : Nat64 = if (min >= max) 0 else rng.next() % (max - min);
-                            vec.internals.wait_until_ts := now + (min + dur) * 1_000_000_000;
+                            vec.custom.internals.wait_until_ts := now + (min + dur) * 1_000_000_000;
                         };
                     };
 
-                    let max_amount : Nat64 = switch (vec.variables.max_amount) {
+                    let max_amount : Nat64 = switch (vec.custom.variables.max_amount) {
                         case (#fixed(fixed)) fixed;
                         case (#rnd({ min; max })) if (min >= max) 0 else min + rng.next() % (max - min);
                     };
@@ -92,116 +99,11 @@ actor class () = this {
                     var amount = Nat.min(bal, Nat64.toNat(max_amount));
                     if (bal - amount:Nat <= fee * 100) amount := bal; // Don't leave dust
 
-                    ignore dvf.send({
-                        ledger = vec.ledger;
-                        to = destination;
-                        amount;
-                        memo = null;
-                        from_subaccount = ?from_subaccount;
-                    });
+                    source.send(#destination({ port = 0 }), amount);
+                  
                 };
             };
         },
-    );
-
-    // Remove expired nodes
-    ignore Timer.recurringTimer<system>(#seconds(60),
-        func() : async () {
-          let now = Nat64.fromNat(Int.abs(Time.now()));
-            label vloop for ((vid, vec) in nodes.entries()) {
-                let ?expires = vec.expires else continue vloop;
-                if (now > expires) {
-                    // TODO: dvf has no unregisterSubaccount
-                    // dvf.unregisterSubaccount(?T.port2subaccount({
-                    //     vid;
-                    //     flow = #input;
-                    //     id = 0;
-                    // }));
-                    
-                    // REFUND: Send payment tokens from the node to the first controller
-                    do {
-                        let from_subaccount = Node.port2subaccount({
-                            vid;
-                            flow = #payment;
-                            id = 0;
-                        });
-
-                        let bal = dvf.balance(vec.sources[0].ledger, ?from_subaccount);
-                        if (bal > 0 and vec.controllers.size() > 0) {
-                            ignore dvf.send({
-                                ledger = vec.sources[0].ledger;
-                                to = {owner = vec.controllers[0]; subaccount = null};
-                                amount = bal;
-                                memo = null;
-                                from_subaccount = ?from_subaccount;
-                            });
-                        };
-                    };
-
-                    // RETURN port tokens
-                    do {
-                        let from_subaccount = Node.port2subaccount({
-                            vid;
-                            flow = #input;
-                            id = 0;
-                        });
-
-                        let bal = dvf.balance(vec.sources[0].ledger, ?from_subaccount);
-                        if (bal > 0 and vec.controllers.size() > 0) {
-                            ignore dvf.send({
-                                ledger = vec.sources[0].ledger;
-                                to = {owner = vec.controllers[0]; subaccount = null};
-                                amount = bal;
-                                memo = null;
-                                from_subaccount = ?from_subaccount;
-                            });
-                        };
-                    };
-
-                    // DELETE Node from memory
-                    nodes.delete(vid);
-                };
-            }
-    });
-
-    dvf.onEvent(
-        func(event) {
-            switch (event) {
-                case (#received(r)) {
-                    
-                    let ?port = T.subaccount2port(r.to.subaccount) else return; // We can still recieve tokens in caller subaccounts, which we won't send back right away
-                    let vec = Map.get(nodes, Map.n32hash, port.vid);
-
-                    // RETURN tokens: If no node is found send tokens back (perhaps it was deleted)
-                    if (Option.isNull(vec)) {
-                        let #icrc(addr) = r.from else return; // Can only send to icrc accounts for now
-                        ignore dvf.send({
-                            ledger = r.ledger;
-                            to = addr;
-                            amount = r.amount;
-                            memo = null;
-                            from_subaccount = r.to.subaccount;
-                        });
-                        return;
-                    };
-
-                    // Handle payment after temporary vector was created
-                    let ?rvec = vec else return;
-                    let from_subaccount = T.port2subaccount({
-                        vid = port.vid;
-                        flow = #payment;
-                        id = 0;
-                    });
-
-                    let bal = dvf.balance(r.ledger, ?from_subaccount);
-                    if (bal >= NODE_FEE) {
-                        rvec.expires := null;  
-                    };
-
-                };
-                case (_) ();
-            };
-        }
     );
 
     public query func icrc55_get_nodefactory_meta() : async ICRC55.NodeFactoryMeta {
@@ -241,8 +143,17 @@ actor class () = this {
             destinations = req.destinations;
             controllers = req.controllers;
         };
-
-        nodes.createNode(caller, nodereq, creq);
+        
+        nodes.createNode(caller, nodereq, {
+            init = creq.init;
+            internals = {
+                var wait_until_ts = 0;
+            };
+            variables = {
+                var interval_sec = creq.variables.interval_sec;
+                var max_amount = creq.variables.max_amount;
+            }
+            });
 
     };
 
