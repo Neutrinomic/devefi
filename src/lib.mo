@@ -102,6 +102,8 @@ module {
         let ledgercls = Vector.new<LedgerCls>();
         var emitFunc : ?(Event -> ()) = null;
 
+        
+
         public func get_ledger(id: Principal) : ?LedgerCls {
             for (ledger in Vector.vals(ledgercls)) {
                 if (ledger.id == id) {
@@ -157,6 +159,18 @@ module {
                 };
                 case (#icp(l)) {
                     l.send(t);
+                };
+            };
+        };
+
+        public func fee(id:Principal): Nat {
+            let ?ledger = get_ledger(id) else return 0;
+            switch(ledger.cls) {
+                case (#icrc(l)) {
+                    l.getFee();
+                };
+                case (#icp(l)) {
+                    l.getFee();
                 };
             };
         };
