@@ -102,6 +102,8 @@ module {
         let ledgercls = Vector.new<LedgerCls>();
         var emitFunc : ?(Event -> ()) = null;
 
+        
+
         public func get_ledger(id: Principal) : ?LedgerCls {
             for (ledger in Vector.vals(ledgercls)) {
                 if (ledger.id == id) {
@@ -147,6 +149,17 @@ module {
             };
         };
 
+        public func unregisterSubaccount(subaccount: ?Blob) {
+            for (ledger in Vector.vals(ledgercls)) {
+                switch(ledger.cls) {
+                    case (#icp(m)) {
+                        m.unregisterSubaccount(subaccount);
+                    };
+                    case (_) ();
+                };
+            };
+        };
+
         public func send(t: Send) : R<Nat64, ICRCLedger.SendError> {
    
             let ?ledger = get_ledger(t.ledger) else return Debug.trap("No ledger found");
@@ -157,6 +170,18 @@ module {
                 };
                 case (#icp(l)) {
                     l.send(t);
+                };
+            };
+        };
+
+        public func fee(id:Principal): Nat {
+            let ?ledger = get_ledger(id) else return 0;
+            switch(ledger.cls) {
+                case (#icrc(l)) {
+                    l.getFee();
+                };
+                case (#icp(l)) {
+                    l.getFee();
                 };
             };
         };
@@ -211,7 +236,6 @@ module {
             Vector.toArray(rez);
             
         };
-
 
         public func add_ledger<system>(id: Principal, ltype: {#icrc; #icp}) {
             // Check if the ledger is already added
