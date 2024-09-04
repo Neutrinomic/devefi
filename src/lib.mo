@@ -262,6 +262,14 @@ module {
             Vector.add(ledgercls, new_cls);
         };
 
+        public func get_ledgers() : [Principal] {
+            let rez = Vector.new<Principal>();
+            for (ledger in Vector.vals(mem.ledgers)) {
+                Vector.add(rez, ledger.id);
+            };
+            Vector.toArray(rez);
+        };
+
         private func init_ledger<system>(lg : Ledger) : LedgerCls {
             switch(lg.mem) {
                 case (#icrc(m)) {

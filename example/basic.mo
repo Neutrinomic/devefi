@@ -1,5 +1,4 @@
 import Principal "mo:base/Principal";
-import Map "mo:map/Map";
 import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Time "mo:base/Time";
@@ -10,12 +9,9 @@ import DeVeFi "../src/";
 import Nat "mo:base/Nat";
 import Account "mo:account";
 import ICRC55 "../src/ICRC55";
-import Vector "mo:vector";
-import Array "mo:base/Array";
-import Option "mo:base/Option";
 import Node "../src/node";
 import Nat8 "mo:base/Nat8";
-import U "../src/utils";
+import Array "mo:base/Array";
 
 actor class () = this {
 
@@ -29,14 +25,14 @@ actor class () = this {
     let rng = Prng.SFC64a();
     rng.init(123456);
 
-    let supported_ledgers : [Principal] = [
+    let supportedLedgers : [Principal] = [
         Principal.fromText("ryjl3-tyaaa-aaaaa-aaaba-cai"),
         NTN_LEDGER,
     ];
 
     let dvf = DeVeFi.DeVeFi<system>({ mem = dvf_mem });
-    dvf.add_ledger<system>(supported_ledgers[0], #icp);
-    dvf.add_ledger<system>(supported_ledgers[1], #icrc);
+    dvf.add_ledger<system>(supportedLedgers[0], #icp);
+    dvf.add_ledger<system>(supportedLedgers[1], #icrc);
 
     stable let node_mem = Node.Mem<T.CustomNode>();
     let nodes = Node.Node<system, T.CustomNodeRequest, T.CustomNode, T.CustomNodeShared>({
@@ -118,7 +114,7 @@ actor class () = this {
             name = "Throttle";
             description = "Send X tokens every Y seconds";
             governed_by = "Neutrinite DAO";
-            supported_ledgers;
+            supported_ledgers = Array.map<Principal, ICRC55.SupportedLedger>(supportedLedgers, func (x) = #ic(x));
             pricing = "1 NTN";
         }];
     };
@@ -148,7 +144,11 @@ actor class () = this {
         nodes.setThisCanister(Principal.fromActor(this));
     };
 
-    // Debug functions
+
+
+
+
+    // ---------- Debug functions -----------
 
     public query func get_ledger_errors() : async [[Text]] {
         dvf.getErrors();

@@ -36,7 +36,7 @@ module {
         let (sources, custom : CustomNode) = switch (creq) {
             case (#throttle(t)) {
                 (
-                    [{
+                    [#ic {
                         ledger = t.init.ledger;
                         account = {
                             owner = thiscan;

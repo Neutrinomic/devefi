@@ -28,10 +28,7 @@ module {
         subaccount : ?Blob;
     };
 
-    public type Endpoint = {
-        ledger : Principal;
-        account : Account;
-    };
+    public type Endpoint = ICRC55.Endpoint;
 
     public type CreateNodeResp<A> = {
         #ok: NodeShared<A>;
@@ -123,10 +120,24 @@ module {
             public let endpoint = cls.endpoint;
             public let port = cls.port;
             public func balance() : Nat {
-                dvf.balance(endpoint.ledger, endpoint.account.subaccount);
+                switch(endpoint) {
+                    case (#ic({ ledger; account })) {
+                        dvf.balance(ledger, account.subaccount);
+                    };
+                    case (_) {
+                        Debug.trap("Not supported")
+                    };
+                };
             };
             public func fee() : Nat {
-                dvf.fee(endpoint.ledger);
+                switch(endpoint) {
+                    case (#ic({ ledger; account })) {
+                        dvf.fee(ledger);
+                    };
+                    case (_) {
+                        Debug.trap("Not supported")
+                    };
+                };
             };
             public func send(
                 location : {
@@ -138,23 +149,23 @@ module {
                 },
                 amount : Nat,
             ) : () {
-                let to : Account = switch (location) {
+                let to:Account = switch (location) {
                     case (#destination({ port;})) {
-                        cls.vec.destinations[port].account;
+                        onlyIC(cls.vec.destinations[port]).account;
                     };
 
                     case (#remote_destination({ node; port })) {
                         let ?to_vec = Map.get(mem.nodes, Map.n32hash, node) else return;
-                        to_vec.destinations[port].account;
+                        onlyIC(to_vec.destinations[port]).account;
                     };
 
                     case (#remote_source({ node; port })) {
                         let ?to_vec = Map.get(mem.nodes, Map.n32hash, node) else return;
-                        to_vec.sources[port].account;
+                        onlyIC(to_vec.sources[port]).account;
                     };
 
                     case (#source({ port })) {
-                        cls.vec.sources[port].account;
+                        onlyIC(cls.vec.sources[port]).account;
                     };
 
                     case (#external_account(account)) {
@@ -162,12 +173,14 @@ module {
                     };
                 };
 
+                let #ic(source_ep) = endpoint else Debug.trap("Not supported");
+
                 ignore dvf.send({
-                    ledger = endpoint.ledger;
-                    to = to;
+                    ledger = source_ep.ledger;
+                    to;
                     amount;
                     memo = null;
-                    from_subaccount = endpoint.account.subaccount;
+                    from_subaccount = source_ep.account.subaccount;
                 });
             };
         };
@@ -329,7 +342,7 @@ module {
                     };
 
                     // Handle payment after temporary vector was created
-                    let ?(nodeid, rvec) = found else return;
+                    let ?(_, rvec) = found else return;
                     let from_subaccount = port2subaccount({
                         vid = port.vid;
                         flow = #payment;
@@ -348,6 +361,10 @@ module {
         }
     );
 
+    private func onlyIC(ep : Endpoint) : ICRC55.ICEndpoint {
+        let #ic(x) = ep else Debug.trap("Not supported");
+        x;
+    };
 
     // Remove expired nodes
     ignore Timer.recurringTimer<system>(#seconds(60),
@@ -371,10 +388,10 @@ module {
                             id = 0;
                         });
 
-                        let bal = dvf.balance(vec.sources[0].ledger, ?from_subaccount);
+                        let bal = dvf.balance(onlyIC(vec.sources[0]).ledger, ?from_subaccount);
                         if (bal > 0 and vec.controllers.size() > 0) {
                             ignore dvf.send({
-                                ledger = vec.sources[0].ledger;
+                                ledger = onlyIC(vec.sources[0]).ledger;
                                 to = {owner = vec.controllers[0]; subaccount = null};
                                 amount = bal;
                                 memo = null;
@@ -391,10 +408,10 @@ module {
                             id = 0;
                         });
 
-                        let bal = dvf.balance(vec.sources[0].ledger, ?from_subaccount);
+                        let bal = dvf.balance(onlyIC(vec.sources[0]).ledger, ?from_subaccount);
                         if (bal > 0 and vec.controllers.size() > 0) {
                             ignore dvf.send({
-                                ledger = vec.sources[0].ledger;
+                                ledger = onlyIC(vec.sources[0]).ledger;
                                 to = {owner = vec.controllers[0]; subaccount = null};
                                 amount = bal;
                                 memo = null;
