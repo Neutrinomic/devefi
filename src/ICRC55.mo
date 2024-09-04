@@ -29,7 +29,7 @@ module {
         subaccount : ?Blob;
     };
 
-    public type SourceEndpoint = {
+    public type SourceEndpointResp = {
         endpoint : Endpoint;
         balance : Nat;
     };
@@ -54,8 +54,9 @@ module {
 
     public type GetNodeResponse = {
         id : LocalNodeId;
-        sources : [SourceEndpoint];
+        sources : [SourceEndpointResp];
         destinations : [DestinationEndpoint];
+        refund: [Endpoint];
         controllers : [Principal];
         created : Nat64;
         modified : Nat64;
@@ -77,6 +78,7 @@ module {
 
     public type NodeRequest = {
         destinations : [Endpoint];
+        refund: [Endpoint];
         controllers : [Principal];
     };
 
