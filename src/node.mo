@@ -38,6 +38,7 @@ module {
     public type NodeMem<A> = {
         sources : [Endpoint];
         destinations : [Endpoint];
+        refund : [Endpoint];
         controllers : [Principal];
         created : Nat64;
         modified : Nat64;
@@ -56,7 +57,7 @@ module {
         custom : AS;
     };
 
-    public type Flow = { #input; #output; #payment };
+    public type Flow = { #input; #payment };
     public type Port = {
         vid : NodeId;
         flow : Flow;
@@ -209,9 +210,9 @@ module {
 
         public func delete(vid : NodeId) : () {
             let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return;
-            dvf.unregisterSubaccount(?port2subaccount({ vid; flow = #input; id = 0 }));
 
-            // REFUND: Send payment tokens from the node to the first controller
+            let fee = nodeCreateFee(vec);
+            // REFUND: Send staked tokens from the node to the first controller
             do {
                 let from_subaccount = port2subaccount({
                     vid;
@@ -219,10 +220,10 @@ module {
                     id = 0;
                 });
 
-                let bal = dvf.balance(onlyIC(vec.sources[0]).ledger, ?from_subaccount);
+                let bal = dvf.balance(fee.ledger, ?from_subaccount);
                 if (bal > 0 and vec.controllers.size() > 0) {
                     ignore dvf.send({
-                        ledger = onlyIC(vec.sources[0]).ledger;
+                        ledger = fee.ledger;
                         to = { owner = vec.controllers[0]; subaccount = null };
                         amount = bal;
                         memo = null;
@@ -231,23 +232,26 @@ module {
                 };
             };
 
-            // RETURN port tokens
-            do {
-                let from_subaccount = port2subaccount({
-                    vid;
-                    flow = #input;
-                    id = 0;
-                });
+            label source_refund for (xsource in vec.sources.vals()) {
+                let source = onlyIC(xsource);
+                dvf.unregisterSubaccount(source.account.subaccount);
 
-                let bal = dvf.balance(onlyIC(vec.sources[0]).ledger, ?from_subaccount);
-                if (bal > 0 and vec.controllers.size() > 0) {
-                    ignore dvf.send({
-                        ledger = onlyIC(vec.sources[0]).ledger;
-                        to = { owner = vec.controllers[0]; subaccount = null };
-                        amount = bal;
-                        memo = null;
-                        from_subaccount = ?from_subaccount;
-                    });
+                // RETURN tokens from all sources
+                do {
+                    let bal = dvf.balance(source.ledger, source.account.subaccount);
+                    if (bal > 0) {
+                        // try to find refund endpoint for that ledger source
+                        let ?xf = Array.find<ICRC55.Endpoint>(vec.refund, func (x) = onlyIC(x).ledger == source.ledger) else continue source_refund;
+                        let refund = onlyIC(xf);
+
+                        ignore dvf.send({
+                            ledger = source.ledger;
+                            to = refund.account;
+                            amount = bal;
+                            memo = null;
+                            from_subaccount = source.account.subaccount;
+                        });
+                    };
                 };
             };
 
@@ -429,8 +433,7 @@ module {
     public func port2subaccount(p : Port) : Blob {
         let whobit : Nat8 = switch (p.flow) {
             case (#input) 1;
-            case (#output) 2;
-            case (#payment) 3;
+            case (#payment) 2;
         };
         Blob.fromArray(Iter.toArray(I.pad(I.flattenArray<Nat8>([[whobit], [p.id], U.ENat32(p.vid)]), 32, 0 : Nat8)));
     };
@@ -441,7 +444,7 @@ module {
         let whobit = array[0];
         let id = array[1];
         let ?vid = U.DNat32(Iter.toArray(Array.slice(array, 2, 6))) else return null;
-        let flow = if (whobit == 1) #input else if (whobit == 2) #output else return null;
+        let flow = if (whobit == 1) #input else if (whobit == 2) #payment else return null;
         ?{
             vid = vid;
             flow = flow;

@@ -10,7 +10,6 @@ import Time "mo:base/Time";
 import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Array "mo:base/Array";
-import { Candid } "mo:serde";
 import Debug "mo:base/Debug";
 import Result "mo:base/Result";
 

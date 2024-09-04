@@ -28,35 +28,12 @@ module {
         };
     };
 
-    public type GetNodeResponse = ICRC55.GetNodeResponse and {
-        custom : CustomNodeShared;
-    };
-   
     public func requestToNode(req : ICRC55.NodeRequest, creq : CustomNodeRequest, id : Node.NodeId, thiscan : Principal) : Node.NodeMem<CustomNode> {
         let (sources, custom : CustomNode) = switch (creq) {
             case (#throttle(t)) {
                 (
-                    [#ic {
-                        ledger = t.init.ledger;
-                        account = {
-                            owner = thiscan;
-                            subaccount = ?Node.port2subaccount({
-                                vid = id;
-                                flow = #input;
-                                id = 0;
-                            });
-                        };
-                    }],
-                    #throttle({
-                        init = t.init;
-                        internals = {
-                            var wait_until_ts = 0;
-                        };
-                        variables = {
-                            var interval_sec = t.variables.interval_sec;
-                            var max_amount = t.variables.max_amount;
-                        };
-                    }:ThrottleVector.Mem),
+                    ThrottleVector.Request2Sources(t, id, thiscan),
+                    #throttle( ThrottleVector.Request2Mem(t) ),
                 );
             };
         };
@@ -64,6 +41,7 @@ module {
         let node : Node.NodeMem<CustomNode> = {
             sources;
             destinations = req.destinations;
+            refund = req.refund;
             created = U.now();
             modified = U.now();
             controllers = req.controllers;
@@ -71,6 +49,10 @@ module {
             var expires = null;
         };
         node;
+    };
+
+    public type GetNodeResponse = ICRC55.GetNodeResponse and {
+        custom : CustomNodeShared;
     };
 
 };
