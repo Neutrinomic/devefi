@@ -149,6 +149,17 @@ module {
             };
         };
 
+        public func unregisterSubaccount(subaccount: ?Blob) {
+            for (ledger in Vector.vals(ledgercls)) {
+                switch(ledger.cls) {
+                    case (#icp(m)) {
+                        m.unregisterSubaccount(subaccount);
+                    };
+                    case (_) ();
+                };
+            };
+        };
+
         public func send(t: Send) : R<Nat64, ICRCLedger.SendError> {
    
             let ?ledger = get_ledger(t.ledger) else return Debug.trap("No ledger found");
@@ -225,7 +236,6 @@ module {
             Vector.toArray(rez);
             
         };
-
 
         public func add_ledger<system>(id: Principal, ltype: {#icrc; #icp}) {
             // Check if the ledger is already added

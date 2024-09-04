@@ -2,13 +2,14 @@ import Principal "mo:base/Principal";
 module {
 
     public type LocalNodeId = Nat32;
-    public type NodeFactoryMeta = {
+    public type NodeFactoryMeta = [{
+        id:Text;
         name: Text;
         description: Text;
         governed_by: Text;
         supported_ledgers: [Principal];
         pricing: Text;
-    };
+    }];
 
     public type GetNode = {
         #id: LocalNodeId;
@@ -41,7 +42,6 @@ module {
         created : Nat64;
         modified: Nat64;
         expires: ?Nat64;
-        // Each different canister can add additional fields here
     };
 
     public type GetControllerNodes = [LocalNodeId];

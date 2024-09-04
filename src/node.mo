@@ -15,6 +15,8 @@ import Timer "mo:base/Timer";
 import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Time "mo:base/Time";
+import Vector "mo:vector";
+import Debug "mo:base/Debug";
 
 module {
 
@@ -31,10 +33,9 @@ module {
         account : Account;
     };
 
-    public type NodeRequest = {
-        sources : [Endpoint];
-        destinations : [Endpoint];
-        controllers : [Principal];
+    public type CreateNodeResp<A> = {
+        #ok: NodeShared<A>;
+        #err: Text;
     };
 
     public type NodeMem<A> = {
@@ -48,6 +49,7 @@ module {
     };
 
     public type NodeShared<AS> = {
+        id : NodeId;
         sources : [Endpoint];
         destinations : [Endpoint];
         controllers : [Principal];
@@ -98,9 +100,10 @@ module {
         MAX_DESTINATIONS = 1;
     };
 
-    public class Node<system, A, AS>({
+    public class Node<system, NR, A, AS>({
         mem : Mem<A>;
         dvf : DeVeFi.DeVeFi;
+        requestToNode: (ICRC55.NodeRequest, NR, NodeId, Principal) -> NodeMem<A>;
         nodeCreateFee : (NodeMem<A>) -> {
             amount : Nat;
             ledger : Principal;
@@ -195,7 +198,11 @@ module {
             ignore Map.remove(mem.nodes, Map.n32hash, id);
         };
 
-        public func createNode(caller : Principal, req : NodeRequest, custom : A) : R<NodeId, Text> {
+        public func setThisCanister(can : Principal) : () {
+            mem.thiscan := ?can;
+        };
+
+        public func icrc55_create_node(caller : Principal, req : ICRC55.NodeRequest, custom : NR) : CreateNodeResp<AS> {
             let ?thiscanister = mem.thiscan else return #err("This canister not set");
             // TODO: Limit tempory node creation per hour (against DoS)
 
@@ -205,15 +212,7 @@ module {
             // Once the node is deleted, we can send the fee back to the caller
             let id = mem.next_node_id;
 
-            let node : NodeMem<A> = {
-                sources = req.sources;
-                destinations = req.destinations;
-                created = U.now();
-                modified = U.now();
-                controllers = req.controllers;
-                custom = custom;
-                var expires = null;
-            };
+            let node = requestToNode(req, custom, id, thiscanister);
 
             let nfee = nodeCreateFee(node);
 
@@ -250,7 +249,8 @@ module {
 
             mem.next_node_id += 1;
 
-            #ok(id);
+            let ?node_shared = icrc55_get_node(#id(id)) else return #err("Couldn't find after create");
+            #ok(node_shared);
         };
 
         public func getNode(req : ICRC55.GetNode) : ?(NodeId, NodeMem<A>) {
@@ -269,7 +269,7 @@ module {
             return ?(vid, vec);
         };
 
-        public func getNodeShared(req : ICRC55.GetNode) : ?NodeShared<AS> {
+        public func icrc55_get_node(req : ICRC55.GetNode) : ?NodeShared<AS> {
             let ?(vid, vec) = getNode(req) else return null;
 
             return ?{
@@ -285,14 +285,27 @@ module {
 
         };
 
-        // /// Sends
-        // public func portSend({from_node: Nat32; from_port: Text; to_node: Nat32; to_port: Text; amount: Nat}) : () {
+        public func icrc55_get_controller_nodes(controller:Principal) : [NodeId] {
+            // Unoptimised for now, but it will get it done
+            let res = Vector.new<NodeId>();
+            for ((vid, vec) in entries()) {
+                if (not Option.isNull(Array.indexOf(controller, vec.controllers, Principal.equal))) {
+                    Vector.add(res, vid);
+                };
+            };
+            Vector.toArray(res);
+        };
 
-        // };
+        public func icrc55_create_node_get_fee(creator:Principal, req : ICRC55.NodeRequest, custom : NR) : ICRC55.NodeCreateFee {
+          let ?thiscanister = mem.thiscan else Debug.trap("Not initialized");
+          let {ledger; amount} = nodeCreateFee(requestToNode(req, custom, 0, thiscanister));
+            {
+                ledger;
+                amount;
+                subaccount = Principal.toLedgerAccount(creator, null);
+            };
+        };
 
-        // public func port({node: Nat32; port: Text}) : PortInfo {
-
-        // };
 
         dvf.onEvent(
         func(event) {
@@ -344,11 +357,11 @@ module {
                 let ?expires = vec.expires else continue vloop;
                 if (now > expires) {
                     // TODO: dvf has no unregisterSubaccount
-                    // dvf.unregisterSubaccount(?T.port2subaccount({
-                    //     vid;
-                    //     flow = #input;
-                    //     id = 0;
-                    // }));
+                    dvf.unregisterSubaccount(?port2subaccount({
+                        vid;
+                        flow = #input;
+                        id = 0;
+                    }));
                     
                     // REFUND: Send payment tokens from the node to the first controller
                     do {

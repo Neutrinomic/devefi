@@ -3,76 +3,74 @@ import Nat32 "mo:base/Nat32";
 import Nat64 "mo:base/Nat64";
 import ICRC55 "../src/ICRC55";
 import Node "../src/node";
+import U "../src/utils";
+import ThrottleVector "./throttle";
 
 module {
 
-    public type NodeId = Nat32;
-
-    public type NumVariant = {
-        #fixed:Nat64;
-        #rnd:{min:Nat64; max:Nat64};
-    };
-
+    public type NodeId = Node.NodeId;
 
     public type CustomNodeRequest = {
-        // ledger: Principal;
-        // destination: ?ICRC55.Account;
-        init: {
-            ledger: Principal;
-        };
-        variables : {
-            interval_sec: NumVariant;
-            max_amount: NumVariant;
-        };
+        #throttle : ThrottleVector.Request;
     };
-
     public type CustomNode = {
-        init : {
-            ledger: Principal;
-        };
-        variables : {
-            var interval_sec: NumVariant;
-            var max_amount: NumVariant;
-        };
-        internals : {
-            var wait_until_ts : Nat64;
-        };
+        #throttle : ThrottleVector.Mem;
     };
-
     public type CustomNodeShared = {
-        init : {
-            ledger: Principal;
-        };
-        variables: {
-            interval_sec: NumVariant;
-            max_amount: NumVariant;
-        };
-        internals : {
-            wait_until_ts: Nat64;
-        }
+        #throttle : ThrottleVector.Shared;
     };
 
     public module CustomNode {
-        public func toShared(node: CustomNode) : CustomNodeShared {
-            {
-                init = node.init;
-                variables = {
-                    interval_sec = node.variables.interval_sec;
-                    max_amount = node.variables.max_amount;
-                };
-                internals = {
-                    wait_until_ts = node.internals.wait_until_ts;
-                };
-            }
+        public func toShared(node : CustomNode) : CustomNodeShared {
+            switch (node) {
+                case (#throttle(t)) #throttle(ThrottleVector.toShared(t));
+            };
         };
     };
 
+    public type GetNodeResponse = ICRC55.GetNodeResponse and {
+        custom : CustomNodeShared;
+    };
+   
+    public func requestToNode(req : ICRC55.NodeRequest, creq : CustomNodeRequest, id : Node.NodeId, thiscan : Principal) : Node.NodeMem<CustomNode> {
+        let (sources, custom : CustomNode) = switch (creq) {
+            case (#throttle(t)) {
+                (
+                    [{
+                        ledger = t.init.ledger;
+                        account = {
+                            owner = thiscan;
+                            subaccount = ?Node.port2subaccount({
+                                vid = id;
+                                flow = #input;
+                                id = 0;
+                            });
+                        };
+                    }],
+                    #throttle({
+                        init = t.init;
+                        internals = {
+                            var wait_until_ts = 0;
+                        };
+                        variables = {
+                            var interval_sec = t.variables.interval_sec;
+                            var max_amount = t.variables.max_amount;
+                        };
+                    }:ThrottleVector.Mem),
+                );
+            };
+        };
 
-    public type CreateNode = {
-        #ok: Node.NodeId;
-        #err: Text;
+        let node : Node.NodeMem<CustomNode> = {
+            sources;
+            destinations = req.destinations;
+            created = U.now();
+            modified = U.now();
+            controllers = req.controllers;
+            custom;
+            var expires = null;
+        };
+        node;
     };
 
-    
-
-}
+};

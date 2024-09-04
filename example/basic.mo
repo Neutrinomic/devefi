@@ -15,12 +15,12 @@ import Array "mo:base/Array";
 import Option "mo:base/Option";
 import Node "../src/node";
 import Nat8 "mo:base/Nat8";
+import U "../src/utils";
 
 actor class () = this {
 
     // Throttle vector
     // It will send X amount of tokens every Y seconds
-
 
     let NTN_LEDGER = Principal.fromText("f54if-eqaaa-aaaaq-aacea-cai");
     let NODE_FEE = 1_0000_0000;
@@ -38,21 +38,22 @@ actor class () = this {
     dvf.add_ledger<system>(supported_ledgers[0], #icp);
     dvf.add_ledger<system>(supported_ledgers[1], #icrc);
 
-
     stable let node_mem = Node.Mem<T.CustomNode>();
-    let nodes = Node.Node<system, T.CustomNode, T.CustomNodeShared>({ 
-        mem = node_mem; 
+    let nodes = Node.Node<system, T.CustomNodeRequest, T.CustomNode, T.CustomNodeShared>({
+        mem = node_mem;
+        requestToNode = T.requestToNode;
         dvf;
-        nodeCreateFee = func(node) { // Pricing could depend on the vector being created
+        nodeCreateFee = func(_node) {
             {
                 amount = NODE_FEE;
                 ledger = NTN_LEDGER;
             };
         };
+
         settings = {
-            Node.DEFAULT_SETTINGS with 
-            MAX_SOURCES = 1:Nat8;
-            MAX_DESTINATIONS = 1:Nat8;
+            Node.DEFAULT_SETTINGS with
+            MAX_SOURCES = 1 : Nat8;
+            MAX_DESTINATIONS = 1 : Nat8;
         };
         toShared = T.CustomNode.toShared;
     });
@@ -71,7 +72,7 @@ actor class () = this {
         func() : async () {
             let now = Nat64.fromNat(Int.abs(Time.now()));
             label vloop for ((vid, vec) in nodes.entries()) {
-                
+
                 if (not nodes.hasDestination(vec, 0)) continue vloop;
 
                 let ?source = nodes.getSource(vec, 0) else continue vloop;
@@ -80,83 +81,63 @@ actor class () = this {
                 let fee = source.fee();
                 if (bal <= fee * 100) continue vloop;
 
-                if (now > vec.custom.internals.wait_until_ts) {
-                    switch (vec.custom.variables.interval_sec) {
-                        case (#fixed(fixed)) {
-                            vec.custom.internals.wait_until_ts := now + fixed*1_000_000_000;
-                        };
-                        case (#rnd({ min; max })) {
-                            let dur : Nat64 = if (min >= max) 0 else rng.next() % (max - min);
-                            vec.custom.internals.wait_until_ts := now + (min + dur) * 1_000_000_000;
+                switch (vec.custom) {
+                    case (#throttle(th)) {
+                        if (now > th.internals.wait_until_ts) {
+                            switch (th.variables.interval_sec) {
+                                case (#fixed(fixed)) {
+                                    th.internals.wait_until_ts := now + fixed * 1_000_000_000;
+                                };
+                                case (#rnd({ min; max })) {
+                                    let dur : Nat64 = if (min >= max) 0 else rng.next() % (max - min);
+                                    th.internals.wait_until_ts := now + (min + dur) * 1_000_000_000;
+                                };
+                            };
+
+                            let max_amount : Nat64 = switch (th.variables.max_amount) {
+                                case (#fixed(fixed)) fixed;
+                                case (#rnd({ min; max })) if (min >= max) 0 else min + rng.next() % (max - min);
+                            };
+
+                            var amount = Nat.min(bal, Nat64.toNat(max_amount));
+                            if (bal - amount : Nat <= fee * 100) amount := bal; // Don't leave dust
+
+                            source.send(#destination({ port = 0 }), amount);
+
                         };
                     };
-
-                    let max_amount : Nat64 = switch (vec.custom.variables.max_amount) {
-                        case (#fixed(fixed)) fixed;
-                        case (#rnd({ min; max })) if (min >= max) 0 else min + rng.next() % (max - min);
-                    };
-
-                    var amount = Nat.min(bal, Nat64.toNat(max_amount));
-                    if (bal - amount:Nat <= fee * 100) amount := bal; // Don't leave dust
-
-                    source.send(#destination({ port = 0 }), amount);
-                  
                 };
+
             };
         },
     );
 
     public query func icrc55_get_nodefactory_meta() : async ICRC55.NodeFactoryMeta {
-        {
+        [{
+            id = "throttle";
             name = "Throttle";
             description = "Send X tokens every Y seconds";
             governed_by = "Neutrinite DAO";
             supported_ledgers;
             pricing = "1 NTN";
-        };
+        }];
     };
 
-    public query func icrc55_create_node_get_fee(creator: Principal, req : ICRC55.NodeRequest, creq: T.CustomNodeRequest) : async ICRC55.NodeCreateFee {
-        {
-            ledger = NTN_LEDGER;
-            amount = NODE_FEE;
-            subaccount = Principal.toLedgerAccount(creator, null);
-        };
+    public query ({ caller }) func icrc55_create_node_get_fee(req : ICRC55.NodeRequest, creq : T.CustomNodeRequest) : async ICRC55.NodeCreateFee {
+        nodes.icrc55_create_node_get_fee(caller, req, creq);
     };
 
-    public shared ({ caller }) func icrc55_create_node(req : ICRC55.NodeRequest, creq: T.CustomNodeRequest) : async T.CreateNode {
-        
-        let sources = [{
-                    ledger = creq.init.ledger;
-                    account = {
-                        owner = Principal.fromActor(this);
-                        subaccount = ?Node.port2subaccount({
-                            vid = nodes.getNextNodeId();
-                            flow = #input;
-                            id = 0;
-                        });
-                    };
-                }];
-        
-        let nodereq = {
-            sources;
-            destinations = req.destinations;
-            controllers = req.controllers;
-        };
-        
-        nodes.createNode(caller, nodereq, {
-            init = creq.init;
-            internals = {
-                var wait_until_ts = 0;
-            };
-            variables = {
-                var interval_sec = creq.variables.interval_sec;
-                var max_amount = creq.variables.max_amount;
-            }
-            });
-
+    public shared ({ caller }) func icrc55_create_node(req : ICRC55.NodeRequest, creq : T.CustomNodeRequest) : async Node.CreateNodeResp<T.CustomNodeShared> {
+        nodes.icrc55_create_node(caller, req, creq);
     };
 
+    public query func icrc55_get_node(req : ICRC55.GetNode) : async ?Node.NodeShared<T.CustomNodeShared> {
+        nodes.icrc55_get_node(req);
+    };
+
+    public query ({ caller }) func icrc55_get_controller_nodes() : async ICRC55.GetControllerNodes {
+        nodes.icrc55_get_controller_nodes(caller);
+    };
 
     // We need to start the vector manually once when canister is installed, because we can't init dvf from the body
     // https://github.com/dfinity/motoko/issues/4384
@@ -164,23 +145,8 @@ actor class () = this {
     public shared ({ caller }) func start() {
         assert (Principal.isController(caller));
         dvf.start<system>(Principal.fromActor(this));
+        nodes.setThisCanister(Principal.fromActor(this));
     };
-
-
-    public query func icrc55_get_node(req : ICRC55.GetNode) : async ?Node.NodeShared<T.CustomNodeShared> {
-        nodes.getNodeShared(req);
-    };
-
-    // public query ({caller}) func icrc55_get_controller_nodes() : async ICRC55.GetControllerNodes {
-    //     // Unoptimised for now, but it will get it done
-    //     let res = Vector.new<T.NodeId>();
-    //     for ((vid, vec) in Map.entries(nodes)) {
-    //         if (not Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) {
-    //             Vector.add(res, vid);
-    //         };
-    //     };
-    //     Vector.toArray(res);
-    // };
 
     // Debug functions
 
@@ -194,17 +160,15 @@ actor class () = this {
 
     // Dashboard explorer doesn't show icrc accounts in text format, this does
     // Hard to send tokens to Candid ICRC Accounts
-    // public query func get_node_addr(vid : T.NodeId) : async (Text, Nat) {
-    //     let ?vec = Map.get(nodes, Map.n32hash, vid) else return ("", 0);
+    public query func get_node_addr(vid : T.NodeId) : async ?Text {
+        let ?(_,vec) = nodes.getNode(#id(vid)) else return null;
 
-    //     let subaccount = ?T.port2subaccount({
-    //         vid;
-    //         flow = #input;
-    //         id = 0;
-    //     });
+        let subaccount = ?Node.port2subaccount({
+            vid;
+            flow = #input;
+            id = 0;
+        });
 
-    //     let bal = dvf.balance(vec.ledger, subaccount);
-
-    //     (Account.toText({ owner = Principal.fromActor(this); subaccount }), bal);
-    // };
+        ?Account.toText({ owner = Principal.fromActor(this); subaccount });
+    };
 };
