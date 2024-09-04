@@ -3,65 +3,82 @@ module {
 
     public type LocalNodeId = Nat32;
     public type NodeFactoryMeta = [{
-        id:Text;
-        name: Text;
-        description: Text;
-        governed_by: Text;
-        supported_ledgers: [Principal];
-        pricing: Text;
+        id : Text;
+        name : Text;
+        description : Text;
+        governed_by : Text;
+        supported_ledgers : [SupportedLedger];
+        pricing : Text;
     }];
 
+    public type SupportedLedger = {
+        #ic : Principal;
+        #remote : {
+            platform : Nat64;
+            ledger : Blob;
+        };
+    };
+
     public type GetNode = {
-        #id: LocalNodeId;
-        #subaccount: ?Blob;
+        #id : LocalNodeId;
+        #subaccount : ?Blob;
     };
 
     public type Account = {
-        owner: Principal;
-        subaccount: ?Blob
+        owner : Principal;
+        subaccount : ?Blob;
     };
 
     public type SourceEndpoint = {
-        ledger: Principal;
-        account: Account;
-        balance: Nat;
+        endpoint : Endpoint;
+        balance : Nat;
     };
 
     public type DestinationEndpoint = Endpoint;
 
+    public type ICEndpoint = {
+        ledger : Principal;
+        account : Account;
+    };
+
+    public type RemoteEndpoint = {
+        platform : Nat64;
+        ledger : Blob;
+        account : Blob;
+    };
+
     public type Endpoint = {
-        ledger: Principal;
-        account: Account;
+        #ic : ICEndpoint;
+        #remote : RemoteEndpoint;
     };
 
     public type GetNodeResponse = {
-        id: LocalNodeId;
-        sources: [SourceEndpoint];
-        destinations: [DestinationEndpoint];
-        controllers: [Principal];
+        id : LocalNodeId;
+        sources : [SourceEndpoint];
+        destinations : [DestinationEndpoint];
+        controllers : [Principal];
         created : Nat64;
-        modified: Nat64;
-        expires: ?Nat64;
+        modified : Nat64;
+        expires : ?Nat64;
     };
 
     public type GetControllerNodes = [LocalNodeId];
 
     public type CreateNode = {
-        #ok: GetNodeResponse;
-        #err: Text;
+        #ok : GetNodeResponse;
+        #err : Text;
     };
 
     public type NodeCreateFee = {
-        amount: Nat;
-        ledger: Principal;
-        subaccount: Blob;
+        amount : Nat;
+        ledger : Principal;
+        subaccount : Blob;
     };
 
     public type NodeRequest = {
-        destinations: [Endpoint];
-        controllers: [Principal];
+        destinations : [Endpoint];
+        controllers : [Principal];
     };
-
 
     public type Self = actor {
         icrc55_get_controller_nodes : shared query GetControllerNodes -> async GetControllerNodes;
@@ -69,5 +86,5 @@ module {
         icrc55_create_node : shared (NodeRequest, Any) -> async CreateNode;
         icrc55_create_node_get_fee : shared query (Principal, Any) -> async NodeCreateFee;
         icrc55_get_nodefactory_meta : shared query () -> async NodeFactoryMeta;
-    }
-}
+    };
+};
