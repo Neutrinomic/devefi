@@ -31,8 +31,8 @@ module {
     public type Endpoint = ICRC55.Endpoint;
 
     public type CreateNodeResp<A> = {
-        #ok: NodeShared<A>;
-        #err: Text;
+        #ok : NodeShared<A>;
+        #err : Text;
     };
 
     public type NodeMem<A> = {
@@ -100,7 +100,7 @@ module {
     public class Node<system, NR, A, AS>({
         mem : Mem<A>;
         dvf : DeVeFi.DeVeFi;
-        requestToNode: (ICRC55.NodeRequest, NR, NodeId, Principal) -> NodeMem<A>;
+        requestToNode : (ICRC55.NodeRequest, NR, NodeId, Principal) -> NodeMem<A>;
         nodeCreateFee : (NodeMem<A>) -> {
             amount : Nat;
             ledger : Principal;
@@ -120,22 +120,22 @@ module {
             public let endpoint = cls.endpoint;
             public let port = cls.port;
             public func balance() : Nat {
-                switch(endpoint) {
+                switch (endpoint) {
                     case (#ic({ ledger; account })) {
                         dvf.balance(ledger, account.subaccount);
                     };
                     case (_) {
-                        Debug.trap("Not supported")
+                        Debug.trap("Not supported");
                     };
                 };
             };
             public func fee() : Nat {
-                switch(endpoint) {
+                switch (endpoint) {
                     case (#ic({ ledger; account })) {
                         dvf.fee(ledger);
                     };
                     case (_) {
-                        Debug.trap("Not supported")
+                        Debug.trap("Not supported");
                     };
                 };
             };
@@ -149,8 +149,8 @@ module {
                 },
                 amount : Nat,
             ) : () {
-                let to:Account = switch (location) {
-                    case (#destination({ port;})) {
+                let to : Account = switch (location) {
+                    case (#destination({ port })) {
                         onlyIC(cls.vec.destinations[port]).account;
                     };
 
@@ -196,7 +196,7 @@ module {
                 port = port_idx;
                 vec = vec;
             });
-            return ?source
+            return ?source;
         };
 
         public func entries() : Iter.Iter<(NodeId, NodeMem<A>)> {
@@ -207,8 +207,51 @@ module {
             mem.next_node_id;
         };
 
-        public func delete(id : NodeId) : () {
-            ignore Map.remove(mem.nodes, Map.n32hash, id);
+        public func delete(vid : NodeId) : () {
+            let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return;
+            dvf.unregisterSubaccount(?port2subaccount({ vid; flow = #input; id = 0 }));
+
+            // REFUND: Send payment tokens from the node to the first controller
+            do {
+                let from_subaccount = port2subaccount({
+                    vid;
+                    flow = #payment;
+                    id = 0;
+                });
+
+                let bal = dvf.balance(onlyIC(vec.sources[0]).ledger, ?from_subaccount);
+                if (bal > 0 and vec.controllers.size() > 0) {
+                    ignore dvf.send({
+                        ledger = onlyIC(vec.sources[0]).ledger;
+                        to = { owner = vec.controllers[0]; subaccount = null };
+                        amount = bal;
+                        memo = null;
+                        from_subaccount = ?from_subaccount;
+                    });
+                };
+            };
+
+            // RETURN port tokens
+            do {
+                let from_subaccount = port2subaccount({
+                    vid;
+                    flow = #input;
+                    id = 0;
+                });
+
+                let bal = dvf.balance(onlyIC(vec.sources[0]).ledger, ?from_subaccount);
+                if (bal > 0 and vec.controllers.size() > 0) {
+                    ignore dvf.send({
+                        ledger = onlyIC(vec.sources[0]).ledger;
+                        to = { owner = vec.controllers[0]; subaccount = null };
+                        amount = bal;
+                        memo = null;
+                        from_subaccount = ?from_subaccount;
+                    });
+                };
+            };
+
+            ignore Map.remove(mem.nodes, Map.n32hash, vid);
         };
 
         public func setThisCanister(can : Principal) : () {
@@ -298,7 +341,7 @@ module {
 
         };
 
-        public func icrc55_get_controller_nodes(controller:Principal) : [NodeId] {
+        public func icrc55_get_controller_nodes(controller : Principal) : [NodeId] {
             // Unoptimised for now, but it will get it done
             let res = Vector.new<NodeId>();
             for ((vid, vec) in entries()) {
@@ -309,9 +352,9 @@ module {
             Vector.toArray(res);
         };
 
-        public func icrc55_create_node_get_fee(creator:Principal, req : ICRC55.NodeRequest, custom : NR) : ICRC55.NodeCreateFee {
-          let ?thiscanister = mem.thiscan else Debug.trap("Not initialized");
-          let {ledger; amount} = nodeCreateFee(requestToNode(req, custom, 0, thiscanister));
+        public func icrc55_create_node_get_fee(creator : Principal, req : ICRC55.NodeRequest, custom : NR) : ICRC55.NodeCreateFee {
+            let ?thiscanister = mem.thiscan else Debug.trap("Not initialized");
+            let { ledger; amount } = nodeCreateFee(requestToNode(req, custom, 0, thiscanister));
             {
                 ledger;
                 amount;
@@ -319,112 +362,67 @@ module {
             };
         };
 
-
         dvf.onEvent(
-        func(event) {
-            switch (event) {
-                case (#received(r)) {
-                    
-                    let ?port = subaccount2port(r.to.subaccount) else return; // We can still recieve tokens in caller subaccounts, which we won't send back right away
-                    let found = getNode(#id(port.vid));
+            func(event) {
+                switch (event) {
+                    case (#received(r)) {
 
-                    // RETURN tokens: If no node is found send tokens back (perhaps it was deleted)
-                    if (Option.isNull(found)) {
-                        let #icrc(addr) = r.from else return; // Can only send to icrc accounts for now
-                        ignore dvf.send({
-                            ledger = r.ledger;
-                            to = addr;
-                            amount = r.amount;
-                            memo = null;
-                            from_subaccount = r.to.subaccount;
-                        });
-                        return;
-                    };
+                        let ?port = subaccount2port(r.to.subaccount) else return; // We can still recieve tokens in caller subaccounts, which we won't send back right away
+                        let found = getNode(#id(port.vid));
 
-                    // Handle payment after temporary vector was created
-                    let ?(_, rvec) = found else return;
-                    let from_subaccount = port2subaccount({
-                        vid = port.vid;
-                        flow = #payment;
-                        id = 0;
-                    });
+                        // RETURN tokens: If no node is found send tokens back (perhaps it was deleted)
+                        if (Option.isNull(found)) {
+                            let #icrc(addr) = r.from else return; // Can only send to icrc accounts for now
+                            ignore dvf.send({
+                                ledger = r.ledger;
+                                to = addr;
+                                amount = r.amount;
+                                memo = null;
+                                from_subaccount = r.to.subaccount;
+                            });
+                            return;
+                        };
 
-                    let bal = dvf.balance(r.ledger, ?from_subaccount);
-                    let fee = nodeCreateFee(rvec);
-                    if (bal >= fee.amount) {
-                        rvec.expires := null;  
-                    };
-
-                };
-                case (_) ();
-            };
-        }
-    );
-
-    private func onlyIC(ep : Endpoint) : ICRC55.ICEndpoint {
-        let #ic(x) = ep else Debug.trap("Not supported");
-        x;
-    };
-
-    // Remove expired nodes
-    ignore Timer.recurringTimer<system>(#seconds(60),
-        func() : async () {
-          let now = Nat64.fromNat(Int.abs(Time.now()));
-            label vloop for ((vid, vec) in entries()) {
-                let ?expires = vec.expires else continue vloop;
-                if (now > expires) {
-                    // TODO: dvf has no unregisterSubaccount
-                    dvf.unregisterSubaccount(?port2subaccount({
-                        vid;
-                        flow = #input;
-                        id = 0;
-                    }));
-                    
-                    // REFUND: Send payment tokens from the node to the first controller
-                    do {
+                        // Handle payment after temporary vector was created
+                        let ?(_, rvec) = found else return;
                         let from_subaccount = port2subaccount({
-                            vid;
+                            vid = port.vid;
                             flow = #payment;
                             id = 0;
                         });
 
-                        let bal = dvf.balance(onlyIC(vec.sources[0]).ledger, ?from_subaccount);
-                        if (bal > 0 and vec.controllers.size() > 0) {
-                            ignore dvf.send({
-                                ledger = onlyIC(vec.sources[0]).ledger;
-                                to = {owner = vec.controllers[0]; subaccount = null};
-                                amount = bal;
-                                memo = null;
-                                from_subaccount = ?from_subaccount;
-                            });
+                        let bal = dvf.balance(r.ledger, ?from_subaccount);
+                        let fee = nodeCreateFee(rvec);
+                        if (bal >= fee.amount) {
+                            rvec.expires := null;
                         };
+
                     };
-
-                    // RETURN port tokens
-                    do {
-                        let from_subaccount = port2subaccount({
-                            vid;
-                            flow = #input;
-                            id = 0;
-                        });
-
-                        let bal = dvf.balance(onlyIC(vec.sources[0]).ledger, ?from_subaccount);
-                        if (bal > 0 and vec.controllers.size() > 0) {
-                            ignore dvf.send({
-                                ledger = onlyIC(vec.sources[0]).ledger;
-                                to = {owner = vec.controllers[0]; subaccount = null};
-                                amount = bal;
-                                memo = null;
-                                from_subaccount = ?from_subaccount;
-                            });
-                        };
-                    };
-
-                    // DELETE Node from memory
-                    delete(vid);
+                    case (_) ();
                 };
             }
-    });
+        );
+
+        private func onlyIC(ep : Endpoint) : ICRC55.ICEndpoint {
+            let #ic(x) = ep else Debug.trap("Not supported");
+            x;
+        };
+
+        // Remove expired nodes
+        ignore Timer.recurringTimer<system>(
+            #seconds(60),
+            func() : async () {
+                let now = Nat64.fromNat(Int.abs(Time.now()));
+                label vloop for ((vid, vec) in entries()) {
+                    let ?expires = vec.expires else continue vloop;
+                    if (now > expires) {
+
+                        // DELETE Node from memory
+                        delete(vid);
+                    };
+                };
+            },
+        );
 
     };
 
