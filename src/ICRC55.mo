@@ -82,8 +82,14 @@ module {
         controllers : [Principal];
     };
 
+    public type DeleteNodeResp = {
+        #ok : ();
+        #err : Text;
+    };
+
     public type Self = actor {
         icrc55_get_controller_nodes : shared query GetControllerNodes -> async GetControllerNodes;
+        icrc55_delete_node : shared (LocalNodeId) -> async DeleteNodeResp;
         icrc55_get_node : shared query GetNode -> async ?GetNodeResponse;
         icrc55_create_node : shared (NodeRequest, Any) -> async CreateNode;
         icrc55_create_node_get_fee : shared query (Principal, Any) -> async NodeCreateFee;

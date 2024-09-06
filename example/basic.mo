@@ -135,6 +135,10 @@ actor class () = this {
         nodes.icrc55_get_controller_nodes(caller);
     };
 
+    public shared ({ caller }) func icrc55_set_controller_nodes(vid : Node.NodeId) : async ICRC55.DeleteNodeResp {
+        nodes.icrc55_delete_node(caller, vid);
+    };
+
     // We need to start the vector manually once when canister is installed, because we can't init dvf from the body
     // https://github.com/dfinity/motoko/issues/4384
     // Sending tokens before starting the canister for the first time wont get processed
