@@ -208,8 +208,16 @@ module {
             mem.next_node_id;
         };
 
+        public func icrc55_delete_node(caller:Principal, vid : NodeId) : R<(), Text> {
+            // Check if caller is controller
+            let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return #err("Node not found");
+            if (not Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
+
+            #ok(delete(vid));
+        };
         public func delete(vid : NodeId) : () {
             let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return;
+            // TODO: Don't allow deletion if there are no refund endpoints
 
             let fee = nodeCreateFee(vec);
             // REFUND: Send staked tokens from the node to the first controller
