@@ -1,58 +1,67 @@
-import Nat8 "mo:base/Nat8";
-import Nat32 "mo:base/Nat32";
-import Nat64 "mo:base/Nat64";
+
 import ICRC55 "../src/ICRC55";
 import Node "../src/node";
-import U "../src/utils";
 import ThrottleVector "./throttle";
+import Result "mo:base/Result";
 
 module {
 
-    public type NodeId = Node.NodeId;
-
-    public type CustomNodeRequest = {
-        #throttle : ThrottleVector.Request;
+    public type CreateRequest = {
+        #throttle : ThrottleVector.CreateRequest;
+        //...
     };
-    public type CustomNode = {
+    public type Mem = {
         #throttle : ThrottleVector.Mem;
+        //...
     };
-    public type CustomNodeShared = {
+    public type Shared = {
         #throttle : ThrottleVector.Shared;
+        //...
+    };
+    public type ModifyRequest = {
+        #throttle : ThrottleVector.ModifyRequest;
+        //...
     };
 
-    public module CustomNode {
-        public func toShared(node : CustomNode) : CustomNodeShared {
-            switch (node) {
-                case (#throttle(t)) #throttle(ThrottleVector.toShared(t));
-            };
+    public func toShared(node : Mem) : Shared {
+        switch (node) {
+            case (#throttle(t)) #throttle(ThrottleVector.toShared(t));
+            //...
         };
     };
 
-    public func requestToNode(req : ICRC55.NodeRequest, creq : CustomNodeRequest, id : Node.NodeId, thiscan : Principal) : Node.NodeMem<CustomNode> {
-        let (sources, custom : CustomNode) = switch (creq) {
-            case (#throttle(t)) {
-                (
-                    ThrottleVector.Request2Sources(t, id, thiscan),
-                    #throttle( ThrottleVector.Request2Mem(t) ),
-                );
-            };
+    public func sourceMap(id: Node.NodeId, custom : Mem, thiscan : Principal) : Result.Result<[ICRC55.Endpoint], Text> {
+        switch (custom) {
+            case (#throttle(t)) ThrottleVector.Request2Sources(t, id, thiscan);
+            //...
         };
-
-        let node : Node.NodeMem<CustomNode> = {
-            sources;
-            destinations = req.destinations;
-            refund = req.refund;
-            created = U.now();
-            modified = U.now();
-            controllers = req.controllers;
-            custom;
-            var expires = null;
-        };
-        node;
     };
 
-    public type GetNodeResponse = ICRC55.GetNodeResponse and {
-        custom : CustomNodeShared;
+    public func destinationMap(custom : Mem,  destinationsProvided: [ICRC55.DestinationEndpoint] ) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
+        switch (custom) {
+            case (#throttle(t)) ThrottleVector.Request2Destinations(t, destinationsProvided);
+            //...
+        };
     };
 
+    public func createRequest2Mem(req : CreateRequest) : Mem {
+        switch (req) {
+            case (#throttle(t)) #throttle(ThrottleVector.CreateRequest2Mem(t));
+            //...
+        };
+    };
+
+    public func modifyRequestMut(custom : Mem, creq : ModifyRequest) : Result.Result<(), Text> {
+        switch (custom, creq) {
+            case (#throttle(t), #throttle(r)) ThrottleVector.ModifyRequestMut(t, r);
+            //...
+        };
+    };
+
+    public func meta(all_ledgers : [ICRC55.SupportedLedger]) : [ICRC55.NodeMeta] {
+        [
+            ThrottleVector.meta(all_ledgers),
+        //...
+        ];
+    };
 };
