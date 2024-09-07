@@ -197,7 +197,7 @@ module {
         };
 
         public func hasDestination(vec : NodeMem<XMem>, port_idx : Nat) : Bool {
-            port_idx < vec.destinations.size();
+            port_idx < vec.destinations.size() and not Option.isNull(onlyICDest(vec.destinations[port_idx]).account);
         };
 
         public func getSource(vec : NodeMem<XMem>, port_idx : Nat) : ?Source {
