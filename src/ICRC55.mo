@@ -2,14 +2,15 @@ import Principal "mo:base/Principal";
 module {
 
     public type LocalNodeId = Nat32;
-    public type NodeFactoryMeta = [{
+    public type NodeFactoryMetaResp = [NodeMeta];
+    public type NodeMeta = {
         id : Text;
         name : Text;
         description : Text;
         governed_by : Text;
         supported_ledgers : [SupportedLedger];
         pricing : Text;
-    }];
+    };
 
     public type SupportedLedger = {
         #ic : Principal;
@@ -34,7 +35,21 @@ module {
         balance : Nat;
     };
 
-    public type DestinationEndpoint = Endpoint;
+    public type DestICEndpoint = {
+        ledger : Principal;
+        account : ?Account;
+    };
+
+    public type DestRemoteEndpoint = {
+        platform : Nat64;
+        ledger : Blob;
+        account : ?Blob;
+    };
+    
+    public type DestinationEndpoint = {
+        #ic : DestICEndpoint;
+        #remote : DestRemoteEndpoint;
+    };
 
     public type ICEndpoint = {
         ledger : Principal;
@@ -69,7 +84,10 @@ module {
         #ok : GetNodeResponse;
         #err : Text;
     };
-
+    public type NodeCreateFeeResp = {
+        #ok : NodeCreateFee;
+        #err : Text;
+    };
     public type NodeCreateFee = {
         amount : Nat;
         ledger : Principal;
@@ -77,9 +95,20 @@ module {
     };
 
     public type NodeRequest = {
-        destinations : [Endpoint];
+        destinations : [DestinationEndpoint];
         refund: [Endpoint];
         controllers : [Principal];
+    };
+
+    public type NodeModifyRequest = {
+        destinations : [DestinationEndpoint];
+        refund: [Endpoint];
+        controllers : [Principal];
+    };
+
+    public type NodeModifyResponse = {
+        #ok : ();
+        #err : Text;
     };
 
     public type DeleteNodeResp = {
@@ -92,7 +121,8 @@ module {
         icrc55_delete_node : shared (LocalNodeId) -> async DeleteNodeResp;
         icrc55_get_node : shared query GetNode -> async ?GetNodeResponse;
         icrc55_create_node : shared (NodeRequest, Any) -> async CreateNode;
-        icrc55_create_node_get_fee : shared query (Principal, Any) -> async NodeCreateFee;
-        icrc55_get_nodefactory_meta : shared query () -> async NodeFactoryMeta;
+        icrc55_create_node_get_fee : shared query (Principal, Any) -> async NodeCreateFeeResp;
+        icrc55_modify_node : shared (LocalNodeId, NodeModifyRequest, Any) -> async NodeModifyResponse;
+        icrc55_get_nodefactory_meta : shared query () -> async NodeFactoryMetaResp;
     };
 };

@@ -34,10 +34,9 @@ actor class () = this {
     dvf.add_ledger<system>(supportedLedgers[0], #icp);
     dvf.add_ledger<system>(supportedLedgers[1], #icrc);
 
-    stable let node_mem = Node.Mem<T.CustomNode>();
-    let nodes = Node.Node<system, T.CustomNodeRequest, T.CustomNode, T.CustomNodeShared>({
+    stable let node_mem = Node.Mem<T.Mem>();
+    let nodes = Node.Node<system, T.CreateRequest, T.Mem, T.Shared, T.ModifyRequest>({
         mem = node_mem;
-        requestToNode = T.requestToNode;
         dvf;
         nodeCreateFee = func(_node) {
             {
@@ -45,13 +44,18 @@ actor class () = this {
                 ledger = NTN_LEDGER;
             };
         };
-
+        supportedLedgers = Array.map<Principal, ICRC55.SupportedLedger>(supportedLedgers, func (x) = #ic(x));
         settings = {
             Node.DEFAULT_SETTINGS with
             MAX_SOURCES = 1 : Nat8;
             MAX_DESTINATIONS = 1 : Nat8;
         };
-        toShared = T.CustomNode.toShared;
+        toShared = T.toShared;
+        sourceMap = T.sourceMap;
+        destinationMap = T.destinationMap;
+        createRequest2Mem = T.createRequest2Mem;
+        modifyRequestMut = T.modifyRequestMut;
+        meta = T.meta;
     });
 
     // Main DeVeFi logic
@@ -108,26 +112,19 @@ actor class () = this {
         },
     );
 
-    public query func icrc55_get_nodefactory_meta() : async ICRC55.NodeFactoryMeta {
-        [{
-            id = "throttle";
-            name = "Throttle";
-            description = "Send X tokens every Y seconds";
-            governed_by = "Neutrinite DAO";
-            supported_ledgers = Array.map<Principal, ICRC55.SupportedLedger>(supportedLedgers, func (x) = #ic(x));
-            pricing = "1 NTN";
-        }];
+    public query func icrc55_get_nodefactory_meta() : async ICRC55.NodeFactoryMetaResp {
+        nodes.icrc55_get_nodefactory_meta();
     };
 
-    public query ({ caller }) func icrc55_create_node_get_fee(req : ICRC55.NodeRequest, creq : T.CustomNodeRequest) : async ICRC55.NodeCreateFee {
+    public query ({ caller }) func icrc55_create_node_get_fee(req : ICRC55.NodeRequest, creq : T.CreateRequest) : async ICRC55.NodeCreateFeeResp {
         nodes.icrc55_create_node_get_fee(caller, req, creq);
     };
 
-    public shared ({ caller }) func icrc55_create_node(req : ICRC55.NodeRequest, creq : T.CustomNodeRequest) : async Node.CreateNodeResp<T.CustomNodeShared> {
+    public shared ({ caller }) func icrc55_create_node(req : ICRC55.NodeRequest, creq : T.CreateRequest) : async Node.CreateNodeResp<T.Shared> {
         nodes.icrc55_create_node(caller, req, creq);
     };
 
-    public query func icrc55_get_node(req : ICRC55.GetNode) : async ?Node.NodeShared<T.CustomNodeShared> {
+    public query func icrc55_get_node(req : ICRC55.GetNode) : async ?Node.NodeShared<T.Shared> {
         nodes.icrc55_get_node(req);
     };
 
@@ -135,8 +132,16 @@ actor class () = this {
         nodes.icrc55_get_controller_nodes(caller);
     };
 
-    public shared ({ caller }) func icrc55_set_controller_nodes(vid : Node.NodeId) : async ICRC55.DeleteNodeResp {
+    public shared ({ caller }) func icrc55_set_controller_nodes(vid : ICRC55.LocalNodeId) : async ICRC55.DeleteNodeResp {
         nodes.icrc55_delete_node(caller, vid);
+    };
+
+    public shared ({caller}) func icrc55_delete_node(vid : ICRC55.LocalNodeId) : async ICRC55.DeleteNodeResp {
+        nodes.icrc55_delete_node(caller, vid);
+    };
+
+    public shared ({caller}) func icrc55_modify_node(vid : ICRC55.LocalNodeId, req : ICRC55.NodeModifyRequest, creq : T.ModifyRequest) : async ICRC55.NodeModifyResponse {
+        nodes.icrc55_modify_node(caller, vid, req, creq);
     };
 
     // We need to start the vector manually once when canister is installed, because we can't init dvf from the body
@@ -164,7 +169,7 @@ actor class () = this {
 
     // Dashboard explorer doesn't show icrc accounts in text format, this does
     // Hard to send tokens to Candid ICRC Accounts
-    public query func get_node_addr(vid : T.NodeId) : async ?Text {
+    public query func get_node_addr(vid : Node.NodeId) : async ?Text {
         let ?(_,vec) = nodes.getNode(#id(vid)) else return null;
 
         let subaccount = ?Node.port2subaccount({
