@@ -78,16 +78,24 @@ module {
         expires : ?Nat64;
     };
 
-    public type GetControllerNodes = [LocalNodeId];
+    public type GetControllerNodesRequest = {
+        id : Principal;
+        start : Nat;
+        length : Nat;
+    };
+    
+    public type GetControllerNodes = [GetNodeResponse];
 
     public type CreateNode = {
         #ok : GetNodeResponse;
         #err : Text;
     };
+
     public type NodeCreateFeeResp = {
         #ok : NodeCreateFee;
         #err : Text;
     };
+
     public type NodeCreateFee = {
         amount : Nat;
         ledger : Principal;
@@ -107,7 +115,7 @@ module {
     };
 
     public type NodeModifyResponse = {
-        #ok : ();
+        #ok : GetNodeResponse;
         #err : Text;
     };
 
@@ -117,12 +125,12 @@ module {
     };
 
     public type Self = actor {
-        icrc55_get_controller_nodes : shared query GetControllerNodes -> async GetControllerNodes;
+        icrc55_get_controller_nodes : shared query GetControllerNodesRequest -> async GetControllerNodes;
         icrc55_delete_node : shared (LocalNodeId) -> async DeleteNodeResp;
         icrc55_get_node : shared query GetNode -> async ?GetNodeResponse;
         icrc55_create_node : shared (NodeRequest, Any) -> async CreateNode;
         icrc55_create_node_get_fee : shared query (Principal, Any) -> async NodeCreateFeeResp;
-        icrc55_modify_node : shared (LocalNodeId, NodeModifyRequest, Any) -> async NodeModifyResponse;
+        icrc55_modify_node : shared (LocalNodeId, ?NodeModifyRequest, ?Any) -> async NodeModifyResponse;
         icrc55_get_nodefactory_meta : shared query () -> async NodeFactoryMetaResp;
     };
 };

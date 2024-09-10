@@ -2,12 +2,13 @@ import ICRC55 "../src/ICRC55";
 import Node "../src/node";
 import Result "mo:base/Result";
 import Array "mo:base/Array";
+import Nat8 "mo:base/Nat8";
 
 module {
 
     public func meta(all_ledgers : [ICRC55.SupportedLedger]) : ICRC55.NodeMeta {
         {
-            id = "throttle";
+            id = "throttle"; // This has to be same as the variant in vec.custom
             name = "Throttle";
             description = "Send X tokens every Y seconds";
             governed_by = "Neutrinite DAO";
@@ -114,19 +115,19 @@ module {
 
     // Mapping of source node ports
     public func Request2Sources(t : Mem, id : Node.NodeId, thiscan : Principal) : Result.Result<[ICRC55.Endpoint], Text> {
-        #ok([
-            #ic {
+        #ok(
+            Array.tabulate<ICRC55.Endpoint>(Nat8.toNat(t.variables.source_count), func(idx:Nat) = #ic {
                 ledger = t.init.ledger;
                 account = {
                     owner = thiscan;
                     subaccount = ?Node.port2subaccount({
                         vid = id;
                         flow = #input;
-                        id = 0;
+                        id = Nat8.fromNat(idx);
                     });
                 };
-            }
-        ]);
+            })
+        );
     };
 
     // Mapping of destination node ports

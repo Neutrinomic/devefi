@@ -128,8 +128,8 @@ actor class () = this {
         nodes.icrc55_get_node(req);
     };
 
-    public query ({ caller }) func icrc55_get_controller_nodes() : async ICRC55.GetControllerNodes {
-        nodes.icrc55_get_controller_nodes(caller);
+    public query ({ caller }) func icrc55_get_controller_nodes(req: ICRC55.GetControllerNodesRequest) : async [Node.NodeShared<T.Shared>] {
+        nodes.icrc55_get_controller_nodes(caller, req);
     };
 
     public shared ({ caller }) func icrc55_set_controller_nodes(vid : ICRC55.LocalNodeId) : async ICRC55.DeleteNodeResp {
@@ -140,7 +140,7 @@ actor class () = this {
         nodes.icrc55_delete_node(caller, vid);
     };
 
-    public shared ({caller}) func icrc55_modify_node(vid : ICRC55.LocalNodeId, req : ICRC55.NodeModifyRequest, creq : T.ModifyRequest) : async ICRC55.NodeModifyResponse {
+    public shared ({caller}) func icrc55_modify_node(vid : ICRC55.LocalNodeId, req : ?ICRC55.NodeModifyRequest, creq : ?T.ModifyRequest) : async Node.ModifyNodeResp<T.Shared> {
         nodes.icrc55_modify_node(caller, vid, req, creq);
     };
 
