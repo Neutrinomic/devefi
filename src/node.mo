@@ -31,8 +31,12 @@ module {
     public type Endpoint = ICRC55.Endpoint;
     public type DestinationEndpoint = ICRC55.DestinationEndpoint;
 
-
     public type CreateNodeResp<A> = {
+        #ok : NodeShared<A>;
+        #err : Text;
+    };
+
+    public type ModifyNodeResp<A> = {
         #ok : NodeShared<A>;
         #err : Text;
     };
@@ -52,7 +56,7 @@ module {
         id : NodeId;
         sources : [Endpoint];
         destinations : [DestinationEndpoint];
-        refund: [Endpoint];
+        refund : [Endpoint];
         controllers : [Principal];
         created : Nat64;
         modified : Nat64;
@@ -161,7 +165,7 @@ module {
                 let to : Account = switch (location) {
                     case (#destination({ port })) {
                         let ?acc = onlyICDest(cls.vec.destinations[port]).account else return;
-                        acc
+                        acc;
                     };
 
                     case (#remote_destination({ node; port })) {
@@ -218,10 +222,10 @@ module {
             mem.next_node_id;
         };
 
-        public func icrc55_delete_node(caller:Principal, vid : NodeId) : R<(), Text> {
+        public func icrc55_delete_node(caller : Principal, vid : NodeId) : R<(), Text> {
             // Check if caller is controller
             let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return #err("Node not found");
-            if (not Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
+            if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
 
             #ok(delete(vid));
         };
@@ -259,7 +263,7 @@ module {
                     let bal = dvf.balance(source.ledger, source.account.subaccount);
                     if (bal > 0) {
                         // try to find refund endpoint for that ledger source
-                        let ?xf = Array.find<ICRC55.Endpoint>(vec.refund, func (x) = onlyIC(x).ledger == source.ledger) else continue source_refund;
+                        let ?xf = Array.find<ICRC55.Endpoint>(vec.refund, func(x) = onlyIC(x).ledger == source.ledger) else continue source_refund;
                         let refund = onlyIC(xf);
 
                         ignore dvf.send({
@@ -272,6 +276,8 @@ module {
                     };
                 };
             };
+
+            dvf.unregisterSubaccount(?port2subaccount({ vid = vid; flow = #payment; id = 0 }));
 
             ignore Map.remove(mem.nodes, Map.n32hash, vid);
         };
@@ -290,7 +296,10 @@ module {
             // Once the node is deleted, we can send the fee back to the caller
             let id = mem.next_node_id;
 
-            let node = switch(node_createRequest2Mem(req, custom, id, thiscanister)) { case (#ok(x)) x; case (#err(e)) return #err(e); };
+            let node = switch (node_createRequest2Mem(req, custom, id, thiscanister)) {
+                case (#ok(x)) x;
+                case (#err(e)) return #err(e);
+            };
 
             let nfee = nodeCreateFee(node);
 
@@ -323,26 +332,31 @@ module {
             ignore Map.put(mem.nodes, Map.n32hash, id, node);
 
             // Registration required because the ICP ledger is hashing owner+subaccount
-            dvf.registerSubaccount(?port2subaccount({ vid = id; flow = #input; id = 0 }));
+            dvf.registerSubaccount(?port2subaccount({ vid = id; flow = #payment; id = 0 }));
 
+            label source_reg for (xsource in node.sources.vals()) {
+                let source = onlyIC(xsource);
+                dvf.registerSubaccount(source.account.subaccount);
+            };
             mem.next_node_id += 1;
 
             let ?node_shared = icrc55_get_node(#id(id)) else return #err("Couldn't find after create");
             #ok(node_shared);
         };
 
-        public func icrc55_modify_node(caller:Principal, vid: NodeId, nreq : ICRC55.NodeModifyRequest, custom : XModifyRequest) : ICRC55.NodeModifyResponse {
+        public func icrc55_modify_node(caller : Principal, vid : NodeId, nreq : ?ICRC55.NodeModifyRequest, custom : ?XModifyRequest) : ModifyNodeResp<XShared> {
             let ?thiscanister = mem.thiscan else return #err("This canister not set");
             let ?(_, vec) = getNode(#id(vid)) else return #err("Node not found");
-            if (not Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
+            if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
 
+           
             node_modifyRequest(vid, vec, nreq, custom, thiscanister);
+             
         };
 
         public func icrc55_get_nodefactory_meta() : ICRC55.NodeFactoryMetaResp {
             meta(supportedLedgers);
         };
-
 
         public func getNode(req : ICRC55.GetNode) : ?(NodeId, NodeMem<XMem>) {
             let (vec : NodeMem<XMem>, vid : NodeId) = switch (req) {
@@ -362,8 +376,11 @@ module {
 
         public func icrc55_get_node(req : ICRC55.GetNode) : ?NodeShared<XShared> {
             let ?(vid, vec) = getNode(req) else return null;
+            return ?vecToShared(vec, vid);
+        };
 
-            return ?{
+        public func vecToShared(vec : NodeMem<XMem>, vid : NodeId) : NodeShared<XShared> {
+            {
                 id = vid;
                 custom = toShared(vec.custom);
                 created = vec.created;
@@ -374,15 +391,17 @@ module {
                 destinations = vec.destinations;
                 refund = vec.refund;
             };
-
         };
 
-        public func icrc55_get_controller_nodes(controller : Principal) : [NodeId] {
+        public func icrc55_get_controller_nodes(caller : Principal, req : ICRC55.GetControllerNodesRequest) : [NodeShared<XShared>] {
             // Unoptimised for now, but it will get it done
-            let res = Vector.new<NodeId>();
-            for ((vid, vec) in entries()) {
-                if (not Option.isNull(Array.indexOf(controller, vec.controllers, Principal.equal))) {
-                    Vector.add(res, vid);
+            let res = Vector.new<NodeShared<XShared>>();
+            var cid = 0;
+            label search for ((vid, vec) in entries()) {
+                if (not Option.isNull(Array.indexOf(req.id, vec.controllers, Principal.equal))) {
+                    if (req.start <= cid and cid < req.start + req.length) Vector.add(res, vecToShared(vec, vid));
+                    if (cid >= req.start + req.length) break search;
+                    cid += 1;
                 };
             };
             Vector.toArray(res);
@@ -390,7 +409,7 @@ module {
 
         public func icrc55_create_node_get_fee(creator : Principal, req : ICRC55.NodeRequest, custom : XCreateRequest) : ICRC55.NodeCreateFeeResp {
             let ?thiscanister = mem.thiscan else Debug.trap("Not initialized");
-            let { ledger; amount } = nodeCreateFee( switch(node_createRequest2Mem(req, custom, 0, thiscanister)) { case (#ok(x)) x; case (#err(e)) return #err(e); });
+            let { ledger; amount } = nodeCreateFee(switch (node_createRequest2Mem(req, custom, 0, thiscanister)) { case (#ok(x)) x; case (#err(e)) return #err(e) });
             #ok({
                 ledger;
                 amount;
@@ -463,13 +482,11 @@ module {
             },
         );
 
-
-
         private func node_createRequest2Mem(req : ICRC55.NodeRequest, creq : XCreateRequest, id : NodeId, thiscan : Principal) : Result.Result<NodeMem<XMem>, Text> {
 
             let custom = createRequest2Mem(creq);
 
-            let {sources; destinations} = switch(portMap(id, custom, thiscan, req.destinations)) {
+            let { sources; destinations } = switch (portMap(id, custom, thiscan, req.destinations)) {
                 case (#err(e)) return #err(e);
                 case (#ok(x)) x;
             };
@@ -487,47 +504,71 @@ module {
 
             #ok(node);
         };
-        
-        private func node_modifyRequest(id: NodeId, vec : NodeMem<XMem>, nreq: ICRC55.NodeModifyRequest, creq : XModifyRequest, thiscan : Principal) : Result.Result<(), Text> {
+
+        private func node_modifyRequest(id : NodeId, vec : NodeMem<XMem>, nreq : ?ICRC55.NodeModifyRequest, creq : ?XModifyRequest, thiscan : Principal) : ModifyNodeResp<XShared> {
             
-            let {sources; destinations} = switch(portMap(id, vec.custom, thiscan, nreq.destinations)) {
+            label source_unregister for (xsource in vec.sources.vals()) {
+                let source = onlyIC(xsource);
+                dvf.unregisterSubaccount(source.account.subaccount);
+            };
+            
+            switch (creq) {
+                case (?cr) {
+                    switch (modifyRequestMut(vec.custom, cr)) {
+                        case (#err(e)) return #err(e);
+                        case (#ok()) ();
+                    };
+                };
+                case (null) ();
+            };
+
+            let provided_destinations = switch (nreq) {
+                case (?r) r.destinations;
+                case (null) vec.destinations;
+            };
+
+            // TODO: Check this - we are mutating and then returning error if source/destination fails
+            let { sources; destinations } = switch (portMap(id, vec.custom, thiscan, provided_destinations)) {
                 case (#err(e)) return #err(e);
                 case (#ok(x)) x;
             };
 
-            // Custom (Changes mutable fields)
-        
-            switch(modifyRequestMut(vec.custom, creq)) {
-                case (#err(e)) return #err(e);
-                case (#ok()) ();
-            };
-
+     
             // Modify if no errors
             vec.destinations := destinations;
             vec.sources := sources;
             vec.modified := U.now();
-            vec.controllers := nreq.controllers;
-            vec.refund := nreq.refund;
-
-            #ok();
+            ignore do ? {
+                vec.controllers := nreq!.controllers;
+                vec.refund := nreq!.refund;
+            };
             
+            label source_register for (xsource in vec.sources.vals()) {
+                let source = onlyIC(xsource);
+                dvf.registerSubaccount(source.account.subaccount);
+            };
+            
+            #ok(vecToShared(vec, id));
+
         };
 
+        private func portMap(id : NodeId, custom : XMem, thiscan : Principal, destinationsProvided : [ICRC55.DestinationEndpoint]) : Result.Result<{ sources : [ICRC55.Endpoint]; destinations : [ICRC55.DestinationEndpoint] }, Text> {
 
-        private func portMap(id: NodeId, custom : XMem, thiscan : Principal, destinationsProvided: [ICRC55.DestinationEndpoint] ) : Result.Result<{
-            sources : [ICRC55.Endpoint];
-            destinations : [ICRC55.DestinationEndpoint];
-        }, Text>  {
-            
             // Sources
             let s_res = sourceMap(id, custom, thiscan);
 
-            let sources = switch (s_res) { case (#ok(s)) s; case (#err(e)) return #err(e); };
+            let sources = switch (s_res) {
+                case (#ok(s)) s;
+                case (#err(e)) return #err(e);
+            };
 
             // Destinations
             let d_res = destinationMap(custom, destinationsProvided);
 
-            let destinations = switch (d_res) { case (#ok(d)) d; case (#err(e)) return #err(e); };
+            let destinations = switch (d_res) {
+                case (#ok(d)) d;
+                case (#err(e)) return #err(e);
+            };
 
             #ok({
                 sources = sources;
