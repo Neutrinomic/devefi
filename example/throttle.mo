@@ -3,6 +3,7 @@ import Node "../src/node";
 import Result "mo:base/Result";
 import Array "mo:base/Array";
 import Nat8 "mo:base/Nat8";
+import Debug "mo:base/Debug";
 
 module {
 
@@ -25,8 +26,6 @@ module {
         variables : {
             var interval_sec : NumVariant;
             var max_amount : NumVariant;
-            var source_count : Nat8;
-            var destination_count : Nat8;
         };
         internals : {
             var wait_until_ts : Nat64;
@@ -41,23 +40,33 @@ module {
         variables : {
             interval_sec : NumVariant;
             max_amount : NumVariant;
-            source_count : Nat8;
-            destination_count : Nat8;
         };
     };
 
     // Create state from request
-    public func CreateRequest2Mem(t : CreateRequest) : Mem {
+    public func createRequest2Mem(t : CreateRequest) : Mem {
         {
             init = t.init;
             variables = {
                 var interval_sec = t.variables.interval_sec;
                 var max_amount = t.variables.max_amount;
-                var source_count = t.variables.source_count;
-                var destination_count = t.variables.destination_count;
             };
             internals = {
                 var wait_until_ts = 0;
+            };
+        };
+    };
+
+
+    public func defaults(all_ledgers : [ICRC55.SupportedLedger]) : CreateRequest {
+        let #ic(ledger) = all_ledgers[0] else Debug.trap("No ledgers found");
+        {
+            init = {
+                ledger;
+            };
+            variables = {
+                interval_sec = #fixed(10);
+                max_amount = #fixed(100_0000);
             };
         };
     };
@@ -66,16 +75,12 @@ module {
     public type ModifyRequest = {
         interval_sec : NumVariant;
         max_amount : NumVariant;
-        source_count : Nat8;
-        destination_count : Nat8;
     };
 
     // How does the modify request change memory
-    public func ModifyRequestMut(mem : Mem, t : ModifyRequest) : Result.Result<(), Text> {
+    public func modifyRequestMut(mem : Mem, t : ModifyRequest) : Result.Result<(), Text> {
         mem.variables.interval_sec := t.interval_sec;
         mem.variables.max_amount := t.max_amount;
-        mem.variables.source_count := t.source_count;
-        mem.variables.destination_count := t.destination_count;
         #ok();
     };
 
@@ -89,8 +94,6 @@ module {
         variables : {
             interval_sec : NumVariant;
             max_amount : NumVariant;
-            source_count : Nat8;
-            destination_count : Nat8;
         };
         internals : {
             wait_until_ts : Nat64;
@@ -104,8 +107,6 @@ module {
             variables = {
                 interval_sec = t.variables.interval_sec;
                 max_amount = t.variables.max_amount;
-                source_count = t.variables.source_count;
-                destination_count = t.variables.destination_count;
             };
             internals = {
                 wait_until_ts = t.internals.wait_until_ts;
@@ -114,9 +115,9 @@ module {
     };
 
     // Mapping of source node ports
-    public func Request2Sources(t : Mem, id : Node.NodeId, thiscan : Principal) : Result.Result<[ICRC55.Endpoint], Text> {
+    public func request2Sources(t : Mem, id : Node.NodeId, thiscan : Principal) : Result.Result<[ICRC55.Endpoint], Text> {
         #ok(
-            Array.tabulate<ICRC55.Endpoint>(Nat8.toNat(t.variables.source_count), func(idx:Nat) = #ic {
+            Array.tabulate<ICRC55.Endpoint>(1, func(idx:Nat) = #ic {
                 ledger = t.init.ledger;
                 account = {
                     owner = thiscan;
@@ -135,7 +136,7 @@ module {
     // Allows you to change destinations and dynamically create new ones based on node state upon creation or modification
     // Fills in the account field when destination accounts are given
     // or leaves them null when not given
-    public func Request2Destinations(t : Mem, req:[ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
+    public func request2Destinations(t : Mem, req:[ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
         let dest_0_account : ?ICRC55.Account = do { 
             if (req.size() >= 1) {
                 let #ic(x) = req[0] else return #err("Invalid destination 0");

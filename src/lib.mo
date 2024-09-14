@@ -112,6 +112,10 @@ module {
             return null;
         };
 
+        public func me() : Principal {
+            let ?me = mem.me else Debug.trap("Not initialized");
+            me;
+        };
 
         public func onEvent(fn: Event -> ()) {
             emitFunc := ?fn;

@@ -94,15 +94,11 @@ module {
     public type SETTINGS = {
         TEMP_NODE_EXPIRATION_SEC : Nat64;
         ALLOW_TEMP_NODE_CREATION : Bool;
-        MAX_SOURCES : Nat8;
-        MAX_DESTINATIONS : Nat8;
     };
 
     public let DEFAULT_SETTINGS : SETTINGS = {
         ALLOW_TEMP_NODE_CREATION = true;
         TEMP_NODE_EXPIRATION_SEC = 3600;
-        MAX_SOURCES = 1;
-        MAX_DESTINATIONS = 1;
     };
 
     public class Node<system, XCreateRequest, XMem, XShared, XModifyRequest>({
@@ -120,6 +116,7 @@ module {
         modifyRequestMut : (XMem, XModifyRequest) -> R<(), Text>;
         createRequest2Mem : (XCreateRequest) -> XMem;
         meta : ([ICRC55.SupportedLedger]) -> [ICRC55.NodeMeta];
+        getDefaults : (Text, [ICRC55.SupportedLedger]) -> XCreateRequest;
     }) {
 
         public class Source(
@@ -282,10 +279,20 @@ module {
             ignore Map.remove(mem.nodes, Map.n32hash, vid);
         };
 
-        public func setThisCanister(can : Principal) : () {
+        public func setThisCanister<system>(can : Principal) : () {
             mem.thiscan := ?can;
+            ignore Timer.setTimer<system>(#seconds(1), func() : async () {
+                // Register the canister in node registry
+                let reg = actor("elgu6-jiaaa-aaaal-qkkiq-cai") : actor {
+                    register_vector : shared ({id: Principal}) -> async ();
+                };
+                await reg.register_vector({ id = can });
+            });
         };
 
+        public func icrc55_get_defaults(id:Text) : XCreateRequest {
+            getDefaults(id, supportedLedgers);
+        };
         public func icrc55_create_node(caller : Principal, req : ICRC55.NodeRequest, custom : XCreateRequest) : CreateNodeResp<XShared> {
             let ?thiscanister = mem.thiscan else return #err("This canister not set");
             // TODO: Limit tempory node creation per hour (against DoS)
