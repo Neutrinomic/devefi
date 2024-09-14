@@ -279,7 +279,7 @@ module {
             ignore Map.remove(mem.nodes, Map.n32hash, vid);
         };
 
-        public func setThisCanister<system>(can : Principal) : () {
+        public func start<system>(can : Principal) : () {
             mem.thiscan := ?can;
             ignore Timer.setTimer<system>(#seconds(1), func() : async () {
                 // Register the canister in node registry
