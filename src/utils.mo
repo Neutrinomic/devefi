@@ -3,6 +3,8 @@ import Nat32 "mo:base/Nat32";
 import Nat64 "mo:base/Nat64";
 import Time "mo:base/Time";
 import Int "mo:base/Int";
+import ICRC55 "./ICRC55";
+import Result "mo:base/Result";
 
 module {
 
@@ -45,5 +47,11 @@ module {
         Nat64.fromNat(Int.abs(Time.now()))
     };
 
-
+    public func expectAccount(expected_ledger: Principal, req : [ICRC55.DestinationEndpoint], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
+        if (req.size() <= idx) return #ok(null);
+        
+        let #ic(x) = req[idx] else return #err;
+        if (x.ledger != expected_ledger) return #err;
+        #ok(x.account);
+    };
 }

@@ -27,12 +27,16 @@ actor class () = this {
 
     let supportedLedgers : [Principal] = [
         Principal.fromText("ryjl3-tyaaa-aaaaa-aaaba-cai"),
+        Principal.fromText("mxzaz-hqaaa-aaaar-qaada-cai"),
+        Principal.fromText("xevnm-gaaaa-aaaar-qafnq-cai"),
         NTN_LEDGER,
     ];
 
     let dvf = DeVeFi.DeVeFi<system>({ mem = dvf_mem });
     dvf.add_ledger<system>(supportedLedgers[0], #icp);
     dvf.add_ledger<system>(supportedLedgers[1], #icrc);
+    dvf.add_ledger<system>(supportedLedgers[2], #icrc);
+    dvf.add_ledger<system>(supportedLedgers[3], #icrc);
 
     stable let node_mem = Node.Mem<T.Mem>();
     let nodes = Node.Node<system, T.CreateRequest, T.Mem, T.Shared, T.ModifyRequest>({
@@ -155,7 +159,7 @@ actor class () = this {
     public shared ({ caller }) func start() {
         assert (Principal.isController(caller));
         dvf.start<system>(Principal.fromActor(this));
-        nodes.setThisCanister(Principal.fromActor(this));
+        nodes.start<system>(Principal.fromActor(this));
     };
 
 

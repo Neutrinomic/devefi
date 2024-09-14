@@ -10,37 +10,35 @@ module {
 
     public func meta(all_ledgers : [ICRC55.SupportedLedger]) : ICRC55.NodeMeta {
         {
-            id = "throttle"; // This has to be same as the variant in vec.custom
-            name = "Throttle";
-            description = "Send X tokens every Y seconds";
+            id = "borrow"; // This has to be same as the variant in vec.custom
+            name = "Borrow";
+            description = "Borrow X tokens while providing Y tokens collateral";
             governed_by = "Neutrinite DAO";
             supported_ledgers = all_ledgers;
             pricing = "1 NTN";
-        }
+        };
     };
 
     // Internal vector state
     public type Mem = {
         init : {
-            ledger : Principal;
+            ledger_borrow : Principal;
+            ledger_collateral : Principal;
         };
         variables : {
-            var interval_sec : NumVariant;
-            var max_amount : NumVariant;
+            var interest : Nat;
         };
-        internals : {
-            var wait_until_ts : Nat64;
-        };
+        internals : {};
     };
 
     // Create request
     public type CreateRequest = {
         init : {
-            ledger : Principal;
+            ledger_borrow : Principal;
+            ledger_collateral : Principal;
         };
         variables : {
-            interval_sec : NumVariant;
-            max_amount : NumVariant;
+            interest : Nat;
         };
     };
 
@@ -49,87 +47,86 @@ module {
         {
             init = t.init;
             variables = {
-                var interval_sec = t.variables.interval_sec;
-                var max_amount = t.variables.max_amount;
+                var interest = t.variables.interest;
             };
-            internals = {
-                var wait_until_ts = 0;
-            };
+            internals = {};
         };
     };
 
-
     public func defaults(all_ledgers : [ICRC55.SupportedLedger]) : CreateRequest {
-        let #ic(ledger) = all_ledgers[0] else Debug.trap("No ledgers found");
+        let #ic(ledger_borrow) = all_ledgers[0] else Debug.trap("No ledgers found");
+        let #ic(ledger_collateral) = all_ledgers[1] else Debug.trap("No ledgers found");
         {
             init = {
-                ledger;
+                ledger_borrow;
+                ledger_collateral;
             };
             variables = {
-                interval_sec = #fixed(10);
-                max_amount = #fixed(100_0000);
+                interest = 20;
             };
         };
     };
 
     // Modify request
     public type ModifyRequest = {
-        interval_sec : NumVariant;
-        max_amount : NumVariant;
+        interest : Nat;
     };
 
     // How does the modify request change memory
     public func modifyRequestMut(mem : Mem, t : ModifyRequest) : Result.Result<(), Text> {
-        mem.variables.interval_sec := t.interval_sec;
-        mem.variables.max_amount := t.max_amount;
+        mem.variables.interest := t.interest;
         #ok();
     };
-
-
 
     // Public shared state
     public type Shared = {
         init : {
-            ledger : Principal;
+            ledger_borrow : Principal;
+            ledger_collateral : Principal;
         };
         variables : {
-            interval_sec : NumVariant;
-            max_amount : NumVariant;
+            interest : Nat;
         };
-        internals : {
-            wait_until_ts : Nat64;
-        };
+        internals : {};
     };
 
-    // Convert memory to shared 
+    // Convert memory to shared
     public func toShared(t : Mem) : Shared {
         {
             init = t.init;
             variables = {
-                interval_sec = t.variables.interval_sec;
-                max_amount = t.variables.max_amount;
+                interest = t.variables.interest;
             };
-            internals = {
-                wait_until_ts = t.internals.wait_until_ts;
-            };
+            internals = {};
         };
     };
 
     // Mapping of source node ports
     public func request2Sources(t : Mem, id : Node.NodeId, thiscan : Principal) : Result.Result<[ICRC55.Endpoint], Text> {
-        #ok(
-            Array.tabulate<ICRC55.Endpoint>(1, func(idx:Nat) = #ic {
-                ledger = t.init.ledger;
+        #ok([
+            #ic {
+                ledger = t.init.ledger_collateral;
                 account = {
                     owner = thiscan;
                     subaccount = ?Node.port2subaccount({
                         vid = id;
                         flow = #input;
-                        id = Nat8.fromNat(idx);
+                        id = 0;
                     });
                 };
-            })
-        );
+            },
+            #ic {
+                ledger = t.init.ledger_borrow;
+                account = {
+                    owner = thiscan;
+                    subaccount = ?Node.port2subaccount({
+                        vid = id;
+                        flow = #input;
+                        id = 1;
+                    });
+                };
+            }
+        ]);
     };
 
     // Mapping of destination node ports
@@ -137,23 +134,23 @@ module {
     // Allows you to change destinations and dynamically create new ones based on node state upon creation or modification
     // Fills in the account field when destination accounts are given
     // or leaves them null when not given
-    public func request2Destinations(t : Mem, req:[ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
-        let #ok(acc) = U.expectAccount(t.init.ledger, req, 0) else return #err("Invalid destination 0");
+    public func request2Destinations(t : Mem, req : [ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
+   
+        let #ok(borrow_account) = U.expectAccount(t.init.ledger_borrow, req, 0) else return #err("Invalid destination 0");
+        let #ok(return_account) = U.expectAccount(t.init.ledger_collateral, req, 0) else return #err("Invalid destination 1");
 
         #ok([
             #ic {
-                ledger = t.init.ledger;
-                account = acc;
+                ledger = t.init.ledger_borrow;
+                account = borrow_account;
+            },
+            #ic {
+                ledger = t.init.ledger_collateral;
+                account = return_account;
             }
         ]);
     };
 
-    // Other custom types
-    public type NumVariant = {
-        #fixed : Nat64;
-        #rnd : { min : Nat64; max : Nat64 };
-    };
 
-    
 
 };

@@ -10,37 +10,35 @@ module {
 
     public func meta(all_ledgers : [ICRC55.SupportedLedger]) : ICRC55.NodeMeta {
         {
-            id = "throttle"; // This has to be same as the variant in vec.custom
-            name = "Throttle";
-            description = "Send X tokens every Y seconds";
+            id = "exchange"; // This has to be same as the variant in vec.custom
+            name = "Exchange";
+            description = "Exchange X for Y";
             governed_by = "Neutrinite DAO";
             supported_ledgers = all_ledgers;
             pricing = "1 NTN";
-        }
+        };
     };
 
     // Internal vector state
     public type Mem = {
         init : {
-            ledger : Principal;
+            ledger_from : Principal;
+            ledger_to : Principal;
         };
         variables : {
-            var interval_sec : NumVariant;
-            var max_amount : NumVariant;
+            var max_per_sec : Nat;
         };
-        internals : {
-            var wait_until_ts : Nat64;
-        };
+        internals : {};
     };
 
     // Create request
     public type CreateRequest = {
         init : {
-            ledger : Principal;
+            ledger_from : Principal;
+            ledger_to : Principal;
         };
         variables : {
-            interval_sec : NumVariant;
-            max_amount : NumVariant;
+            max_per_sec : Nat;
         };
     };
 
@@ -49,87 +47,75 @@ module {
         {
             init = t.init;
             variables = {
-                var interval_sec = t.variables.interval_sec;
-                var max_amount = t.variables.max_amount;
+                var max_per_sec = t.variables.max_per_sec;
             };
-            internals = {
-                var wait_until_ts = 0;
-            };
+            internals = {};
         };
     };
 
-
     public func defaults(all_ledgers : [ICRC55.SupportedLedger]) : CreateRequest {
-        let #ic(ledger) = all_ledgers[0] else Debug.trap("No ledgers found");
+        let #ic(ledger_from) = all_ledgers[0] else Debug.trap("No ledgers found");
+        let #ic(ledger_to) = all_ledgers[1] else Debug.trap("No ledgers found");
         {
             init = {
-                ledger;
+                ledger_from;
+                ledger_to;
             };
             variables = {
-                interval_sec = #fixed(10);
-                max_amount = #fixed(100_0000);
+                max_per_sec = 100000000;
             };
         };
     };
 
     // Modify request
     public type ModifyRequest = {
-        interval_sec : NumVariant;
-        max_amount : NumVariant;
+        max_per_sec : Nat;
     };
 
     // How does the modify request change memory
     public func modifyRequestMut(mem : Mem, t : ModifyRequest) : Result.Result<(), Text> {
-        mem.variables.interval_sec := t.interval_sec;
-        mem.variables.max_amount := t.max_amount;
+        mem.variables.max_per_sec := t.max_per_sec;
         #ok();
     };
-
-
 
     // Public shared state
     public type Shared = {
         init : {
-            ledger : Principal;
+            ledger_from : Principal;
+            ledger_to : Principal;
         };
         variables : {
-            interval_sec : NumVariant;
-            max_amount : NumVariant;
+            max_per_sec : Nat;
         };
-        internals : {
-            wait_until_ts : Nat64;
-        };
+        internals : {};
     };
 
-    // Convert memory to shared 
+    // Convert memory to shared
     public func toShared(t : Mem) : Shared {
         {
             init = t.init;
             variables = {
-                interval_sec = t.variables.interval_sec;
-                max_amount = t.variables.max_amount;
+                max_per_sec = t.variables.max_per_sec;
             };
-            internals = {
-                wait_until_ts = t.internals.wait_until_ts;
-            };
+            internals = {};
         };
     };
 
     // Mapping of source node ports
     public func request2Sources(t : Mem, id : Node.NodeId, thiscan : Principal) : Result.Result<[ICRC55.Endpoint], Text> {
-        #ok(
-            Array.tabulate<ICRC55.Endpoint>(1, func(idx:Nat) = #ic {
-                ledger = t.init.ledger;
+        #ok([
+            #ic {
+                ledger = t.init.ledger_from;
                 account = {
                     owner = thiscan;
                     subaccount = ?Node.port2subaccount({
                         vid = id;
                         flow = #input;
-                        id = Nat8.fromNat(idx);
+                        id = 0;
                     });
                 };
-            })
-        );
+            }
+        ]);
     };
 
     // Mapping of destination node ports
@@ -137,23 +123,18 @@ module {
     // Allows you to change destinations and dynamically create new ones based on node state upon creation or modification
     // Fills in the account field when destination accounts are given
     // or leaves them null when not given
-    public func request2Destinations(t : Mem, req:[ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
-        let #ok(acc) = U.expectAccount(t.init.ledger, req, 0) else return #err("Invalid destination 0");
+    public func request2Destinations(t : Mem, req : [ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
+   
+        let #ok(to_account) = U.expectAccount(t.init.ledger_to, req, 0) else return #err("Invalid destination 0");
 
         #ok([
             #ic {
-                ledger = t.init.ledger;
-                account = acc;
+                ledger = t.init.ledger_to;
+                account = to_account;
             }
         ]);
     };
 
-    // Other custom types
-    public type NumVariant = {
-        #fixed : Nat64;
-        #rnd : { min : Nat64; max : Nat64 };
-    };
 
-    
 
 };
