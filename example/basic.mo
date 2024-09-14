@@ -55,6 +55,7 @@ actor class () = this {
         destinationMap = T.destinationMap;
         createRequest2Mem = T.createRequest2Mem;
         modifyRequestMut = T.modifyRequestMut;
+        getDefaults = T.getDefaults;
         meta = T.meta;
     });
 
@@ -142,6 +143,10 @@ actor class () = this {
 
     public shared ({caller}) func icrc55_modify_node(vid : ICRC55.LocalNodeId, req : ?ICRC55.NodeModifyRequest, creq : ?T.ModifyRequest) : async Node.ModifyNodeResp<T.Shared> {
         nodes.icrc55_modify_node(caller, vid, req, creq);
+    };
+
+    public query func icrc55_get_defaults(id : Text) : async T.CreateRequest {
+        nodes.icrc55_get_defaults(id);
     };
 
     // We need to start the vector manually once when canister is installed, because we can't init dvf from the body
