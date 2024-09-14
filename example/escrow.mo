@@ -10,9 +10,9 @@ module {
 
     public func meta(all_ledgers : [ICRC55.SupportedLedger]) : ICRC55.NodeMeta {
         {
-            id = "borrow"; // This has to be same as the variant in vec.custom
-            name = "Borrow";
-            description = "Borrow X tokens while providing Y tokens collateral";
+            id = "escrow"; // This has to be same as the variant in vec.custom
+            name = "Escrow";
+            description = "Escrow X tokens";
             governed_by = "Neutrinite DAO";
             supported_ledgers = all_ledgers;
             pricing = "1 NTN";
@@ -22,11 +22,9 @@ module {
     // Internal vector state
     public type Mem = {
         init : {
-            ledger_borrow : Principal;
-            ledger_collateral : Principal;
+            ledger : Principal;
         };
         variables : {
-            var interest : Nat;
         };
         internals : {};
     };
@@ -34,11 +32,9 @@ module {
     // Create request
     public type CreateRequest = {
         init : {
-            ledger_borrow : Principal;
-            ledger_collateral : Principal;
+            ledger : Principal;
         };
         variables : {
-            interest : Nat;
         };
     };
 
@@ -47,45 +43,38 @@ module {
         {
             init = t.init;
             variables = {
-                var interest = t.variables.interest;
             };
             internals = {};
         };
     };
 
     public func defaults(all_ledgers : [ICRC55.SupportedLedger]) : CreateRequest {
-        let #ic(ledger_borrow) = all_ledgers[0] else Debug.trap("No ledgers found");
-        let #ic(ledger_collateral) = all_ledgers[1] else Debug.trap("No ledgers found");
+        let #ic(ledger) = all_ledgers[0] else Debug.trap("No ledgers found");
         {
             init = {
-                ledger_borrow;
-                ledger_collateral;
+                ledger;
             };
             variables = {
-                interest = 20;
             };
         };
     };
 
     // Modify request
     public type ModifyRequest = {
-        interest : Nat;
+        
     };
 
     // How does the modify request change memory
     public func modifyRequestMut(mem : Mem, t : ModifyRequest) : Result.Result<(), Text> {
-        mem.variables.interest := t.interest;
         #ok();
     };
 
     // Public shared state
     public type Shared = {
         init : {
-            ledger_borrow : Principal;
-            ledger_collateral : Principal;
+            ledger : Principal;
         };
         variables : {
-            interest : Nat;
         };
         internals : {};
     };
@@ -95,7 +84,6 @@ module {
         {
             init = t.init;
             variables = {
-                interest = t.variables.interest;
             };
             internals = {};
         };
@@ -105,7 +93,7 @@ module {
     public func request2Sources(t : Mem, id : Node.NodeId, thiscan : Principal) : Result.Result<[ICRC55.Endpoint], Text> {
         #ok([
             #ic {
-                ledger = t.init.ledger_collateral;
+                ledger = t.init.ledger;
                 account = {
                     owner = thiscan;
                     subaccount = ?Node.port2subaccount({
@@ -114,19 +102,7 @@ module {
                         id = 0;
                     });
                 };
-                name = "Collateral";
-            },
-            #ic {
-                ledger = t.init.ledger_borrow;
-                account = {
-                    owner = thiscan;
-                    subaccount = ?Node.port2subaccount({
-                        vid = id;
-                        flow = #input;
-                        id = 1;
-                    });
-                };
-                name = "Repayment";
+                name = "";
             }
         ]);
     };
@@ -138,19 +114,19 @@ module {
     // or leaves them null when not given
     public func request2Destinations(t : Mem, req : [ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
    
-        let #ok(borrow_account) = U.expectAccount(t.init.ledger_borrow, req, 0) else return #err("Invalid destination 0");
-        let #ok(return_account) = U.expectAccount(t.init.ledger_collateral, req, 1) else return #err("Invalid destination 1");
+        let #ok(success_account) = U.expectAccount(t.init.ledger, req, 0) else return #err("Invalid destination 0");
+        let #ok(fail_account) = U.expectAccount(t.init.ledger, req, 1) else return #err("Invalid destination 1");
 
         #ok([
             #ic {
-                ledger = t.init.ledger_borrow;
-                account = borrow_account;
-                name = "";
+                ledger = t.init.ledger;
+                account = success_account;
+                name = "Success";
             },
             #ic {
-                ledger = t.init.ledger_collateral;
-                account = return_account;
-                name = "Collateral";
+                ledger = t.init.ledger;
+                account = fail_account;
+                name = "Fail";
             }
         ]);
     };
