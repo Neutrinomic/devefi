@@ -1,4 +1,5 @@
 import Principal "mo:base/Principal";
+import Text "mo:base/Text";
 module {
 
     public type LocalNodeId = Nat32;
@@ -38,12 +39,14 @@ module {
     public type DestICEndpoint = {
         ledger : Principal;
         account : ?Account;
+        name: Text
     };
 
     public type DestRemoteEndpoint = {
         platform : Nat64;
         ledger : Blob;
         account : ?Blob;
+        name: Text;
     };
     
     public type DestinationEndpoint = {
@@ -54,12 +57,14 @@ module {
     public type ICEndpoint = {
         ledger : Principal;
         account : Account;
+        name :Text;
     };
 
     public type RemoteEndpoint = {
         platform : Nat64;
         ledger : Blob;
         account : Blob;
+        name:Text;
     };
 
     public type Endpoint = {

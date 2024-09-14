@@ -128,6 +128,7 @@ module {
                         id = Nat8.fromNat(idx);
                     });
                 };
+                name = "";
             })
         );
     };
@@ -144,6 +145,7 @@ module {
             #ic {
                 ledger = t.init.ledger;
                 account = acc;
+                name = "";
             }
         ]);
     };

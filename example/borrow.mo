@@ -114,6 +114,7 @@ module {
                         id = 0;
                     });
                 };
+                name = "Collateral";
             },
             #ic {
                 ledger = t.init.ledger_borrow;
@@ -125,6 +126,7 @@ module {
                         id = 1;
                     });
                 };
+                name = "Repayment";
             }
         ]);
     };
@@ -143,10 +145,12 @@ module {
             #ic {
                 ledger = t.init.ledger_borrow;
                 account = borrow_account;
+                name = "Borrow";
             },
             #ic {
                 ledger = t.init.ledger_collateral;
                 account = return_account;
+                name = "Collateral";
             }
         ]);
     };
