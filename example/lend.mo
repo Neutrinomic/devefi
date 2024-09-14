@@ -114,6 +114,7 @@ module {
                         id = 0;
                     });
                 };
+                name = "Lend";
             }
         ]);
     };
@@ -133,14 +134,17 @@ module {
             #ic {
                 ledger = t.init.ledger_collateral;
                 account = liquidation_account;
+                name = "Liquidation";
             },
             #ic {
                 ledger = t.init.ledger_collateral;
                 account = fee_account;
+                name = "Fee";
             },
             #ic {
                 ledger = t.init.ledger_lend;
                 account = return_account;
+                name = "Repayment";
             }
         ]);
     };

@@ -114,6 +114,7 @@ module {
                         id = 0;
                     });
                 };
+                name = "From";
             }
         ]);
     };
@@ -131,6 +132,7 @@ module {
             #ic {
                 ledger = t.init.ledger_to;
                 account = to_account;
+                name = "To";
             }
         ]);
     };
