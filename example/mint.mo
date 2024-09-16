@@ -117,9 +117,10 @@ module {
     // Fills in the account field when destination accounts are given
     // or leaves them null when not given
     public func request2Destinations(t : Mem, req : [ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
-   
-        let #ok(for_account) = U.expectAccount(t.init.ledger_for, req, 0) else return #err("Invalid destination 1");
-        let #ok(mint_account) = U.expectAccount(t.init.ledger_mint, req, 1) else return #err("Invalid destination 0");
+
+        let #ok(mint_account) = U.expectAccount(t.init.ledger_mint, req, 0) else return #err("Invalid destination 0");   
+        let #ok(for_account) = U.expectAccount(t.init.ledger_for, req, 1) else return #err("Invalid destination 1");
+
         
 
         #ok([
