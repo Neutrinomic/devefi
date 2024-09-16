@@ -13,9 +13,9 @@ module {
             id = "exchange"; // This has to be same as the variant in vec.custom
             name = "Exchange";
             description = "Exchange X for Y";
-            governed_by = "Neutrinite DAO";
             supported_ledgers = all_ledgers;
             pricing = "1 NTN";
+            version = #alpha;
         };
     };
 

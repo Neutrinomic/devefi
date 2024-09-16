@@ -14,9 +14,9 @@ module {
             id = "split"; // This has to be same as the variant in vec.custom
             name = "Split";
             description = "Split X tokens";
-            governed_by = "Neutrinite DAO";
             supported_ledgers = all_ledgers;
             pricing = "1 NTN";
+            version = #alpha;
         };
     };
 

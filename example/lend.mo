@@ -13,9 +13,9 @@ module {
             id = "lend"; // This has to be same as the variant in vec.custom
             name = "Lend";
             description = "Lend X tokens against Y tokens";
-            governed_by = "Neutrinite DAO";
             supported_ledgers = all_ledgers;
             pricing = "1 NTN";
+            version = #alpha;
         };
     };
 

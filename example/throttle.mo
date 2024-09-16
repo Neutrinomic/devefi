@@ -13,9 +13,9 @@ module {
             id = "throttle"; // This has to be same as the variant in vec.custom
             name = "Throttle";
             description = "Send X tokens every Y seconds";
-            governed_by = "Neutrinite DAO";
             supported_ledgers = all_ledgers;
             pricing = "1 NTN";
+            version = #alpha;
         }
     };
 

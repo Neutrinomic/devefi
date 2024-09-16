@@ -94,11 +94,16 @@ module {
     public type SETTINGS = {
         TEMP_NODE_EXPIRATION_SEC : Nat64;
         ALLOW_TEMP_NODE_CREATION : Bool;
+        PYLON_GOVERNED_BY : Text;
+        PYLON_NAME : Text;
+        
     };
 
     public let DEFAULT_SETTINGS : SETTINGS = {
         ALLOW_TEMP_NODE_CREATION = true;
         TEMP_NODE_EXPIRATION_SEC = 3600;
+        PYLON_GOVERNED_BY = "Unknown";
+        PYLON_NAME = "Testing Pylon";
     };
 
     public class Node<system, XCreateRequest, XMem, XShared, XModifyRequest>({
@@ -355,7 +360,11 @@ module {
         };
 
         public func icrc55_get_nodefactory_meta() : ICRC55.NodeFactoryMetaResp {
-            meta(supportedLedgers);
+            {
+                name = settings.PYLON_NAME;
+                governed_by = settings.PYLON_GOVERNED_BY;
+                nodes = meta(supportedLedgers)
+                };
         };
 
         public func getNode(req : ICRC55.GetNode) : ?(NodeId, NodeMem<XMem>) {

@@ -13,9 +13,9 @@ module {
             id = "borrow"; // This has to be same as the variant in vec.custom
             name = "Borrow";
             description = "Borrow X tokens while providing Y tokens collateral";
-            governed_by = "Neutrinite DAO";
             supported_ledgers = all_ledgers;
             pricing = "1 NTN";
+            version = #alpha;
         };
     };
 

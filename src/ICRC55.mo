@@ -3,14 +3,19 @@ import Text "mo:base/Text";
 module {
 
     public type LocalNodeId = Nat32;
-    public type NodeFactoryMetaResp = [NodeMeta];
+    public type NodeFactoryMetaResp = {
+        name: Text;
+        governed_by : Text;
+        nodes: [NodeMeta];
+    };
+    public type Version = {#production; #beta; #alpha};
     public type NodeMeta = {
         id : Text;
         name : Text;
         description : Text;
-        governed_by : Text;
         supported_ledgers : [SupportedLedger];
         pricing : Text;
+        version: Version; //TODO: each node should have different princing token
     };
 
     public type SupportedLedger = {
