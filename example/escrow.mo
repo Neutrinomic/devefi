@@ -13,9 +13,9 @@ module {
             id = "escrow"; // This has to be same as the variant in vec.custom
             name = "Escrow";
             description = "Escrow X tokens";
-            governed_by = "Neutrinite DAO";
             supported_ledgers = all_ledgers;
             pricing = "1 NTN";
+            version = #alpha;
         };
     };
 

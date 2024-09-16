@@ -53,6 +53,8 @@ actor class () = this {
             Node.DEFAULT_SETTINGS with
             MAX_SOURCES = 1 : Nat8;
             MAX_DESTINATIONS = 1 : Nat8;
+            PYLON_NAME = "Transcendence";
+            PYLON_GOVERNED_BY = "Neutrinite DAO"
         };
         toShared = T.toShared;
         sourceMap = T.sourceMap;
@@ -135,10 +137,6 @@ actor class () = this {
 
     public query ({ caller }) func icrc55_get_controller_nodes(req: ICRC55.GetControllerNodesRequest) : async [Node.NodeShared<T.Shared>] {
         nodes.icrc55_get_controller_nodes(caller, req);
-    };
-
-    public shared ({ caller }) func icrc55_set_controller_nodes(vid : ICRC55.LocalNodeId) : async ICRC55.DeleteNodeResp {
-        nodes.icrc55_delete_node(caller, vid);
     };
 
     public shared ({caller}) func icrc55_delete_node(vid : ICRC55.LocalNodeId) : async ICRC55.DeleteNodeResp {
