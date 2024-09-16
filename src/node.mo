@@ -281,13 +281,6 @@ module {
 
         public func start<system>(can : Principal) : () {
             mem.thiscan := ?can;
-            ignore Timer.setTimer<system>(#seconds(1), func() : async () {
-                // Register the canister in node registry
-                let reg = actor("elgu6-jiaaa-aaaal-qkkiq-cai") : actor {
-                    register_vector : shared ({id: Principal}) -> async ();
-                };
-                await reg.register_vector({ id = can });
-            });
         };
 
         public func icrc55_get_defaults(id:Text) : XCreateRequest {
@@ -582,6 +575,14 @@ module {
                 destinations = destinations;
             });
         };
+
+         ignore Timer.setTimer<system>(#seconds(1), func() : async () {
+            // Register the canister in pylon registry
+            let reg = actor("elgu6-jiaaa-aaaal-qkkiq-cai") : actor {
+                register_pylon : shared () -> async ();
+            };
+            await reg.register_pylon();
+        });
     };
 
     public func port2subaccount(p : Port) : Blob {
@@ -604,5 +605,9 @@ module {
             flow = flow;
             id = id;
         };
+
     };
+
+
+  
 };

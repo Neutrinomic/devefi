@@ -3,6 +3,9 @@
     "test": {
       "type": "motoko",
       "main": "./example/basic.mo"
+    },"test2": {
+      "type": "motoko",
+      "main": "./example/basic.mo"
     }
    },
   "defaults": {
