@@ -245,14 +245,19 @@ module {
                 });
 
                 let bal = dvf.balance(fee.ledger, ?from_subaccount);
-                if (bal > 0 and vec.controllers.size() > 0) {
-                    ignore dvf.send({
-                        ledger = fee.ledger;
-                        to = { owner = vec.controllers[0]; subaccount = null };
-                        amount = bal;
-                        memo = null;
-                        from_subaccount = ?from_subaccount;
-                    });
+                if (bal > 0) {
+                    label refund_payment do { 
+                        let ?xf = Array.find<ICRC55.Endpoint>(vec.refund, func(x) = onlyIC(x).ledger == fee.ledger) else break refund_payment;
+                        let refund = onlyIC(xf);
+
+                        ignore dvf.send({
+                            ledger = fee.ledger;
+                            to = refund.account;
+                            amount = bal;
+                            memo = null;
+                            from_subaccount = ?from_subaccount;
+                        });
+                    }
                 };
             };
 
@@ -431,21 +436,21 @@ module {
                 switch (event) {
                     case (#received(r)) {
 
-                        let ?port = subaccount2port(r.to.subaccount) else return; // We can still recieve tokens in caller subaccounts, which we won't send back right away
+                        let ?port = subaccount2port(r.to_subaccount) else return; // We can still recieve tokens in caller subaccounts, which we won't send back right away
                         let found = getNode(#id(port.vid));
 
                         // RETURN tokens: If no node is found send tokens back (perhaps it was deleted)
-                        if (Option.isNull(found)) {
-                            let #icrc(addr) = r.from else return; // Can only send to icrc accounts for now
-                            ignore dvf.send({
-                                ledger = r.ledger;
-                                to = addr;
-                                amount = r.amount;
-                                memo = null;
-                                from_subaccount = r.to.subaccount;
-                            });
-                            return;
-                        };
+                        // if (Option.isNull(found)) {
+                        //     let #icrc(addr) = r.from else return; // Can only send to icrc accounts for now
+                        //     ignore dvf.send({
+                        //         ledger = r.ledger;
+                        //         to = addr;
+                        //         amount = r.amount;
+                        //         memo = null;
+                        //         from_subaccount = r.to.subaccount;
+                        //     });
+                        //     return;
+                        // };
 
                         // Handle payment after temporary vector was created
                         let ?(_, rvec) = found else return;
