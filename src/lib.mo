@@ -12,6 +12,7 @@ import Int "mo:base/Int";
 import Array "mo:base/Array";
 import Debug "mo:base/Debug";
 import Result "mo:base/Result";
+import Virtual "mo:devefi-icrc-ledger/virtual"
 
 module {
     public type Account = ICRCLedgerIF.Account;
@@ -33,6 +34,7 @@ module {
         }
     };
 
+
     public type MixedAccount = {
         #icrc : Account;
         #icp : Blob;
@@ -51,13 +53,7 @@ module {
 
     public type Sent = {
         ledger : Principal;
-        to : MixedAccount;
-        fee : ?Nat;
-        from : MixedAccount;
-        memo : ?Blob;
-        created_at_time : ?Nat64;
-        amount : Nat;
-        spender : ?MixedAccount;
+        id : Nat64;
     };
 
     public type Send = {
@@ -69,19 +65,21 @@ module {
     };
 
     public type Event = {
-        #received: Received;
+        #received: Virtual.TransferRecieved and {ledger: Principal};
         #sent: Sent;
     };
 
 
     public type Mem = {
         ledgers : Vector.Vector<Ledger>;
+        virtual : Vector.Vector<Virtual.Mem>;
         var me : ?Principal;
     };
 
     public func Mem() : Mem {
         {
         ledgers = Vector.new<Ledger>();
+        virtual = Vector.new<Virtual.Mem>();
         var me = null;
         };
     };
@@ -99,6 +97,8 @@ module {
     public class DeVeFi<system>({mem : Mem}) {
 
         let ledgercls = Vector.new<LedgerCls>();
+        let virtualcls = Vector.new<Virtual.Virtual>();
+
         var emitFunc : ?(Event -> ()) = null;
 
         
@@ -107,6 +107,15 @@ module {
             for (ledger in Vector.vals(ledgercls)) {
                 if (ledger.id == id) {
                     return ?ledger;
+                };
+            };
+            return null;
+        };
+
+        public func get_virtual(id: Principal) : ?Virtual.Virtual {
+            for ((ledger, idx) in Vector.items(ledgercls)) {
+                if (ledger.id == id) {
+                    return ?Vector.get(virtualcls, idx);
                 };
             };
             return null;
@@ -164,17 +173,8 @@ module {
         };
 
         public func send(t: Send) : R<Nat64, ICRCLedger.SendError> {
-   
-            let ?ledger = get_ledger(t.ledger) else return Debug.trap("No ledger found");
-          
-            switch(ledger.cls) {
-                case (#icrc(l)) {
-                    l.send(t);
-                };
-                case (#icp(l)) {
-                    l.send(t);
-                };
-            };
+            let ?virtual = get_virtual(t.ledger) else return Debug.trap("No ledger found");
+            virtual.send(t);
         };
 
         public func fee(id:Principal): Nat {
@@ -189,17 +189,9 @@ module {
             };
         };
 
-        public func balance(id:Principal, sa: ?Blob) : Nat {
-            let ?ledger = get_ledger(id) else return 0;
-            switch(ledger.cls) {
-                case (#icrc(l)) {
-                    l.balance(sa);
-                };
-                case (#icp(l)) {
-                    l.balance(sa);
-                };
-            };
-
+        public func balance(ledger:Principal, sa: ?Blob) : Nat {
+            let ?virtual = get_virtual(ledger) else return Debug.trap("No ledger found");
+            virtual.balance(sa);
         };
 
 
@@ -251,15 +243,19 @@ module {
             let (new_mem, new_cls) = switch(ltype) {
                 case (#icrc) {
                     let m = ICRCLedger.LMem();
-                    let l = init_ledger<system>({mem=#icrc(m); id});
-                    (#icrc(m), l);
+                    let l =  ICRCLedger.Ledger<system>(m, Principal.toText(id), #last);
+                    (#icrc(m), {id; cls=#icrc(l)});
                     };
                 case (#icp) {
                     let m = ICPLedger.LMem();
-                    let l = init_ledger<system>({mem=#icp(m); id});
-                    (#icp(m), l);
+                    let l =  ICPLedger.Ledger<system>(m, Principal.toText(id), #last);
+                    (#icp(m), {id; cls=#icp(l)});
                     };
             };
+
+            let virt_mem = Virtual.Mem();
+            
+            init_virt<system>(virt_mem, new_cls);
 
             Vector.add(mem.ledgers, {id; mem=new_mem});
             Vector.add(ledgercls, new_cls);
@@ -273,147 +269,40 @@ module {
             Vector.toArray(rez);
         };
 
-        private func init_ledger<system>(lg : Ledger) : LedgerCls {
-            switch(lg.mem) {
-                case (#icrc(m)) {
-                    let cls = ICRCLedger.Ledger<system>(m, Principal.toText(lg.id), #last);
-
-                    cls.onReceive(func (t) {
-                        emit(#received(
-                            {t with 
-                            ledger= lg.id;
-                            from = #icrc(t.from);
-                            spender = do ? {#icrc(t.spender!)}}
-                            ));
-                    });
-
-                    cls.onMint(func (t) {
-                        let ?minter = cls.getMinter() else return;
-                        let mt : Received = {
-                            ledger = lg.id;
-                            to = t.to;
-                            fee = null;
-                            from = #icrc(minter);
-                            memo = t.memo;
-                            created_at_time = t.created_at_time;
-                            amount = t.amount;
-                            spender = null;
-                        };
-                        emit(#received(mt));
-                    });
-
-                    cls.onSent(func (t) {
-                        let mt : Sent = {
-                            ledger = lg.id;
-                            to = #icrc(t.to);
-                            fee = t.fee;
-                            from = #icrc(t.from);
-                            memo = t.memo;
-                            created_at_time = t.created_at_time;
-                            amount = t.amount;
-                            spender = do ? { #icrc(t.spender!) };
-                        };
-                        emit(#sent(mt));
-                    });
-
-                    cls.onBurn(func (t) {
-                        let ?minter = cls.getMinter() else return;
-
-                        let mt : Sent = {
-                            ledger = lg.id;
-                            to = #icrc(minter);
-                            fee = null;
-                            from = #icrc(t.from);
-                            memo = t.memo;
-                            created_at_time = t.created_at_time;
-                            amount = t.amount;
-                            spender = null;
-                        };
-                        emit(#sent(mt));
-                    });
-
-                    {id=lg.id; cls = #icrc(cls)};
-                };
-                case (#icp(m)) {
-                    let cls = ICPLedger.Ledger<system>(m, Principal.toText(lg.id), #last);
-
-                    cls.onReceive(func (t) {
-                        let ?owner = mem.me else return;
-
-                        let mt : Received = {
-                            ledger = lg.id;
-                            to = {owner; subaccount = t.to_subaccount};
-                            fee = ?t.fee;
-                            from = #icp(t.from);
-                            memo = t.memo;
-                            created_at_time = ?t.created_at_time;
-                            amount = t.amount;
-                            spender = do ? { #icp(t.spender!) };
-                        };
-                        emit(#received(mt));
-                    });
-
-                    cls.onMint(func (t) {
-                        let ?owner = mem.me else return;
-                        let meta = cls.getMeta();
-                        let mt : Received = {
-                            ledger = lg.id;
-                            to = {owner; subaccount = t.to_subaccount};
-                            fee = null;
-                            from = #icrc(meta.minter);
-                            memo = t.memo;
-                            created_at_time = ?t.created_at_time;
-                            amount = t.amount;
-                            spender = null;
-                        };
-                        emit(#received(mt));
-                    });
-
-                    cls.onSent(func (t) {
-                        let ?owner = mem.me else return;
-                        let mt : Sent = {
-                            ledger = lg.id;
-                            to = #icp(t.to);
-                            fee = ?t.fee;
-                            from = #icrc({owner; subaccount = t.from_subaccount});
-                            memo = t.memo;
-                            created_at_time = ?t.created_at_time;
-                            amount = t.amount;
-                            spender = do ? { #icp(t.spender!) };
-                        };
-                        emit(#sent(mt));
-                    });
-
-                    cls.onBurn(func (t) {
-                        let ?owner = mem.me else return;
-                        let meta = cls.getMeta();
-                        let mt : Sent = {
-                            ledger = lg.id;
-                            to = #icrc(meta.minter);
-                            fee = null;
-                            from = #icrc({owner; subaccount = t.from_subaccount});
-                            memo = t.memo;
-                            created_at_time = ?t.created_at_time;
-                            amount = t.amount;
-                            spender = null;
-                        };
-                        emit(#sent(mt));
-                    });
-                    {id=lg.id; cls = #icp(cls)};
-                };
+        public func init_virt<system>(mem: Virtual.Mem, cls: LedgerCls) {
+            let virt = switch(cls.cls) {
+                case (#icrc(l)) Virtual.Virtual<system>(mem, l);
+                case (#icp(l)) Virtual.Virtual<system>(mem, l);
             };
+
+            virt.onReceive(func (t) {
+                emit(#received(
+                    {t with 
+                    ledger= cls.id;
+                    }));
+            });
+
+
+            virt.onSent(func (id) {
+                emit(#sent({id; ledger=cls.id}));
+            });
         };
+            
+
 
         for (ledger in Vector.vals(mem.ledgers)) {
             switch(ledger.mem) {
                 case (#icrc(m)) {
-                    let cls = init_ledger<system>({mem=#icrc(m); id=ledger.id});
-                    Vector.add(ledgercls, cls);
+                    let cls = ICRCLedger.Ledger<system>(m, Principal.toText(ledger.id), #last);
+
+                    Vector.add(ledgercls, {id=ledger.id; cls=#icrc(cls)});
                 };
                 case (#icp(m)) {
-                    let cls = init_ledger<system>({mem=#icp(m); id=ledger.id});
-                    Vector.add(ledgercls, cls);
+                    let cls = ICPLedger.Ledger<system>(m, Principal.toText(ledger.id), #last);
+                    
+                    Vector.add(ledgercls, {id=ledger.id; cls=#icp(cls)});
                 };
+
             };
         };
 
