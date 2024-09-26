@@ -136,11 +136,13 @@ module {
 
     public type Self = actor {
         icrc55_get_controller_nodes : shared query GetControllerNodesRequest -> async GetControllerNodes;
-        icrc55_delete_node : shared (LocalNodeId) -> async DeleteNodeResp;
-        icrc55_get_node : shared query GetNode -> async ?GetNodeResponse;
+        
         icrc55_create_node : shared (NodeRequest, Any) -> async CreateNode;
-        icrc55_create_node_get_fee : shared query (Principal, Any) -> async NodeCreateFeeResp;
+        icrc55_delete_node : shared (LocalNodeId) -> async DeleteNodeResp;
         icrc55_modify_node : shared (LocalNodeId, ?NodeModifyRequest, ?Any) -> async NodeModifyResponse;
+
+        icrc55_get_node : shared query GetNode -> async ?GetNodeResponse;
+        icrc55_create_node_get_fee : shared query (Principal, Any) -> async NodeCreateFeeResp;
         icrc55_get_nodefactory_meta : shared query () -> async NodeFactoryMetaResp;
     };
 };
