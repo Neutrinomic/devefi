@@ -31,15 +31,9 @@ module {
     public type Endpoint = ICRC55.Endpoint;
     public type DestinationEndpoint = ICRC55.DestinationEndpoint;
 
-    public type CreateNodeResp<A> = {
-        #ok : NodeShared<A>;
-        #err : Text;
-    };
+    public type CreateNodeResp<A> = ICRC55.CreateNodeResponse<A>;
 
-    public type ModifyNodeResp<A> = {
-        #ok : NodeShared<A>;
-        #err : Text;
-    };
+    public type ModifyNodeResp<A> = ICRC55.ModifyNodeResponse<A>;
 
     public type NodeMem<A> = {
         var sources : [Endpoint];
@@ -52,17 +46,7 @@ module {
         custom : A;
     };
 
-    public type NodeShared<AS> = {
-        id : NodeId;
-        sources : [Endpoint];
-        destinations : [DestinationEndpoint];
-        refund : [Endpoint];
-        controllers : [Principal];
-        created : Nat64;
-        modified : Nat64;
-        expires : ?Nat64;
-        custom : AS;
-    };
+    public type NodeShared<AS> = ICRC55.GetNodeResponse<AS>;
 
     public type Flow = { #input; #payment };
     public type Port = {
@@ -105,6 +89,8 @@ module {
         PYLON_GOVERNED_BY = "Unknown";
         PYLON_NAME = "Testing Pylon";
     };
+
+ 
 
     public class Node<system, XCreateRequest, XMem, XShared, XModifyRequest>({
         settings : SETTINGS;
@@ -296,6 +282,27 @@ module {
         public func icrc55_get_defaults(id:Text) : XCreateRequest {
             getDefaults(id, supportedLedgers);
         };
+
+        public func icrc55_command(caller : Principal, cmds : [ICRC55.Command<XCreateRequest, XModifyRequest>]) : [ICRC55.CommandResponse<XShared>] {
+            
+            let res = Vector.new<ICRC55.CommandResponse<XShared>>();
+            for (cmd in cmds.vals()) {
+                let r : ICRC55.CommandResponse<XShared> = switch (cmd) {
+                    case (#create_node(req, custom)) {
+                        #create_node(icrc55_create_node(caller, req, custom));
+                    };
+                    case (#delete_node(vid)) {
+                        #delete_node(icrc55_delete_node(caller, vid));
+                    };
+                    case (#modify_node(vid, nreq, custom)) {
+                        #modify_node(icrc55_modify_node(caller, vid, nreq, custom));
+                    };
+                };
+                Vector.add(res, r);
+            };
+            Vector.toArray(res);
+
+        };
         public func icrc55_create_node(caller : Principal, req : ICRC55.NodeRequest, custom : XCreateRequest) : CreateNodeResp<XShared> {
             let ?thiscanister = mem.thiscan else return #err("This canister not set");
             // TODO: Limit tempory node creation per hour (against DoS)
@@ -354,7 +361,7 @@ module {
             #ok(node_shared);
         };
 
-        public func icrc55_modify_node(caller : Principal, vid : NodeId, nreq : ?ICRC55.NodeModifyRequest, custom : ?XModifyRequest) : ModifyNodeResp<XShared> {
+        public func icrc55_modify_node(caller : Principal, vid : NodeId, nreq : ?ICRC55.CommonModRequest, custom : ?XModifyRequest) : ModifyNodeResp<XShared> {
             let ?thiscanister = mem.thiscan else return #err("This canister not set");
             let ?(_, vec) = getNode(#id(vid)) else return #err("Node not found");
             if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
@@ -401,7 +408,10 @@ module {
                 modified = vec.modified;
                 controllers = vec.controllers;
                 expires = vec.expires;
-                sources = vec.sources;
+                sources = Array.map<ICRC55.Endpoint, ICRC55.SourceEndpointResp>(vec.sources, func (x) {
+                    let s = onlyIC(x);
+                    {balance = dvf.balance(s.ledger, s.account.subaccount); endpoint = x};   
+                });
                 destinations = vec.destinations;
                 refund = vec.refund;
             };
@@ -519,7 +529,7 @@ module {
             #ok(node);
         };
 
-        private func node_modifyRequest(id : NodeId, vec : NodeMem<XMem>, nreq : ?ICRC55.NodeModifyRequest, creq : ?XModifyRequest, thiscan : Principal) : ModifyNodeResp<XShared> {
+        private func node_modifyRequest(id : NodeId, vec : NodeMem<XMem>, nreq : ?ICRC55.CommonModRequest, creq : ?XModifyRequest, thiscan : Principal) : ModifyNodeResp<XShared> {
             
             label source_unregister for (xsource in vec.sources.vals()) {
                 let source = onlyIC(xsource);

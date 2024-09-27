@@ -1,5 +1,6 @@
 import Principal "mo:base/Principal";
 import Text "mo:base/Text";
+
 module {
 
     public type LocalNodeId = Nat32;
@@ -77,7 +78,7 @@ module {
         #remote : RemoteEndpoint;
     };
 
-    public type GetNodeResponse = {
+    public type GetNodeResponse<A> = {
         id : LocalNodeId;
         sources : [SourceEndpointResp];
         destinations : [DestinationEndpoint];
@@ -86,6 +87,7 @@ module {
         created : Nat64;
         modified : Nat64;
         expires : ?Nat64;
+        custom : A;
     };
 
     public type GetControllerNodesRequest = {
@@ -94,10 +96,10 @@ module {
         length : Nat;
     };
     
-    public type GetControllerNodes = [GetNodeResponse];
+    public type GetControllerNodes<A> = [GetNodeResponse<A>];
 
-    public type CreateNode = {
-        #ok : GetNodeResponse;
+    public type CreateNodeResponse<A> = {
+        #ok : GetNodeResponse<A>;
         #err : Text;
     };
 
@@ -118,15 +120,10 @@ module {
         controllers : [Principal];
     };
 
-    public type NodeModifyRequest = {
+    public type CommonModRequest = {
         destinations : [DestinationEndpoint];
         refund: [Endpoint];
         controllers : [Principal];
-    };
-
-    public type NodeModifyResponse = {
-        #ok : GetNodeResponse;
-        #err : Text;
     };
 
     public type DeleteNodeResp = {
@@ -134,14 +131,37 @@ module {
         #err : Text;
     };
 
-    public type Self = actor {
-        icrc55_get_controller_nodes : shared query GetControllerNodesRequest -> async GetControllerNodes;
-        
-        icrc55_create_node : shared (NodeRequest, Any) -> async CreateNode;
-        icrc55_delete_node : shared (LocalNodeId) -> async DeleteNodeResp;
-        icrc55_modify_node : shared (LocalNodeId, ?NodeModifyRequest, ?Any) -> async NodeModifyResponse;
+    public type CreateNodeRequest<A> = (NodeRequest, A);
+    public type ModifyNodeRequest<A> = (LocalNodeId, ?CommonModRequest, ?A);
+    public type ModifyNodeResponse<A> = {
+        #ok : GetNodeResponse<A>;
+        #err : Text;
+    };
 
-        icrc55_get_node : shared query GetNode -> async ?GetNodeResponse;
+    public type Command<C,M> = {
+        #create_node :CreateNodeRequest<C>;
+        #delete_node : LocalNodeId;
+        #modify_node : ModifyNodeRequest<M>;
+        // activate/deactivate
+        // call func
+    };
+
+    public type CommandResponse<A> = {
+        #create_node : CreateNodeResponse<A>;
+        #delete_node : DeleteNodeResp;
+        #modify_node : ModifyNodeResponse<A>;
+    };
+
+    public type Self = actor {
+        icrc55_get_controller_nodes : shared query GetControllerNodesRequest -> async GetControllerNodes<Any>;
+        
+        icrc55_command : shared ([Command<Any, Any>]) -> async [CommandResponse<Any>];
+
+        icrc55_create_node : shared CreateNodeRequest<Any> -> async CreateNodeResponse<Any>;
+        icrc55_delete_node : shared (LocalNodeId) -> async DeleteNodeResp;
+        icrc55_modify_node : shared ModifyNodeRequest<Any> -> async ModifyNodeResponse<Any>;
+
+        icrc55_get_node : shared query GetNode -> async ?GetNodeResponse<Any>;
         icrc55_create_node_get_fee : shared query (Principal, Any) -> async NodeCreateFeeResp;
         icrc55_get_nodefactory_meta : shared query () -> async NodeFactoryMetaResp;
     };

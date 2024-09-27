@@ -127,6 +127,10 @@ actor class () = this {
         nodes.icrc55_create_node_get_fee(caller, req, creq);
     };
 
+    public shared ({caller }) func icrc55_command(cmds : [ICRC55.Command<T.CreateRequest, T.ModifyRequest>]) : async [ICRC55.CommandResponse<T.Shared>] {
+        nodes.icrc55_command(caller, cmds);
+    };
+
     public shared ({ caller }) func icrc55_create_node(req : ICRC55.NodeRequest, creq : T.CreateRequest) : async Node.CreateNodeResp<T.Shared> {
         nodes.icrc55_create_node(caller, req, creq);
     };
@@ -143,7 +147,7 @@ actor class () = this {
         nodes.icrc55_delete_node(caller, vid);
     };
 
-    public shared ({caller}) func icrc55_modify_node(vid : ICRC55.LocalNodeId, req : ?ICRC55.NodeModifyRequest, creq : ?T.ModifyRequest) : async Node.ModifyNodeResp<T.Shared> {
+    public shared ({caller}) func icrc55_modify_node(vid : ICRC55.LocalNodeId, req : ?ICRC55.CommonModRequest, creq : ?T.ModifyRequest) : async Node.ModifyNodeResp<T.Shared> {
         nodes.icrc55_modify_node(caller, vid, req, creq);
     };
 
