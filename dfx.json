@@ -3,15 +3,11 @@
     "test": {
       "type": "motoko",
       "main": "./example/basic.mo"
-    },"test2": {
+    },
+    "test2": {
       "type": "motoko",
       "main": "./example/basic.mo"
     }
    },
-  "defaults": {
-    "build": {
-      "packtool": "mops sources"
-    }
-  },
   "dfx": "0.21.0"
 }
