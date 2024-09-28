@@ -87,6 +87,7 @@ module {
         created : Nat64;
         modified : Nat64;
         expires : ?Nat64;
+        active : Bool;
         custom : A;
     };
 
@@ -138,10 +139,30 @@ module {
         #err : Text;
     };
 
+    public type WithdrawNodeRequest = {
+        id : LocalNodeId;
+        source_port : Nat;
+        to: Endpoint;
+    };
+    public type WithdrawNodeResponse = {
+        #ok : ();
+        #err : Text;
+    };
+    public type ChangeActiveNodeRequest = {
+        id : LocalNodeId;
+        active : Bool;
+    };
+    public type ChangeActiveNodeResponse = {
+        #ok : ();
+        #err : Text;
+    };
     public type Command<C,M> = {
-        #create_node :CreateNodeRequest<C>;
+        #create_node : CreateNodeRequest<C>;
         #delete_node : LocalNodeId;
         #modify_node : ModifyNodeRequest<M>;
+        #withdraw_node: WithdrawNodeRequest;
+        #change_active_node: ChangeActiveNodeRequest;
+        // change destination
         // activate/deactivate
         // call func
     };
@@ -150,6 +171,8 @@ module {
         #create_node : CreateNodeResponse<A>;
         #delete_node : DeleteNodeResp;
         #modify_node : ModifyNodeResponse<A>;
+        #withdraw_node: WithdrawNodeResponse;
+        #change_active_node: ChangeActiveNodeResponse;
     };
 
     public type Self = actor {

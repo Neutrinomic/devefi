@@ -79,7 +79,7 @@ actor class () = this {
         func() : async () {
             let now = Nat64.fromNat(Int.abs(Time.now()));
             label vloop for ((vid, vec) in nodes.entries()) {
-
+                if (not vec.active) continue vloop;
                 if (not nodes.hasDestination(vec, 0)) continue vloop;
 
                 let ?source = nodes.getSource(vec, 0) else continue vloop;
@@ -113,6 +113,7 @@ actor class () = this {
 
                         };
                     };
+                    case (_) ();
                 };
 
             };
