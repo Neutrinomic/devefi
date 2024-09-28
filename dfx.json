@@ -9,5 +9,10 @@
       "main": "./example/basic.mo"
     }
    },
+  "defaults": {
+    "build": {
+      "packtool": "cat mops.sources"
+    }
+  },
   "dfx": "0.21.0"
 }
