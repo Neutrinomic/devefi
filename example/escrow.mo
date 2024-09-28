@@ -1,8 +1,7 @@
 import ICRC55 "../src/ICRC55";
 import Node "../src/node";
 import Result "mo:base/Result";
-import Array "mo:base/Array";
-import Nat8 "mo:base/Nat8";
+
 import Debug "mo:base/Debug";
 import U "../src/utils";
 
@@ -65,7 +64,7 @@ module {
     };
 
     // How does the modify request change memory
-    public func modifyRequestMut(mem : Mem, t : ModifyRequest) : Result.Result<(), Text> {
+    public func modifyRequestMut(_mem : Mem, _t : ModifyRequest) : Result.Result<(), Text> {
         #ok();
     };
 

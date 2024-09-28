@@ -43,6 +43,7 @@ module {
         created : Nat64;
         var modified : Nat64;
         var expires : ?Nat64;
+        var active : Bool;
         custom : A;
     };
 
@@ -132,7 +133,7 @@ module {
             };
             public func fee() : Nat {
                 switch (endpoint) {
-                    case (#ic({ ledger; account })) {
+                    case (#ic({ ledger })) {
                         dvf.fee(ledger);
                     };
                     case (_) {
@@ -297,12 +298,36 @@ module {
                     case (#modify_node(vid, nreq, custom)) {
                         #modify_node(icrc55_modify_node(caller, vid, nreq, custom));
                     };
+                    case (#withdraw_node(req)) {
+                        #withdraw_node(icrc55_withdraw_node(caller, req));
+                    };
+                    case (#change_active_node(req)) {
+                        #change_active_node(icrc55_change_active_node(caller, req));
+                    };
                 };
                 Vector.add(res, r);
             };
             Vector.toArray(res);
 
         };
+        public func icrc55_change_active_node(caller : Principal, req : ICRC55.ChangeActiveNodeRequest) : ICRC55.ChangeActiveNodeResponse {
+            let ?(_, vec) = getNode(#id(req.id)) else return #err("Node not found");
+            if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
+
+            vec.active := req.active;
+            #ok();
+        };
+
+        public func icrc55_withdraw_node(caller : Principal, req : ICRC55.WithdrawNodeRequest) : ICRC55.WithdrawNodeResponse {
+            let ?(_vid, vec) = getNode(#id(req.id)) else return #err("Node not found");
+            if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
+
+            let ?source = getSource(vec, req.source_port) else return #err("Source not found");
+            let acc = onlyIC(req.to).account;
+            source.send(#external_account(acc), source.balance());
+            #ok();
+        };
+
         public func icrc55_create_node(caller : Principal, req : ICRC55.NodeRequest, custom : XCreateRequest) : CreateNodeResp<XShared> {
             let ?thiscanister = mem.thiscan else return #err("This canister not set");
             // TODO: Limit tempory node creation per hour (against DoS)
@@ -414,10 +439,11 @@ module {
                 });
                 destinations = vec.destinations;
                 refund = vec.refund;
+                active = vec.active;
             };
         };
 
-        public func icrc55_get_controller_nodes(caller : Principal, req : ICRC55.GetControllerNodesRequest) : [NodeShared<XShared>] {
+        public func icrc55_get_controller_nodes(_caller : Principal, req : ICRC55.GetControllerNodesRequest) : [NodeShared<XShared>] {
             // Unoptimised for now, but it will get it done
             let res = Vector.new<NodeShared<XShared>>();
             var cid = 0;
@@ -524,6 +550,7 @@ module {
                 var controllers = req.controllers;
                 custom;
                 var expires = null;
+                var active = true;
             };
 
             #ok(node);

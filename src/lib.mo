@@ -1,15 +1,12 @@
-import Timer "mo:base/Timer";
 import ICRCLedger "mo:devefi-icrc-ledger";
 import ICRCLedgerIF "mo:devefi-icrc-ledger/icrc_ledger";
 
 import ICPLedger "mo:devefi-icp-ledger";
 import Vector "mo:vector";
 import Principal "mo:base/Principal";
-import Iter "mo:base/Iter";
 import Time "mo:base/Time";
 import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
-import Array "mo:base/Array";
 import Debug "mo:base/Debug";
 import Result "mo:base/Result";
 import Virtual "mo:devefi-icrc-ledger/virtual"
