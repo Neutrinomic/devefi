@@ -28,7 +28,8 @@ module {
         mem: {
             #icrc: ICRCLedger.Mem;
             #icp: ICPLedger.Mem;
-        }
+        };
+        virtual_mem : Virtual.Mem;
     };
 
 
@@ -69,7 +70,6 @@ module {
 
     public type Mem = {
         ledgers : Vector.Vector<Ledger>;
-        virtual : Vector.Vector<Virtual.Mem>;
         var me : ?Principal;
     };
 
@@ -252,10 +252,10 @@ module {
 
             let virt_mem = Virtual.Mem();
             
-            init_virt<system>(virt_mem, new_cls);
-
-            Vector.add(mem.ledgers, {id; mem=new_mem});
+            let virt_cls = init_virt<system>(virt_mem, new_cls);
+            Vector.add(mem.ledgers, {id; mem=new_mem; virtual_mem = virt_mem});
             Vector.add(ledgercls, new_cls);
+            Vector.add(virtualcls, virt_cls);
         };
 
         public func get_ledgers() : [Principal] {
@@ -266,7 +266,7 @@ module {
             Vector.toArray(rez);
         };
 
-        public func init_virt<system>(mem: Virtual.Mem, cls: LedgerCls) {
+        public func init_virt<system>(mem: Virtual.Mem, cls: LedgerCls) : Virtual.Virtual {
             let virt = switch(cls.cls) {
                 case (#icrc(l)) Virtual.Virtual<system>(mem, l);
                 case (#icp(l)) Virtual.Virtual<system>(mem, l);
@@ -283,6 +283,8 @@ module {
             virt.onSent(func (id) {
                 emit(#sent({id; ledger=cls.id}));
             });
+
+            return virt;
         };
             
 
@@ -293,11 +295,13 @@ module {
                     let cls = ICRCLedger.Ledger<system>(m, Principal.toText(ledger.id), #last);
 
                     Vector.add(ledgercls, {id=ledger.id; cls=#icrc(cls)});
+                    Vector.add(virtualcls, init_virt<system>(ledger.virtual_mem, {id=ledger.id; cls=#icrc(cls)}));
                 };
                 case (#icp(m)) {
                     let cls = ICPLedger.Ledger<system>(m, Principal.toText(ledger.id), #last);
                     
                     Vector.add(ledgercls, {id=ledger.id; cls=#icp(cls)});
+                    Vector.add(virtualcls, init_virt<system>(ledger.virtual_mem, {id=ledger.id; cls=#icp(cls)}));
                 };
 
             };
