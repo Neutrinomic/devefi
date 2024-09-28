@@ -1,6 +1,6 @@
 [package]
 name = "devefi"
-version = "0.2.6"
+version = "0.2.7"
 description = "Neutrinite DeVeFi Framework"
 repository = "https://github.com/Neutrinomic/devefi"
 keywords = [ ]
