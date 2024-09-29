@@ -6,6 +6,7 @@ import Nat8 "mo:base/Nat8";
 import Debug "mo:base/Debug";
 import U "../src/utils";
 import Nat "mo:base/Nat";
+import Option "mo:base/Option";
 
 module {
 
@@ -98,20 +99,22 @@ module {
     };
 
     // Mapping of source node ports
-    public func request2Sources(t : Mem, id : Node.NodeId, thiscan : Principal) : Result.Result<[ICRC55.Endpoint], Text> {
+    public func request2Sources(t : Mem, id : Node.NodeId, thiscan : Principal, sources:[ICRC55.Endpoint]) : Result.Result<[ICRC55.Endpoint], Text> {
+        let #ok(a0) = U.expectSourceAccount(t.init.ledger, thiscan, sources, 0) else return #err("Invalid source 0");
+
         #ok(
             Array.tabulate<ICRC55.Endpoint>(
                 1,
                 func(idx : Nat) = #ic {
                     ledger = t.init.ledger;
-                    account = {
+                    account = Option.get(a0, {
                         owner = thiscan;
                         subaccount = ?Node.port2subaccount({
                             vid = id;
                             flow = #input;
                             id = Nat8.fromNat(idx);
                         });
-                    };
+                    });
                     name = "";
                 },
             )
@@ -129,7 +132,7 @@ module {
             Array.tabulate<ICRC55.DestinationEndpoint>(
                 t.variables.split.size(),
                 func(idx : Nat) {
-                    let acc = switch (U.expectAccount(t.init.ledger, req, idx)) {
+                    let acc = switch (U.expectDestinationAccount(t.init.ledger, req, idx)) {
                         case (#ok(acc)) acc;
                         case (#err()) null;
                     };

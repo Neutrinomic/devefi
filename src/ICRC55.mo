@@ -82,6 +82,7 @@ module {
         id : LocalNodeId;
         sources : [SourceEndpointResp];
         destinations : [DestinationEndpoint];
+        extractors: [LocalNodeId];
         refund: [Endpoint];
         controllers : [Principal];
         created : Nat64;
@@ -116,13 +117,17 @@ module {
     };
 
     public type NodeRequest = {
+        sources:[Endpoint];
+        extractors : [LocalNodeId];
         destinations : [DestinationEndpoint];
         refund: [Endpoint];
         controllers : [Principal];
     };
 
     public type CommonModRequest = {
+        sources:[Endpoint];
         destinations : [DestinationEndpoint];
+        extractors : [LocalNodeId];
         refund: [Endpoint];
         controllers : [Principal];
     };
@@ -163,7 +168,6 @@ module {
         #withdraw_node: WithdrawNodeRequest;
         #change_active_node: ChangeActiveNodeRequest;
         // change destination
-        // activate/deactivate
         // call func
     };
 
