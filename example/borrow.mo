@@ -5,6 +5,7 @@ import Array "mo:base/Array";
 import Nat8 "mo:base/Nat8";
 import Debug "mo:base/Debug";
 import U "../src/utils";
+import Option "mo:base/Option";
 
 module {
 
@@ -102,30 +103,33 @@ module {
     };
 
     // Mapping of source node ports
-    public func request2Sources(t : Mem, id : Node.NodeId, thiscan : Principal) : Result.Result<[ICRC55.Endpoint], Text> {
+    public func request2Sources(t : Mem, id : Node.NodeId, thiscan : Principal, sources:[ICRC55.Endpoint]) : Result.Result<[ICRC55.Endpoint], Text> {
+        let #ok(a0) = U.expectSourceAccount(t.init.ledger_collateral, thiscan, sources, 0) else return #err("Invalid source 0");
+        let #ok(a1) = U.expectSourceAccount(t.init.ledger_collateral, thiscan, sources, 1) else return #err("Invalid source 1");
+
         #ok([
             #ic {
                 ledger = t.init.ledger_collateral;
-                account = {
+                account = Option.get(a0, {
                     owner = thiscan;
                     subaccount = ?Node.port2subaccount({
                         vid = id;
                         flow = #input;
                         id = 0;
                     });
-                };
+                });
                 name = "Collateral";
             },
             #ic {
                 ledger = t.init.ledger_borrow;
-                account = {
+                account = Option.get(a1, {
                     owner = thiscan;
                     subaccount = ?Node.port2subaccount({
                         vid = id;
                         flow = #input;
                         id = 1;
                     });
-                };
+                });
                 name = "Repayment";
             }
         ]);
@@ -138,8 +142,8 @@ module {
     // or leaves them null when not given
     public func request2Destinations(t : Mem, req : [ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
    
-        let #ok(borrow_account) = U.expectAccount(t.init.ledger_borrow, req, 0) else return #err("Invalid destination 0");
-        let #ok(return_account) = U.expectAccount(t.init.ledger_collateral, req, 1) else return #err("Invalid destination 1");
+        let #ok(borrow_account) = U.expectDestinationAccount(t.init.ledger_borrow, req, 0) else return #err("Invalid destination 0");
+        let #ok(return_account) = U.expectDestinationAccount(t.init.ledger_collateral, req, 1) else return #err("Invalid destination 1");
 
         #ok([
             #ic {

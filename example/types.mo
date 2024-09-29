@@ -80,15 +80,15 @@ module {
         };
     };
 
-    public func sourceMap(id: Node.NodeId, custom : Mem, thiscan : Principal) : Result.Result<[ICRC55.Endpoint], Text> {
+    public func sourceMap(id: Node.NodeId, custom : Mem, thiscan : Principal, sourcesProvided: [ICRC55.Endpoint]) : Result.Result<[ICRC55.Endpoint], Text> {
         switch (custom) {
-            case (#throttle(t)) ThrottleVector.request2Sources(t, id, thiscan);
-            case (#lend(t)) Lend.request2Sources(t, id, thiscan);
-            case (#borrow(t)) Borrow.request2Sources(t, id, thiscan);
-            case (#exchange(t)) Exchange.request2Sources(t, id, thiscan);
-            case (#escrow(t)) Escrow.request2Sources(t, id, thiscan);
-            case (#split(t)) Split.request2Sources(t, id, thiscan);
-            case (#mint(t)) Mint.request2Sources(t, id, thiscan);
+            case (#throttle(t)) ThrottleVector.request2Sources(t, id, thiscan, sourcesProvided);
+            case (#lend(t)) Lend.request2Sources(t, id, thiscan, sourcesProvided);
+            case (#borrow(t)) Borrow.request2Sources(t, id, thiscan, sourcesProvided);
+            case (#exchange(t)) Exchange.request2Sources(t, id, thiscan, sourcesProvided);
+            case (#escrow(t)) Escrow.request2Sources(t, id, thiscan, sourcesProvided);
+            case (#split(t)) Split.request2Sources(t, id, thiscan, sourcesProvided);
+            case (#mint(t)) Mint.request2Sources(t, id, thiscan, sourcesProvided);
             //...
         };
     };

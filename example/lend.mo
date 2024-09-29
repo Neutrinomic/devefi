@@ -4,6 +4,7 @@ import Result "mo:base/Result";
 
 import Debug "mo:base/Debug";
 import U "../src/utils";
+import Option "mo:base/Option";
 
 module {
 
@@ -101,18 +102,20 @@ module {
     };
 
     // Mapping of source node ports
-    public func request2Sources(t : Mem, id : Node.NodeId, thiscan : Principal) : Result.Result<[ICRC55.Endpoint], Text> {
+    public func request2Sources(t : Mem, id : Node.NodeId, thiscan : Principal, sources:[ICRC55.Endpoint]) : Result.Result<[ICRC55.Endpoint], Text> {
+        let #ok(a0) = U.expectSourceAccount(t.init.ledger_lend, thiscan, sources, 0) else return #err("Invalid source 0");
+
         #ok([
             #ic {
                 ledger = t.init.ledger_lend;
-                account = {
+                account = Option.get(a0, {
                     owner = thiscan;
                     subaccount = ?Node.port2subaccount({
                         vid = id;
                         flow = #input;
                         id = 0;
                     });
-                };
+                });
                 name = "Lend";
             }
         ]);
@@ -125,9 +128,9 @@ module {
     // or leaves them null when not given
     public func request2Destinations(t : Mem, req : [ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
    
-        let #ok(liquidation_account) = U.expectAccount(t.init.ledger_collateral, req, 0) else return #err("Invalid destination 0");
-        let #ok(fee_account) = U.expectAccount(t.init.ledger_collateral, req, 1) else return #err("Invalid destination 1");
-        let #ok(return_account) = U.expectAccount(t.init.ledger_lend, req, 2) else return #err("Invalid destination 2");
+        let #ok(liquidation_account) = U.expectDestinationAccount(t.init.ledger_collateral, req, 0) else return #err("Invalid destination 0");
+        let #ok(fee_account) = U.expectDestinationAccount(t.init.ledger_collateral, req, 1) else return #err("Invalid destination 1");
+        let #ok(return_account) = U.expectDestinationAccount(t.init.ledger_lend, req, 2) else return #err("Invalid destination 2");
 
         #ok([
             #ic {

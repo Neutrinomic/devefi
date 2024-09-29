@@ -37,6 +37,7 @@ module {
 
     public type NodeMem<A> = {
         var sources : [Endpoint];
+        var extractors : [NodeId];
         var destinations : [DestinationEndpoint];
         var refund : [Endpoint];
         var controllers : [Principal];
@@ -103,7 +104,7 @@ module {
         };
         supportedLedgers : [ICRC55.SupportedLedger];
         toShared : (XMem) -> XShared;
-        sourceMap : (NodeId, XMem, Principal) -> R<[Endpoint], Text>;
+        sourceMap : (NodeId, XMem, Principal, [Endpoint]) -> R<[Endpoint], Text>;
         destinationMap : (XMem, [DestinationEndpoint]) -> R<[DestinationEndpoint], Text>;
         modifyRequestMut : (XMem, XModifyRequest) -> R<(), Text>;
         createRequest2Mem : (XCreateRequest) -> XMem;
@@ -111,6 +112,7 @@ module {
         getDefaults : (Text, [ICRC55.SupportedLedger]) -> XCreateRequest;
     }) {
 
+        // TODO : Disallow one node taking from the source of another without being in extractors
         public class Source(
             cls : {
                 endpoint : Endpoint;
@@ -430,6 +432,7 @@ module {
                 id = vid;
                 custom = toShared(vec.custom);
                 created = vec.created;
+                extractors = vec.extractors;
                 modified = vec.modified;
                 controllers = vec.controllers;
                 expires = vec.expires;
@@ -536,7 +539,7 @@ module {
 
             let custom = createRequest2Mem(creq);
 
-            let { sources; destinations } = switch (portMap(id, custom, thiscan, req.destinations)) {
+            let { sources; destinations } = switch (portMap(id, custom, thiscan, req.destinations, req.sources)) {
                 case (#err(e)) return #err(e);
                 case (#ok(x)) x;
             };
@@ -545,6 +548,7 @@ module {
                 var sources = sources;
                 var destinations = destinations;
                 var refund = req.refund;
+                var extractors = req.extractors;
                 created = U.now();
                 var modified = U.now();
                 var controllers = req.controllers;
@@ -578,8 +582,12 @@ module {
                 case (null) vec.destinations;
             };
 
+            let provided_sources = switch (nreq) {
+                case (?r) r.sources;
+                case (null) vec.sources;
+            };
             // TODO: Check this - we are mutating and then returning error if source/destination fails
-            let { sources; destinations } = switch (portMap(id, vec.custom, thiscan, provided_destinations)) {
+            let { sources; destinations } = switch (portMap(id, vec.custom, thiscan, provided_destinations, provided_sources)) {
                 case (#err(e)) return #err(e);
                 case (#ok(x)) x;
             };
@@ -588,6 +596,10 @@ module {
             // Modify if no errors
             vec.destinations := destinations;
             vec.sources := sources;
+            vec.extractors := switch (nreq) {
+                case (?r) r.extractors;
+                case (null) vec.extractors;
+            };
             vec.modified := U.now();
             ignore do ? {
                 vec.controllers := nreq!.controllers;
@@ -603,10 +615,10 @@ module {
 
         };
 
-        private func portMap(id : NodeId, custom : XMem, thiscan : Principal, destinationsProvided : [ICRC55.DestinationEndpoint]) : Result.Result<{ sources : [ICRC55.Endpoint]; destinations : [ICRC55.DestinationEndpoint] }, Text> {
+        private func portMap(id : NodeId, custom : XMem, thiscan : Principal, destinationsProvided : [ICRC55.DestinationEndpoint], sourcesProvided: [ICRC55.Endpoint]) : Result.Result<{ sources : [ICRC55.Endpoint]; destinations : [ICRC55.DestinationEndpoint] }, Text> {
 
             // Sources
-            let s_res = sourceMap(id, custom, thiscan);
+            let s_res = sourceMap(id, custom, thiscan, sourcesProvided);
 
             let sources = switch (s_res) {
                 case (#ok(s)) s;
