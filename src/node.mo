@@ -551,8 +551,13 @@ module {
 
             let custom = createRequest2Mem(creq);
 
+            
+
             let { sources; destinations } = switch (portMap(id, custom, thiscan, req.destinations, req.sources)) {
-                case (#err(e)) return #err(e);
+                case (#err(e)) {
+                  
+                    return #err(e);
+                };
                 case (#ok(x)) x;
             };
 
@@ -631,6 +636,8 @@ module {
 
             // Sources
             let s_res = sourceMap(id, custom, thiscan, sourcesProvided);
+
+          
 
             let sources = switch (s_res) {
                 case (#ok(s)) s;
