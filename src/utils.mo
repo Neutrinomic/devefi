@@ -5,6 +5,7 @@ import Time "mo:base/Time";
 import Int "mo:base/Int";
 import ICRC55 "./ICRC55";
 import Result "mo:base/Result";
+import Debug "mo:base/Debug";
 
 module {
 
@@ -49,10 +50,14 @@ module {
 
     public func expectSourceAccount(expected_ledger: Principal, can:Principal, req : [ICRC55.Endpoint], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
         if (req.size() <= idx) return #ok(null);
-        
+      
         let #ic(x) = req[idx] else return #err;
         if (x.ledger != expected_ledger) return #err;
-        if (x.account.owner != can) return #err; // Only same canister is possible
+        if (x.account.owner != can) {
+
+            return #err; 
+           
+        };
         #ok(?x.account);
     };
 
