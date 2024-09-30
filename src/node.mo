@@ -258,7 +258,7 @@ module {
                         });
                     }
                 };
-                
+
                 dvf.unregisterSubaccount(?port2subaccount({ vid = vid; flow = #payment; id = 0 }));
             };
 
@@ -554,10 +554,7 @@ module {
             
 
             let { sources; destinations } = switch (portMap(id, custom, thiscan, req.destinations, req.sources)) {
-                case (#err(e)) {
-                  
-                    return #err(e);
-                };
+                case (#err(e)) return #err(e); 
                 case (#ok(x)) x;
             };
 
