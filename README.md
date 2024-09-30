@@ -1,8 +1,6 @@
-# DeVeFi
+# DeFi Vectors Motoko Framework
 
-Combines devefi_icrc_ledger and devefi_icp_ledger in one
-
-Documentation: TODO
+Under construction
 
 Example: ./example/basic.mo
 
