@@ -17,6 +17,7 @@ import Int "mo:base/Int";
 import Time "mo:base/Time";
 import Vector "mo:vector";
 import Debug "mo:base/Debug";
+import Nat32 "mo:base/Nat32";
 
 module {
 
@@ -112,36 +113,32 @@ module {
         getDefaults : (Text, [ICRC55.SupportedLedger]) -> XCreateRequest;
     }) {
 
+
+        private func onlyIC(ep : Endpoint) : ICRC55.ICEndpoint {
+            let #ic(x) = ep else Debug.trap("Not supported");
+            x;
+        };
+
         // TODO : Disallow one node taking from the source of another without being in extractors
         public class Source(
             cls : {
                 endpoint : Endpoint;
-                port : Nat;
                 vec : NodeMem<XMem>;
             }
         ) {
 
-            public let endpoint = cls.endpoint;
-            public let port = cls.port;
+            public let endpoint = onlyIC(cls.endpoint) : ICRC55.ICEndpoint;
+
+
             public func balance() : Nat {
-                switch (endpoint) {
-                    case (#ic({ ledger; account })) {
-                        dvf.balance(ledger, account.subaccount);
-                    };
-                    case (_) {
-                        Debug.trap("Not supported");
-                    };
-                };
+                
+                dvf.balance(endpoint.ledger, endpoint.account.subaccount);
+                
             };
             public func fee() : Nat {
-                switch (endpoint) {
-                    case (#ic({ ledger })) {
-                        dvf.fee(ledger);
-                    };
-                    case (_) {
-                        Debug.trap("Not supported");
-                    };
-                };
+                
+                dvf.fee(endpoint.ledger);
+                
             };
             public func send(
                 location : {
@@ -179,14 +176,13 @@ module {
                     };
                 };
 
-                let #ic(source_ep) = endpoint else Debug.trap("Not supported");
 
                 ignore dvf.send({
-                    ledger = source_ep.ledger;
+                    ledger = endpoint.ledger;
                     to;
                     amount;
                     memo = null;
-                    from_subaccount = source_ep.account.subaccount;
+                    from_subaccount = endpoint.account.subaccount;
                 });
             };
         };
@@ -195,11 +191,25 @@ module {
             port_idx < vec.destinations.size() and not Option.isNull(onlyICDest(vec.destinations[port_idx]).account);
         };
 
-        public func getSource(vec : NodeMem<XMem>, port_idx : Nat) : ?Source {
+        private func sourceInfo(vid: NodeId, subaccount: ?Blob ) : R<{allowed: Bool; mine: Bool}, ()> {
+            let ?ep_port = subaccount2port(subaccount) else return #err;
+            if (ep_port.vid != vid) { // Is it remote vector
+                let ?remote_vec = Map.get(mem.nodes, Map.n32hash, ep_port.vid) else return #err;
+                // Check if this vector is in extractors of remote vector if the source isn't its own
+                if (Option.isNull(Array.indexOf(vid, remote_vec.extractors, Nat32.equal))) return #ok({mine=false; allowed=false}); // Doesn't have access
+                return #ok({mine=false; allowed=true});
+            };
+            return #ok({mine=true; allowed=true});
+        };
+
+        public func getSource(vid: NodeId, vec : NodeMem<XMem>, port_idx : Nat) : ?Source {
             if (port_idx >= vec.sources.size()) return null;
+
+            let #ok(sinfo) = sourceInfo(vid, onlyIC(vec.sources[port_idx]).account.subaccount) else return null;
+            if (not sinfo.allowed) return null;
+
             let source = Source({
                 endpoint = vec.sources[port_idx];
-                port = port_idx;
                 vec = vec;
             });
             return ?source;
@@ -248,10 +258,16 @@ module {
                         });
                     }
                 };
+                
+                dvf.unregisterSubaccount(?port2subaccount({ vid = vid; flow = #payment; id = 0 }));
             };
 
             label source_refund for (xsource in vec.sources.vals()) {
                 let source = onlyIC(xsource);
+
+                let #ok(sinfo) = sourceInfo(vid, source.account.subaccount) else continue source_refund;
+                if (not sinfo.mine) return continue source_refund;
+
                 dvf.unregisterSubaccount(source.account.subaccount);
 
                 // RETURN tokens from all sources
@@ -261,7 +277,7 @@ module {
                         // try to find refund endpoint for that ledger source
                         let ?xf = Array.find<ICRC55.Endpoint>(vec.refund, func(x) = onlyIC(x).ledger == source.ledger) else continue source_refund;
                         let refund = onlyIC(xf);
-
+                        
                         ignore dvf.send({
                             ledger = source.ledger;
                             to = refund.account;
@@ -273,7 +289,7 @@ module {
                 };
             };
 
-            dvf.unregisterSubaccount(?port2subaccount({ vid = vid; flow = #payment; id = 0 }));
+            
 
             ignore Map.remove(mem.nodes, Map.n32hash, vid);
         };
@@ -321,10 +337,10 @@ module {
         };
 
         public func icrc55_withdraw_node(caller : Principal, req : ICRC55.WithdrawNodeRequest) : ICRC55.WithdrawNodeResponse {
-            let ?(_vid, vec) = getNode(#id(req.id)) else return #err("Node not found");
+            let ?(vid, vec) = getNode(#id(req.id)) else return #err("Node not found");
             if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
 
-            let ?source = getSource(vec, req.source_port) else return #err("Source not found");
+            let ?source = getSource(vid, vec, req.source_port) else return #err("Source not found");
             let acc = onlyIC(req.to).account;
             source.send(#external_account(acc), source.balance());
             #ok();
@@ -511,10 +527,6 @@ module {
             }
         );
 
-        private func onlyIC(ep : Endpoint) : ICRC55.ICEndpoint {
-            let #ic(x) = ep else Debug.trap("Not supported");
-            x;
-        };
         private func onlyICDest(ep : ICRC55.DestinationEndpoint) : ICRC55.DestICEndpoint {
             let #ic(x) = ep else Debug.trap("Not supported");
             x;
