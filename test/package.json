@@ -1,0 +1,29 @@
+{
+  "devDependencies": {
+    "@hadronous/pic": "^0.8.1",
+    "@types/jest": "^29.5.12"
+  },
+  "license": "MIT",
+  "scripts": {
+    "test": "./build.sh && jest -c ./jest.config.ts",
+    "test:basic": "NO_MOTOKO_OUTPUT=true jest -c ./jest.config.ts -t 'Basic'",
+    "test:basic2": "jest -c ./jest.config.ts -t 'Basic'"
+  },
+  "dependencies": {
+    "@dfinity/agent": "^1.0.0",
+    "@dfinity/candid": "^1.0.0",
+    "@dfinity/certificate-verification": "^2.4.0",
+    "@dfinity/identity": "^1.0.0",
+    "@dfinity/principal": "^1.0.0",
+    "@infu/icblast": "^2.0.46",
+    "@types/node": "^20.11.19",
+    "get-random-values": "^3.0.0",
+    "isomorphic-fetch": "^3.0.0",
+    "jest": "^29.7.0",
+    "js-sha256": "^0.11.0",
+    "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+
+}
