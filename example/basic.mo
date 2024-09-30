@@ -82,7 +82,7 @@ actor class () = this {
                 if (not vec.active) continue vloop;
                 if (not nodes.hasDestination(vec, 0)) continue vloop;
 
-                let ?source = nodes.getSource(vec, 0) else continue vloop;
+                let ?source = nodes.getSource(vid, vec, 0) else continue vloop;
                 let bal = source.balance();
 
                 let fee = source.fee();
