@@ -98,7 +98,13 @@ module {
 
         var emitFunc : ?(Event -> ()) = null;
 
-        
+        public func get_ledger_ids() : [Principal] {
+            let rez = Vector.new<Principal>();
+            for (ledger in Vector.vals(ledgercls)) {
+                Vector.add(rez, ledger.id);
+            };
+            Vector.toArray(rez);
+        };
 
         public func get_ledger(id: Principal) : ?LedgerCls {
             for (ledger in Vector.vals(ledgercls)) {

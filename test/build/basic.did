@@ -1,0 +1,426 @@
+type _anon_class_16_1 = 
+ service {
+   add_supported_ledger: (principal, variant {
+                                       icp;
+                                       icrc;
+                                     }) -> () oneway;
+   get_ledger_errors: () -> (vec vec text) query;
+   get_ledgers_info: () -> (vec LedgerInfo) query;
+   get_node_addr: (NodeId) -> (opt text) query;
+   icrc55_command: (vec Command) -> (vec CommandResponse);
+   icrc55_create_node: (NodeRequest, CreateRequest) -> (CreateNodeResp);
+   icrc55_create_node_get_fee: (NodeRequest, CreateRequest) ->
+    (NodeCreateFeeResp) query;
+   icrc55_delete_node: (LocalNodeId) -> (DeleteNodeResp);
+   icrc55_get_controller_nodes: (GetControllerNodesRequest) ->
+    (vec NodeShared) query;
+   icrc55_get_defaults: (text) -> (CreateRequest) query;
+   icrc55_get_node: (GetNode) -> (opt NodeShared) query;
+   icrc55_get_nodefactory_meta: () -> (NodeFactoryMetaResp) query;
+   icrc55_modify_node: (LocalNodeId, opt CommonModRequest,
+    opt ModifyRequest) -> (ModifyNodeResp);
+   start: () -> () oneway;
+ };
+type WithdrawNodeResponse = 
+ variant {
+   err: text;
+   ok;
+ };
+type WithdrawNodeRequest = 
+ record {
+   id: LocalNodeId;
+   source_port: nat;
+   to: Endpoint;
+ };
+type Version = 
+ variant {
+   alpha;
+   beta;
+   production;
+ };
+type SupportedLedger = 
+ variant {
+   ic: principal;
+   remote: record {
+             ledger: blob;
+             platform: nat64;
+           };
+ };
+type SourceEndpointResp = 
+ record {
+   balance: nat;
+   endpoint: Endpoint;
+ };
+type Shared__7 = 
+ record {
+   init: record {ledger: principal;};
+   internals: record {wait_until_ts: nat64;};
+   variables: record {
+                interval_sec: NumVariant;
+                max_amount: NumVariant;
+              };
+ };
+type Shared__6 = 
+ record {
+   init: record {ledger: principal;};
+   internals: record {};
+   variables: record {split: vec nat;};
+ };
+type Shared__5 = 
+ record {
+   init: record {
+           ledger_for: principal;
+           ledger_mint: principal;
+         };
+   internals: record {};
+   variables: record {};
+ };
+type Shared__4 = 
+ record {
+   init: record {
+           ledger_collateral: principal;
+           ledger_lend: principal;
+         };
+   internals: record {};
+   variables: record {interest: nat;};
+ };
+type Shared__3 = 
+ record {
+   init: record {
+           ledger_from: principal;
+           ledger_to: principal;
+         };
+   internals: record {};
+   variables: record {max_per_sec: nat;};
+ };
+type Shared__2 = 
+ record {
+   init: record {ledger: principal;};
+   internals: record {};
+   variables: record {};
+ };
+type Shared__1 = 
+ record {
+   init: record {
+           ledger_borrow: principal;
+           ledger_collateral: principal;
+         };
+   internals: record {};
+   variables: record {interest: nat;};
+ };
+type Shared = 
+ variant {
+   borrow: Shared__1;
+   escrow: Shared__2;
+   exchange: Shared__3;
+   lend: Shared__4;
+   mint: Shared__5;
+   split: Shared__6;
+   throttle: Shared__7;
+ };
+type RemoteEndpoint = 
+ record {
+   account: blob;
+   ledger: blob;
+   name: text;
+   platform: nat64;
+ };
+type NumVariant = 
+ variant {
+   fixed: nat64;
+   rnd: record {
+          max: nat64;
+          min: nat64;
+        };
+ };
+type NodeShared = 
+ record {
+   active: bool;
+   controllers: vec principal;
+   created: nat64;
+   custom: Shared;
+   destinations: vec DestinationEndpoint;
+   expires: opt nat64;
+   extractors: vec LocalNodeId;
+   id: LocalNodeId;
+   modified: nat64;
+   refund: vec Endpoint;
+   sources: vec SourceEndpointResp;
+ };
+type NodeRequest = 
+ record {
+   controllers: vec principal;
+   destinations: vec DestinationEndpoint;
+   extractors: vec LocalNodeId;
+   refund: vec Endpoint;
+   sources: vec Endpoint;
+ };
+type NodeMeta = 
+ record {
+   description: text;
+   id: text;
+   name: text;
+   pricing: text;
+   supported_ledgers: vec SupportedLedger;
+   version: Version;
+ };
+type NodeId = nat32;
+type NodeFactoryMetaResp = 
+ record {
+   governed_by: text;
+   name: text;
+   nodes: vec NodeMeta;
+ };
+type NodeCreateFeeResp = 
+ variant {
+   err: text;
+   ok: NodeCreateFee;
+ };
+type NodeCreateFee = 
+ record {
+   amount: nat;
+   ledger: principal;
+   subaccount: blob;
+ };
+type ModifyRequest__7 = 
+ record {
+   interval_sec: NumVariant;
+   max_amount: NumVariant;
+ };
+type ModifyRequest__6 = record {split: vec nat;};
+type ModifyRequest__5 = record {};
+type ModifyRequest__4 = record {interest: nat;};
+type ModifyRequest__3 = record {max_per_sec: nat;};
+type ModifyRequest__2 = record {};
+type ModifyRequest__1 = record {interest: nat;};
+type ModifyRequest = 
+ variant {
+   borrow: ModifyRequest__1;
+   escrow: ModifyRequest__2;
+   exchange: ModifyRequest__3;
+   lend: ModifyRequest__4;
+   mint: ModifyRequest__5;
+   split: ModifyRequest__6;
+   throttle: ModifyRequest__7;
+ };
+type ModifyNodeResponse = 
+ variant {
+   err: text;
+   ok: GetNodeResponse;
+ };
+type ModifyNodeResp = 
+ variant {
+   err: text;
+   ok: GetNodeResponse;
+ };
+type ModifyNodeRequest = 
+ record {
+   LocalNodeId;
+   opt CommonModRequest;
+   opt ModifyRequest;
+ };
+type LocalNodeId = nat32;
+type LedgerInfo = 
+ record {
+   id: principal;
+   info: variant {
+           icp: Info;
+           icrc: Info__1;
+         };
+ };
+type Info__1 = 
+ record {
+   accounts: nat;
+   actor_principal: opt principal;
+   errors: nat;
+   lastTxTime: nat64;
+   last_indexed_tx: nat;
+   pending: nat;
+   reader_instructions_cost: nat64;
+   sender_instructions_cost: nat64;
+ };
+type Info = 
+ record {
+   accounts: nat;
+   actor_principal: opt principal;
+   errors: nat;
+   lastTxTime: nat64;
+   last_indexed_tx: nat;
+   pending: nat;
+   reader_instructions_cost: nat64;
+   sender_instructions_cost: nat64;
+ };
+type ICEndpoint = 
+ record {
+   account: Account;
+   ledger: principal;
+   name: text;
+ };
+type GetNodeResponse = 
+ record {
+   active: bool;
+   controllers: vec principal;
+   created: nat64;
+   custom: Shared;
+   destinations: vec DestinationEndpoint;
+   expires: opt nat64;
+   extractors: vec LocalNodeId;
+   id: LocalNodeId;
+   modified: nat64;
+   refund: vec Endpoint;
+   sources: vec SourceEndpointResp;
+ };
+type GetNode = 
+ variant {
+   id: LocalNodeId;
+   subaccount: opt blob;
+ };
+type GetControllerNodesRequest = 
+ record {
+   id: principal;
+   length: nat;
+   start: nat;
+ };
+type Endpoint = 
+ variant {
+   ic: ICEndpoint;
+   remote: RemoteEndpoint;
+ };
+type DestinationEndpoint = 
+ variant {
+   ic: DestICEndpoint;
+   remote: DestRemoteEndpoint;
+ };
+type DestRemoteEndpoint = 
+ record {
+   account: opt blob;
+   ledger: blob;
+   name: text;
+   platform: nat64;
+ };
+type DestICEndpoint = 
+ record {
+   account: opt Account;
+   ledger: principal;
+   name: text;
+ };
+type DeleteNodeResp = 
+ variant {
+   err: text;
+   ok;
+ };
+type CreateRequest__7 = 
+ record {
+   init: record {ledger: principal;};
+   variables: record {
+                interval_sec: NumVariant;
+                max_amount: NumVariant;
+              };
+ };
+type CreateRequest__6 = 
+ record {
+   init: record {ledger: principal;};
+   variables: record {split: vec nat;};
+ };
+type CreateRequest__5 = 
+ record {
+   init: record {
+           ledger_for: principal;
+           ledger_mint: principal;
+         };
+   variables: record {};
+ };
+type CreateRequest__4 = 
+ record {
+   init: record {
+           ledger_collateral: principal;
+           ledger_lend: principal;
+         };
+   variables: record {interest: nat;};
+ };
+type CreateRequest__3 = 
+ record {
+   init: record {
+           ledger_from: principal;
+           ledger_to: principal;
+         };
+   variables: record {max_per_sec: nat;};
+ };
+type CreateRequest__2 = 
+ record {
+   init: record {ledger: principal;};
+   variables: record {};
+ };
+type CreateRequest__1 = 
+ record {
+   init: record {
+           ledger_borrow: principal;
+           ledger_collateral: principal;
+         };
+   variables: record {interest: nat;};
+ };
+type CreateRequest = 
+ variant {
+   borrow: CreateRequest__1;
+   escrow: CreateRequest__2;
+   exchange: CreateRequest__3;
+   lend: CreateRequest__4;
+   mint: CreateRequest__5;
+   split: CreateRequest__6;
+   throttle: CreateRequest__7;
+ };
+type CreateNodeResponse = 
+ variant {
+   err: text;
+   ok: GetNodeResponse;
+ };
+type CreateNodeResp = 
+ variant {
+   err: text;
+   ok: GetNodeResponse;
+ };
+type CreateNodeRequest = 
+ record {
+   NodeRequest;
+   CreateRequest;
+ };
+type CommonModRequest = 
+ record {
+   controllers: vec principal;
+   destinations: vec DestinationEndpoint;
+   extractors: vec LocalNodeId;
+   refund: vec Endpoint;
+   sources: vec Endpoint;
+ };
+type CommandResponse = 
+ variant {
+   change_active_node: ChangeActiveNodeResponse;
+   create_node: CreateNodeResponse;
+   delete_node: DeleteNodeResp;
+   modify_node: ModifyNodeResponse;
+   withdraw_node: WithdrawNodeResponse;
+ };
+type Command = 
+ variant {
+   change_active_node: ChangeActiveNodeRequest;
+   create_node: CreateNodeRequest;
+   delete_node: LocalNodeId;
+   modify_node: ModifyNodeRequest;
+   withdraw_node: WithdrawNodeRequest;
+ };
+type ChangeActiveNodeResponse = 
+ variant {
+   err: text;
+   ok;
+ };
+type ChangeActiveNodeRequest = 
+ record {
+   active: bool;
+   id: LocalNodeId;
+ };
+type Account = 
+ record {
+   owner: principal;
+   subaccount: opt blob;
+ };
+service : () -> _anon_class_16_1

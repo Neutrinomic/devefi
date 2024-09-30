@@ -7,7 +7,7 @@ import { _SERVICE as NodeService, idlFactory as NodeIdlFactory, init as NodeInit
          NodeId,        
          NodeRequest,
          CreateRequest,
-        } from './build/basic_node.idl.js';
+        } from './build/basic.idl.js';
 
 //import {ICRCLedgerService, ICRCLedger} from "./icrc_ledger/ledgerCanister";
 import {ICRCLedgerService, ICRCLedger} from "./icrc_ledger/ledgerCanister";
@@ -15,14 +15,14 @@ import {ICRCLedgerService, ICRCLedger} from "./icrc_ledger/ledgerCanister";
 import {toState} from "@infu/icblast";
 // Jest can't handle multi threaded BigInts o.O That's why we use toState
 
-const WASM_NODE_PATH = resolve(__dirname, "./build/basic_node.wasm");
+const WASM_NODE_PATH = resolve(__dirname, "./build/basic.wasm");
 
-export async function NodeCan(pic:PocketIc, ledgerCanisterId:Principal) {
+export async function NodeCan(pic:PocketIc) {
     
   const fixture = await pic.setupCanister<NodeService>({
       idlFactory: NodeIdlFactory,
       wasm: WASM_NODE_PATH,
-      arg: IDL.encode(NodeInit({ IDL }), [{ledgerId: ledgerCanisterId}]),
+      arg: IDL.encode(NodeInit({ IDL }), []),
   });
 
   return fixture;
@@ -53,10 +53,15 @@ describe('Basic', () => {
       
 
       // Node canister
-      const nodefixture = await NodeCan(pic, ledgerCanisterId);
+      const nodefixture = await NodeCan(pic);
       node = nodefixture.actor;
       nodeCanisterId = nodefixture.canisterId;
 
+      ledger.setIdentity(jo);
+      node.add_supported_ledger(ledgerCanisterId, {icrc:null});
+      node.start();
+
+      await passTime(10);
     });
   
     afterAll(async () => {
@@ -112,7 +117,7 @@ describe('Basic', () => {
 
 
       ledger.setIdentity(jo);
-      node.start();
+      
       await passTime(30);
 
       let cnr_ret = await node.icrc55_create_node(req, creq);
@@ -193,7 +198,7 @@ describe('Basic', () => {
       await passTime(3);
       
       ledger.setIdentity(jo);
-      node.start();
+      
       await passTime(30);
 
       let cnr_ret = await node.icrc55_create_node(req, creq_split);

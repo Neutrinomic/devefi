@@ -18,23 +18,16 @@ actor class () = this {
     // Throttle vector
     // It will send X amount of tokens every Y seconds
 
-    let NTN_LEDGER = Principal.fromText("f54if-eqaaa-aaaaq-aacea-cai");
-    let NODE_FEE = 1_0000_0000;
 
     stable let dvf_mem = DeVeFi.Mem();
     let rng = Prng.SFC64a();
     rng.init(123456);
 
-    let supportedLedgers : [Principal] = [
-        Principal.fromText("ryjl3-tyaaa-aaaaa-aaaba-cai"),
-        NTN_LEDGER,
-        // Principal.fromText("mxzaz-hqaaa-aaaar-qaada-cai"),
-        // Principal.fromText("xevnm-gaaaa-aaaar-qafnq-cai"),
-    ];
+
 
     let dvf = DeVeFi.DeVeFi<system>({ mem = dvf_mem });
-    dvf.add_ledger<system>(supportedLedgers[0], #icp);
-    dvf.add_ledger<system>(supportedLedgers[1], #icrc);
+    // dvf.add_ledger<system>(supportedLedgers[0], #icp);
+    // dvf.add_ledger<system>(supportedLedgers[1], #icrc);
     // dvf.add_ledger<system>(supportedLedgers[2], #icrc);
     // dvf.add_ledger<system>(supportedLedgers[3], #icrc);
 
@@ -43,18 +36,18 @@ actor class () = this {
         mem = node_mem;
         dvf;
         nodeCreateFee = func(_node) {
+            let dvf_ledgers = dvf.get_ledger_ids();
             {
-                amount = NODE_FEE;
-                ledger = NTN_LEDGER;
+                amount = 1_0000_0000;
+                ledger = dvf_ledgers[0]; // The first ledger added is used for fees
             };
         };
-        supportedLedgers = Array.map<Principal, ICRC55.SupportedLedger>(supportedLedgers, func (x) = #ic(x));
         settings = {
             Node.DEFAULT_SETTINGS with
             MAX_SOURCES = 1 : Nat8;
             MAX_DESTINATIONS = 1 : Nat8;
             PYLON_NAME = "Transcendence";
-            PYLON_GOVERNED_BY = "Neutrinite DAO"
+            PYLON_GOVERNED_BY = "Neutrinite DAO";
         };
         toShared = T.toShared;
         sourceMap = T.sourceMap;
@@ -113,6 +106,19 @@ actor class () = this {
 
                         };
                     };
+                    case (#split(n)) {
+
+                        let totalSplit = Array.foldLeft<Nat, Nat>(n.variables.split, 0, func(acc, x) = acc + x);
+                        if (totalSplit == 0) continue vloop;
+
+                        label port_send for (port_id in n.variables.split.keys()) {
+                            let amount = bal * n.variables.split[port_id] / totalSplit;
+                            if (amount <= fee * 100) continue port_send;
+                            source.send(#destination({ port = port_id }), amount);
+                        };
+
+                        
+                    };
                     case (_) ();
                 };
 
@@ -128,7 +134,7 @@ actor class () = this {
         nodes.icrc55_create_node_get_fee(caller, req, creq);
     };
 
-    public shared ({caller }) func icrc55_command(cmds : [ICRC55.Command<T.CreateRequest, T.ModifyRequest>]) : async [ICRC55.CommandResponse<T.Shared>] {
+    public shared ({ caller }) func icrc55_command(cmds : [ICRC55.Command<T.CreateRequest, T.ModifyRequest>]) : async [ICRC55.CommandResponse<T.Shared>] {
         nodes.icrc55_command(caller, cmds);
     };
 
@@ -140,15 +146,15 @@ actor class () = this {
         nodes.icrc55_get_node(req);
     };
 
-    public query ({ caller }) func icrc55_get_controller_nodes(req: ICRC55.GetControllerNodesRequest) : async [Node.NodeShared<T.Shared>] {
+    public query ({ caller }) func icrc55_get_controller_nodes(req : ICRC55.GetControllerNodesRequest) : async [Node.NodeShared<T.Shared>] {
         nodes.icrc55_get_controller_nodes(caller, req);
     };
 
-    public shared ({caller}) func icrc55_delete_node(vid : ICRC55.LocalNodeId) : async ICRC55.DeleteNodeResp {
+    public shared ({ caller }) func icrc55_delete_node(vid : ICRC55.LocalNodeId) : async ICRC55.DeleteNodeResp {
         nodes.icrc55_delete_node(caller, vid);
     };
 
-    public shared ({caller}) func icrc55_modify_node(vid : ICRC55.LocalNodeId, req : ?ICRC55.CommonModRequest, creq : ?T.ModifyRequest) : async Node.ModifyNodeResp<T.Shared> {
+    public shared ({ caller }) func icrc55_modify_node(vid : ICRC55.LocalNodeId, req : ?ICRC55.CommonModRequest, creq : ?T.ModifyRequest) : async Node.ModifyNodeResp<T.Shared> {
         nodes.icrc55_modify_node(caller, vid, req, creq);
     };
 
@@ -165,11 +171,11 @@ actor class () = this {
         nodes.start<system>(Principal.fromActor(this));
     };
 
-
-
-
-
     // ---------- Debug functions -----------
+
+    public func add_supported_ledger(id : Principal, ltype : {#icp; #icrc}) : () {
+        dvf.add_ledger<system>(id, ltype);
+    };
 
     public query func get_ledger_errors() : async [[Text]] {
         dvf.getErrors();
@@ -182,7 +188,7 @@ actor class () = this {
     // Dashboard explorer doesn't show icrc accounts in text format, this does
     // Hard to send tokens to Candid ICRC Accounts
     public query func get_node_addr(vid : Node.NodeId) : async ?Text {
-        let ?(_,vec) = nodes.getNode(#id(vid)) else return null;
+        let ?(_, vec) = nodes.getNode(#id(vid)) else return null;
 
         let subaccount = ?Node.port2subaccount({
             vid;

@@ -103,7 +103,7 @@ module {
             amount : Nat;
             ledger : Principal;
         };
-        supportedLedgers : [ICRC55.SupportedLedger];
+        
         toShared : (XMem) -> XShared;
         sourceMap : (NodeId, XMem, Principal, [Endpoint]) -> R<[Endpoint], Text>;
         destinationMap : (XMem, [DestinationEndpoint]) -> R<[DestinationEndpoint], Text>;
@@ -298,8 +298,12 @@ module {
             mem.thiscan := ?can;
         };
 
+        private func get_supported_ledgers() : [ICRC55.SupportedLedger] {
+            Array.map<Principal, ICRC55.SupportedLedger>( dvf.get_ledger_ids(), func(x) = #ic(x));
+        };
+
         public func icrc55_get_defaults(id:Text) : XCreateRequest {
-            getDefaults(id, supportedLedgers);
+            getDefaults(id, get_supported_ledgers());
         };
 
         public func icrc55_command(caller : Principal, cmds : [ICRC55.Command<XCreateRequest, XModifyRequest>]) : [ICRC55.CommandResponse<XShared>] {
@@ -418,7 +422,7 @@ module {
             {
                 name = settings.PYLON_NAME;
                 governed_by = settings.PYLON_GOVERNED_BY;
-                nodes = meta(supportedLedgers)
+                nodes = meta(get_supported_ledgers())
                 };
         };
 
