@@ -122,7 +122,7 @@ describe('Basic', () => {
 
       let cnr_ret = await node.icrc55_create_node(req, creq);
 
-      // console.log("cnr_ret: ", cnr_ret);
+      //console.log("cnr_ret: ", cnr_ret);
       if ('ok' in cnr_ret) {
         const aux = cnr_ret.ok;
         // console.log("sources:",aux.sources[0]);
