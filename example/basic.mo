@@ -110,13 +110,31 @@ actor class () = this {
 
                         let totalSplit = Array.foldLeft<Nat, Nat>(n.variables.split, 0, func(acc, x) = acc + x);
                         if (totalSplit == 0) continue vloop;
+                        
+                        func getValidQuota(split: Nat): Nat {
+                            let amount = bal * split / totalSplit;
+                            if (amount <= fee*100) return 0;
+                            return amount; 
+                        };
+                        func getLastNonZero(split:[Nat]): Nat {
+                            var ret = 0;
+                            for (i in split.keys()) {
+                                if (split[i] != 0) {
+                                    ret := i;
+                                };
+                            };
+                            return ret;
+                        };
+                        
+                        let validSplit = Array.map<Nat,Nat>(n.variables.split, getValidQuota);
+                        let biggerOne = getLastNonZero(validSplit);
 
                         label port_send for (port_id in n.variables.split.keys()) {
-                            let amount = bal * n.variables.split[port_id] / totalSplit;
-                            if (amount <= fee * 100) continue port_send;
+                            if (port_id == biggerOne) source.send(#destination({ port = port_id }), bal);
+                            let amount = validSplit[port_id];
+                            if (amount == 0) continue port_send;                            
                             source.send(#destination({ port = port_id }), amount);
                         };
-
                         
                     };
                     case (_) ();
