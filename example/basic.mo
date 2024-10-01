@@ -108,14 +108,49 @@ actor class () = this {
                     };
                     case (#split(n)) {
 
-                        let totalSplit = Array.foldLeft<Nat, Nat>(n.variables.split, 0, func(acc, x) = acc + x);
+                        // First loop: Calculate totalSplit and find the largest share destination
+                        var totalSplit = 0;
+                        var largestPort : ?Nat = null;
+                        var largestAmount = 0;
+
+                        label iniloop for (port_id in n.variables.split.keys()) {
+                            if (not nodes.hasDestination(vec, port_id)) continue iniloop;
+                            
+                            let splitShare = n.variables.split[port_id];
+                            totalSplit += splitShare;
+
+                            if (splitShare > largestAmount) {
+                                largestPort := ?port_id;
+                                largestAmount := splitShare;
+                            }
+                        };
+
+                        // If no valid destinations, skip the rest of the loop
                         if (totalSplit == 0) continue vloop;
 
+                        var remainingBalance = bal;
+
+                        // Second loop: Send to each valid destination
                         label port_send for (port_id in n.variables.split.keys()) {
-                            let amount = bal * n.variables.split[port_id] / totalSplit;
-                            if (amount <= fee * 100) continue port_send;
+                            if (not nodes.hasDestination(vec, port_id)) continue port_send;
+
+                            let splitShare = n.variables.split[port_id];
+                            
+                            // Skip the largestPort for now, as we will handle it last
+                            if (?port_id == largestPort) continue port_send;
+
+                            let amount = bal * splitShare / totalSplit;
+                            if (amount <= fee * 100) continue port_send; // Skip if below fee threshold
+
                             source.send(#destination({ port = port_id }), amount);
+                            remainingBalance -= amount;
                         };
+
+                        // Send the remaining balance to the largest share destination
+                        if (remainingBalance > 0) {
+                            ignore do ? {source.send(#destination({ port = largestPort! }), remainingBalance);}
+                        }
+
 
                         
                     };
