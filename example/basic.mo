@@ -127,6 +127,24 @@ actor class () = this {
 
                         // If no valid destinations, skip the rest of the loop
                         if (totalSplit == 0) continue vloop;
+                        
+                        func getValidQuota(split: Nat): Nat {
+                            let amount = bal * split / totalSplit;
+                            if (amount <= fee*100) return 0;
+                            return amount; 
+                        };
+                        func getLastNonZero(split:[Nat]): Nat {
+                            var ret = 0;
+                            for (i in split.keys()) {
+                                if (split[i] != 0) {
+                                    ret := i;
+                                };
+                            };
+                            return ret;
+                        };
+                        
+                        let validSplit = Array.map<Nat,Nat>(n.variables.split, getValidQuota);
+                        let biggerOne = getLastNonZero(validSplit);
 
                         var remainingBalance = bal;
 
