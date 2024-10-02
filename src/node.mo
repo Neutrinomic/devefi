@@ -328,12 +328,39 @@ module {
                     case (#change_active_node(req)) {
                         #change_active_node(icrc55_change_active_node(caller, req));
                     };
+                    case (#change_destination(req)) {
+                        #change_destination(icrc55_change_destination(caller, req));
+                    };
                 };
                 Vector.add(res, r);
             };
             Vector.toArray(res);
 
         };
+
+
+        public func icrc55_change_destination(caller : Principal, req : ICRC55.ChangeDestinationRequest) : ICRC55.ChangeDestinationResp {
+            let ?(_, vec) = getNode(#id(req.id)) else return #err("Node not found");
+            if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
+
+            if (req.port >= vec.destinations.size()) return #err("Destination not found");
+
+            let vdest = Array.thaw<DestinationEndpoint>(vec.destinations);
+            
+            vdest[req.port] := req.to;
+
+            let d_res = destinationMap(vec.custom, Array.freeze(vdest));
+
+            let destinations = switch (d_res) {
+                case (#ok(d)) d;
+                case (#err(e)) return #err(e);
+            };
+     
+            vec.destinations := destinations;
+
+            #ok();
+        };
+
         public func icrc55_change_active_node(caller : Principal, req : ICRC55.ChangeActiveNodeRequest) : ICRC55.ChangeActiveNodeResponse {
             let ?(_, vec) = getNode(#id(req.id)) else return #err("Node not found");
             if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");

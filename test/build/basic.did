@@ -395,6 +395,7 @@ type CommonModRequest =
 type CommandResponse = 
  variant {
    change_active_node: ChangeActiveNodeResponse;
+   change_destination: ChangeDestinationResp;
    create_node: CreateNodeResponse;
    delete_node: DeleteNodeResp;
    modify_node: ModifyNodeResponse;
@@ -403,10 +404,22 @@ type CommandResponse =
 type Command = 
  variant {
    change_active_node: ChangeActiveNodeRequest;
+   change_destination: ChangeDestinationRequest;
    create_node: CreateNodeRequest;
    delete_node: LocalNodeId;
    modify_node: ModifyNodeRequest;
    withdraw_node: WithdrawNodeRequest;
+ };
+type ChangeDestinationResp = 
+ variant {
+   err: text;
+   ok;
+ };
+type ChangeDestinationRequest = 
+ record {
+   id: LocalNodeId;
+   port: nat;
+   to: DestinationEndpoint;
  };
 type ChangeActiveNodeResponse = 
  variant {

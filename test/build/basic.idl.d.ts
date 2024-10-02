@@ -12,13 +12,22 @@ export interface ChangeActiveNodeRequest {
 }
 export type ChangeActiveNodeResponse = { 'ok' : null } |
   { 'err' : string };
+export interface ChangeDestinationRequest {
+  'id' : LocalNodeId,
+  'to' : DestinationEndpoint,
+  'port' : bigint,
+}
+export type ChangeDestinationResp = { 'ok' : null } |
+  { 'err' : string };
 export type Command = { 'modify_node' : ModifyNodeRequest } |
   { 'withdraw_node' : WithdrawNodeRequest } |
+  { 'change_destination' : ChangeDestinationRequest } |
   { 'create_node' : CreateNodeRequest } |
   { 'change_active_node' : ChangeActiveNodeRequest } |
   { 'delete_node' : LocalNodeId };
 export type CommandResponse = { 'modify_node' : ModifyNodeResponse } |
   { 'withdraw_node' : WithdrawNodeResponse } |
+  { 'change_destination' : ChangeDestinationResp } |
   { 'create_node' : CreateNodeResponse } |
   { 'change_active_node' : ChangeActiveNodeResponse } |
   { 'delete_node' : DeleteNodeResp };

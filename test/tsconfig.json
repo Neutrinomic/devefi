@@ -52,7 +52,8 @@
       "noUnusedLocals": false,
       "noUnusedParameters": false,
       "noFallthroughCasesInSwitch": true,
-  
+      "strictNullChecks": false,
+      "strictPropertyInitialization": false,
       // Some stricter flags
       "useUnknownInCatchVariables": true,
       "noPropertyAccessFromIndexSignature": true
