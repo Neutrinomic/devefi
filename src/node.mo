@@ -121,7 +121,6 @@ module {
             x;
         };
 
-        // TODO : Disallow one node taking from the source of another without being in extractors
         public class Source(
             cls : {
                 endpoint : Endpoint;
