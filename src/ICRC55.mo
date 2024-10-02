@@ -161,12 +161,25 @@ module {
         #ok : ();
         #err : Text;
     };
+
+    public type ChangeDestinationRequest = {
+        id : LocalNodeId;
+        port : Nat;
+        to: DestinationEndpoint;
+    };
+
+    public type ChangeDestinationResp = {
+        #ok : ();
+        #err : Text;
+    };
+
     public type Command<C,M> = {
         #create_node : CreateNodeRequest<C>;
         #delete_node : LocalNodeId;
         #modify_node : ModifyNodeRequest<M>;
         #withdraw_node: WithdrawNodeRequest;
         #change_active_node: ChangeActiveNodeRequest;
+        #change_destination: ChangeDestinationRequest;
         // change destination
         // call func
     };
@@ -177,6 +190,7 @@ module {
         #modify_node : ModifyNodeResponse<A>;
         #withdraw_node: WithdrawNodeResponse;
         #change_active_node: ChangeActiveNodeResponse;
+        #change_destination: ChangeDestinationResp;
     };
 
     public type Self = actor {

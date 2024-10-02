@@ -99,6 +99,11 @@ export const idlFactory = ({ IDL }) => {
     'to' : Endpoint,
     'source_port' : IDL.Nat,
   });
+  const ChangeDestinationRequest = IDL.Record({
+    'id' : LocalNodeId,
+    'to' : DestinationEndpoint,
+    'port' : IDL.Nat,
+  });
   const NodeRequest = IDL.Record({
     'controllers' : IDL.Vec(IDL.Principal),
     'extractors' : IDL.Vec(LocalNodeId),
@@ -166,6 +171,7 @@ export const idlFactory = ({ IDL }) => {
   const Command = IDL.Variant({
     'modify_node' : ModifyNodeRequest,
     'withdraw_node' : WithdrawNodeRequest,
+    'change_destination' : ChangeDestinationRequest,
     'create_node' : CreateNodeRequest,
     'change_active_node' : ChangeActiveNodeRequest,
     'delete_node' : LocalNodeId,
@@ -254,6 +260,10 @@ export const idlFactory = ({ IDL }) => {
     'ok' : IDL.Null,
     'err' : IDL.Text,
   });
+  const ChangeDestinationResp = IDL.Variant({
+    'ok' : IDL.Null,
+    'err' : IDL.Text,
+  });
   const CreateNodeResponse = IDL.Variant({
     'ok' : GetNodeResponse,
     'err' : IDL.Text,
@@ -266,6 +276,7 @@ export const idlFactory = ({ IDL }) => {
   const CommandResponse = IDL.Variant({
     'modify_node' : ModifyNodeResponse,
     'withdraw_node' : WithdrawNodeResponse,
+    'change_destination' : ChangeDestinationResp,
     'create_node' : CreateNodeResponse,
     'change_active_node' : ChangeActiveNodeResponse,
     'delete_node' : DeleteNodeResp,

@@ -5,7 +5,8 @@
   },
   "license": "MIT",
   "scripts": {
-    "test": "./build.sh && jest -c ./jest.config.ts",
+    "test": "NODE_OPTIONS=\"--no-deprecation\" ./build.sh && jest -c ./jest.config.ts",
+    "testw": "NODE_OPTIONS=\"--no-deprecation\" jest -c ./jest.config.ts",
     "test:basic": "NO_MOTOKO_OUTPUT=true jest -c ./jest.config.ts -t 'Basic'",
     "test:basic2": "jest -c ./jest.config.ts -t 'Basic'"
   },
@@ -25,5 +26,4 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }
-
 }
