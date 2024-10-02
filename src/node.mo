@@ -18,6 +18,7 @@ import Time "mo:base/Time";
 import Vector "mo:vector";
 import Debug "mo:base/Debug";
 import Nat32 "mo:base/Nat32";
+import ICRCLedger "mo:devefi-icrc-ledger";
 
 module {
 
@@ -93,6 +94,7 @@ module {
         PYLON_NAME = "Testing Pylon";
     };
 
+    public type SourceSendErr = ICRCLedger.SendError or {#AccountNotSet};
  
 
     public class Node<system, XCreateRequest, XMem, XShared, XModifyRequest>({
@@ -149,21 +151,21 @@ module {
                     #external_account : Account;
                 },
                 amount : Nat,
-            ) : () {
+            ) :  R<Nat64, SourceSendErr>  {
                 let to : Account = switch (location) {
                     case (#destination({ port })) {
-                        let ?acc = onlyICDest(cls.vec.destinations[port]).account else return;
+                        let ?acc = onlyICDest(cls.vec.destinations[port]).account else return #err(#AccountNotSet);
                         acc;
                     };
 
                     case (#remote_destination({ node; port })) {
-                        let ?to_vec = Map.get(mem.nodes, Map.n32hash, node) else return;
-                        let ?acc = onlyICDest(to_vec.destinations[port]).account else return;
+                        let ?to_vec = Map.get(mem.nodes, Map.n32hash, node) else return #err(#AccountNotSet);
+                        let ?acc = onlyICDest(to_vec.destinations[port]).account else return #err(#AccountNotSet);
                         acc;
                     };
 
                     case (#remote_source({ node; port })) {
-                        let ?to_vec = Map.get(mem.nodes, Map.n32hash, node) else return;
+                        let ?to_vec = Map.get(mem.nodes, Map.n32hash, node) else return #err(#AccountNotSet);
                         onlyIC(to_vec.sources[port]).account;
                     };
 
@@ -177,7 +179,7 @@ module {
                 };
 
 
-                ignore dvf.send({
+                dvf.send({
                     ledger = endpoint.ledger;
                     to;
                     amount;
@@ -346,7 +348,7 @@ module {
 
             let ?source = getSource(vid, vec, req.source_port) else return #err("Source not found");
             let acc = onlyIC(req.to).account;
-            source.send(#external_account(acc), source.balance());
+            ignore source.send(#external_account(acc), source.balance());
             #ok();
         };
 
