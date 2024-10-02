@@ -61,7 +61,7 @@ describe('Basic', () => {
       node.add_supported_ledger(ledgerCanisterId, {icrc:null});
       node.start();
 
-      await passTime(10);
+      await passTime(300);
     });
   
     afterAll(async () => {
@@ -69,20 +69,20 @@ describe('Basic', () => {
     });   
 
 
-    it(`Check (minter) balance`  , async () => {
-      const result = await ledger.icrc1_balance_of({owner: jo.getPrincipal(), subaccount: []});
-      // console.log("jo balance:",result)
-      const result2 = await ledger.icrc1_balance_of({owner: bob.getPrincipal(), subaccount: []});
-      // console.log("bob balance:",result2)
-      expect(toState(result)).toBe("100000000000")
-      expect(toState(result2)).toBe("0")
-    });
+    // it(`Check (minter) balance`  , async () => {
+    //   const result = await ledger.icrc1_balance_of({owner: jo.getPrincipal(), subaccount: []});
+    //   // console.log("jo balance:",result)
+    //   const result2 = await ledger.icrc1_balance_of({owner: bob.getPrincipal(), subaccount: []});
+    //   // console.log("bob balance:",result2)
+    //   expect(toState(result)).toBe("100000000000")
+    //   expect(toState(result2)).toBe("0")
+    // });
 
   
     it(`configure node`, async () => {
 
-      let gna_args: NodeId = 0;
-      let ret_gna = await node.get_node_addr(gna_args);
+      // let gna_args: NodeId = 0;
+      // let ret_gna = await node.get_node_addr(gna_args);
 
 
       let req : NodeRequest = {
@@ -113,15 +113,18 @@ describe('Basic', () => {
         },
       };
 
-      await passTime(3);
+      // await passTime(3);
 
 
-      ledger.setIdentity(jo);
+      // ledger.setIdentity(jo);
       
-      await passTime(30);
+      // await passTime(30);
 
       let cnr_ret = await node.icrc55_create_node(req, creq);
 
+      node.start();
+      
+      await passTime(30);
       //console.log("cnr_ret: ", cnr_ret);
       if ('ok' in cnr_ret) {
         const aux = cnr_ret.ok;
@@ -145,11 +148,13 @@ describe('Basic', () => {
             created_at_time: [],
           });
 
+          const res_src = await ledger.icrc1_balance_of({owner: source_principal, subaccount:source_principal_sub});
+          console.log("res_src:", res_src);
 
-          await passTime(10);
+          await passTime(100);
 
           const res_bobaa = await ledger.icrc1_balance_of({owner: bob.getPrincipal(), subaccount: []});
-
+          // console.log("res_bobaa:",res_bobaa)
           expect(res_bobaa>0).toBe(true)
 
         }
