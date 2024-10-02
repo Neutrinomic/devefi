@@ -1,2 +1,0 @@
-
-icrc55_register_nodefactory(principal)
