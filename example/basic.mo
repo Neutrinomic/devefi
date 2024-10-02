@@ -102,13 +102,13 @@ actor class () = this {
                             var amount = Nat.min(bal, Nat64.toNat(max_amount));
                             if (bal - amount : Nat <= fee * 100) amount := bal; // Don't leave dust
 
-                            source.send(#destination({ port = 0 }), amount);
+                            ignore source.send(#destination({ port = 0 }), amount);
 
                         };
                     };
                     case (#split(n)) {
 
-                        // First loop: Calculate totalSplit and find the largest share destination
+                          // First loop: Calculate totalSplit and find the largest share destination
                         var totalSplit = 0;
                         var largestPort : ?Nat = null;
                         var largestAmount = 0;
@@ -127,24 +127,6 @@ actor class () = this {
 
                         // If no valid destinations, skip the rest of the loop
                         if (totalSplit == 0) continue vloop;
-                        
-                        func getValidQuota(split: Nat): Nat {
-                            let amount = bal * split / totalSplit;
-                            if (amount <= fee*100) return 0;
-                            return amount; 
-                        };
-                        func getLastNonZero(split:[Nat]): Nat {
-                            var ret = 0;
-                            for (i in split.keys()) {
-                                if (split[i] != 0) {
-                                    ret := i;
-                                };
-                            };
-                            return ret;
-                        };
-                        
-                        let validSplit = Array.map<Nat,Nat>(n.variables.split, getValidQuota);
-                        let biggerOne = getLastNonZero(validSplit);
 
                         var remainingBalance = bal;
 
@@ -160,7 +142,7 @@ actor class () = this {
                             let amount = bal * splitShare / totalSplit;
                             if (amount <= fee * 100) continue port_send; // Skip if below fee threshold
 
-                            source.send(#destination({ port = port_id }), amount);
+                            ignore source.send(#destination({ port = port_id }), amount);
                             remainingBalance -= amount;
                         };
 
@@ -168,7 +150,6 @@ actor class () = this {
                         if (remainingBalance > 0) {
                             ignore do ? {source.send(#destination({ port = largestPort! }), remainingBalance);}
                         }
-
 
                         
                     };
