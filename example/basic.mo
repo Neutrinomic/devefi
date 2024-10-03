@@ -35,13 +35,7 @@ actor class () = this {
     let nodes = Node.Node<system, T.CreateRequest, T.Mem, T.Shared, T.ModifyRequest>({
         mem = node_mem;
         dvf;
-        nodeCreateFee = func(_node) {
-            let dvf_ledgers = dvf.get_ledger_ids();
-            {
-                amount = 1_0000_0000;
-                ledger = dvf_ledgers[0]; // The first ledger added is used for fees
-            };
-        };
+        
         settings = {
             Node.DEFAULT_SETTINGS with
             MAX_SOURCES = 1 : Nat8;
@@ -56,6 +50,7 @@ actor class () = this {
         modifyRequestMut = T.modifyRequestMut;
         getDefaults = T.getDefaults;
         meta = T.meta;
+        nodeMeta = T.nodeMeta;
     });
 
     // Main DeVeFi logic
@@ -164,9 +159,9 @@ actor class () = this {
         nodes.icrc55_get_nodefactory_meta();
     };
 
-    public query ({ caller }) func icrc55_create_node_get_fee(req : ICRC55.NodeRequest, creq : T.CreateRequest) : async ICRC55.NodeCreateFeeResp {
-        nodes.icrc55_create_node_get_fee(caller, req, creq);
-    };
+    // public query ({ caller }) func icrc55_create_node_get_fee(req : ICRC55.NodeRequest, creq : T.CreateRequest) : async ICRC55.NodeCreateFeeResp {
+    //     nodes.icrc55_create_node_get_fee(caller, req, creq);
+    // };
 
     public shared ({ caller }) func icrc55_command(cmds : [ICRC55.Command<T.CreateRequest, T.ModifyRequest>]) : async [ICRC55.CommandResponse<T.Shared>] {
         nodes.icrc55_command(caller, cmds);

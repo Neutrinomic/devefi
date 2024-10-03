@@ -8,7 +8,8 @@ import {
     NodeId,
     NodeRequest,
     CreateRequest,
-    GetNodeResponse
+    GetNodeResponse,
+    NodeShared
 } from './build/basic.idl.js';
 
 import { ICRCLedgerService, ICRCLedger } from "./icrc_ledger/ledgerCanister";
@@ -108,6 +109,25 @@ export function createNodeUtils({
     user: Principal
 }) {
     return {
+        async listNodes(): Promise<NodeShared[]> {
+            return await pylon.icrc55_get_controller_nodes({ id: user, start:0n, length: 500n });
+        },
+        async sendToAccount(account: Account, amount: bigint): Promise<void> {
+            ledger.setPrincipal(user);
+            let txresp = await ledger.icrc1_transfer({
+                from_subaccount: [],
+                to: account,
+                amount: amount,
+                fee: [],
+                memo: [],
+                created_at_time: [],
+            });
+
+            if (!("Ok" in txresp)) {
+                throw new Error("Transaction failed");
+            }
+        },
+
         async sendToNode(nodeId: NodeId, port: number, amount: bigint): Promise<void> {
             ledger.setPrincipal(user);
             let resp = await pylon.icrc55_get_node({ id: nodeId });

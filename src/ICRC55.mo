@@ -15,7 +15,8 @@ module {
         name : Text;
         description : Text;
         supported_ledgers : [SupportedLedger];
-        pricing : Text;
+        billing : Billing;
+        billing_fee_collecting : BillingFeeCollecting;
         version: Version; //TODO: each node should have different princing token
     };
 
@@ -78,6 +79,27 @@ module {
         #remote : RemoteEndpoint;
     };
 
+    public type Billing = {
+        ledger : Principal;
+        min_create_balance : Nat; // Min balance required to create a node
+        hourly_cost: Nat; // Cost deducted per hour of node operation
+        operation_cost: Nat; // Cost incurred per operation        
+        freezing_threshold: Nat; // Min seconds of hourly cost left to freeze the node
+        exempt_balance: ?Nat; // Balance threshold that exempts from hourly cost deduction
+    };
+
+    public type BillingFeeCollecting = {
+        pylon : Nat; // Ratio
+        author : Nat; // Ratio
+        author_account : Account;
+    };
+
+    public type BillingInternal = {
+        frozen: Bool;
+        current_balance: Nat;
+        account : Account;
+    }; 
+
     public type GetNodeResponse<A> = {
         id : LocalNodeId;
         sources : [SourceEndpointResp];
@@ -87,6 +109,7 @@ module {
         controllers : [Principal];
         created : Nat64;
         modified : Nat64;
+        billing : Billing and BillingInternal;
         expires : ?Nat64;
         active : Bool;
         custom : A;
@@ -105,16 +128,6 @@ module {
         #err : Text;
     };
 
-    public type NodeCreateFeeResp = {
-        #ok : NodeCreateFee;
-        #err : Text;
-    };
-
-    public type NodeCreateFee = {
-        amount : Nat;
-        ledger : Principal;
-        subaccount : Blob;
-    };
 
     public type NodeRequest = {
         sources:[Endpoint];
@@ -180,8 +193,6 @@ module {
         #withdraw_node: WithdrawNodeRequest;
         #change_active_node: ChangeActiveNodeRequest;
         #change_destination: ChangeDestinationRequest;
-        // change destination
-        // call func
     };
 
     public type CommandResponse<A> = {
@@ -203,7 +214,6 @@ module {
         icrc55_modify_node : shared ModifyNodeRequest<Any> -> async ModifyNodeResponse<Any>;
 
         icrc55_get_node : shared query GetNode -> async ?GetNodeResponse<Any>;
-        icrc55_create_node_get_fee : shared query (Principal, Any) -> async NodeCreateFeeResp;
         icrc55_get_nodefactory_meta : shared query () -> async NodeFactoryMetaResp;
     };
 };

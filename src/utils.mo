@@ -5,8 +5,22 @@ import Time "mo:base/Time";
 import Int "mo:base/Int";
 import ICRC55 "./ICRC55";
 import Result "mo:base/Result";
+import Debug "mo:base/Debug";
 
 module {
+
+    public func onlyIC(ep : ICRC55.Endpoint) : ICRC55.ICEndpoint {
+        let #ic(x) = ep else Debug.trap("Not supported");
+        x;
+    };
+    public func onlyICDest(ep : ICRC55.DestinationEndpoint) : ICRC55.DestICEndpoint {
+        let #ic(x) = ep else Debug.trap("Not supported");
+        x;
+    };
+    public func onlyICLedger(ledger : ICRC55.SupportedLedger) : Principal {
+        let #ic(x) = ledger else Debug.trap("Not supported");
+        x;
+    };
 
     public func ENat64(value : Nat64) : [Nat8] {
         return [
@@ -37,30 +51,29 @@ module {
 
     public func DNat32(array : [Nat8]) : ?Nat32 {
         if (array.size() != 4) return null;
-        return ?(Nat32.fromNat(Nat8.toNat(array[0])) << 24 | 
-                Nat32.fromNat(Nat8.toNat(array[1])) << 16 | 
-                Nat32.fromNat(Nat8.toNat(array[2])) << 8  | 
-                Nat32.fromNat(Nat8.toNat(array[3])));
+        return ?(
+            Nat32.fromNat(Nat8.toNat(array[0])) << 24 | Nat32.fromNat(Nat8.toNat(array[1])) << 16 | Nat32.fromNat(Nat8.toNat(array[2])) << 8 | Nat32.fromNat(Nat8.toNat(array[3]))
+        );
     };
 
     public func now() : Nat64 {
-        Nat64.fromNat(Int.abs(Time.now()))
+        Nat64.fromNat(Int.abs(Time.now()));
     };
 
-    public func expectSourceAccount(expected_ledger: Principal, can:Principal, req : [ICRC55.Endpoint], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
+    public func expectSourceAccount(expected_ledger : Principal, can : Principal, req : [ICRC55.Endpoint], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
         if (req.size() <= idx) return #ok(null);
-      
+
         let #ic(x) = req[idx] else return #err;
         if (x.ledger != expected_ledger) return #err;
-        if (x.account.owner != can) return #err; 
+        if (x.account.owner != can) return #err;
         #ok(?x.account);
     };
 
-    public func expectDestinationAccount(expected_ledger: Principal, req : [ICRC55.DestinationEndpoint], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
+    public func expectDestinationAccount(expected_ledger : Principal, req : [ICRC55.DestinationEndpoint], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
         if (req.size() <= idx) return #ok(null);
-        
+
         let #ic(x) = req[idx] else return #err;
         if (x.ledger != expected_ledger) return #err;
         #ok(x.account);
     };
-}
+};

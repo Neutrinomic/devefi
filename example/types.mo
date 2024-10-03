@@ -133,6 +133,19 @@ module {
         };
     };
 
+    public func nodeMeta(custom: Mem, all_ledgers : [ICRC55.SupportedLedger]) : ICRC55.NodeMeta {
+        switch (custom) {
+            case (#throttle(t)) ThrottleVector.meta(all_ledgers);
+            case (#lend(t)) Lend.meta(all_ledgers);
+            case (#borrow(t)) Borrow.meta(all_ledgers);
+            case (#exchange(t)) Exchange.meta(all_ledgers);
+            case (#escrow(t)) Escrow.meta(all_ledgers);
+            case (#split(t)) Split.meta(all_ledgers);
+            case (#mint(t)) Mint.meta(all_ledgers);
+            //...
+        };
+    };
+
     public func meta(all_ledgers : [ICRC55.SupportedLedger]) : [ICRC55.NodeMeta] {
         [
             ThrottleVector.meta(all_ledgers),

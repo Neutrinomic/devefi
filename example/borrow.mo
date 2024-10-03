@@ -6,11 +6,15 @@ import Nat8 "mo:base/Nat8";
 import Debug "mo:base/Debug";
 import U "../src/utils";
 import Option "mo:base/Option";
+import Billing "./billing_all";
 
 module {
 
     public func meta(all_ledgers : [ICRC55.SupportedLedger]) : ICRC55.NodeMeta {
+        let billing = Billing.get(U.onlyICLedger(all_ledgers[0]));
         {
+            billing
+            with
             id = "borrow"; // This has to be same as the variant in vec.custom
             name = "Borrow";
             description = "Borrow X tokens while providing Y tokens collateral";
