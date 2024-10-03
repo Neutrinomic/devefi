@@ -17,6 +17,7 @@ import { ICRCLedgerService, ICRCLedger } from "./icrc_ledger/ledgerCanister";
 import { Account } from './icrc_ledger/ledger.idl.js';
 //@ts-ignore
 import { toState } from "@infu/icblast";
+import {AccountIdentifier} from "@dfinity/ledger-icp"
 
 const WASM_PYLON_PATH = resolve(__dirname, "./build/basic.wasm");
 
@@ -43,8 +44,11 @@ export function DF() {
         pylonCanisterId: undefined as Principal,
         u: undefined as ReturnType<typeof createNodeUtils>,
         jo : undefined as ReturnType<typeof createIdentity>,
+        ledger_fee: undefined as bigint,
 
         toState : toState,
+
+    
         async passTime(n: number): Promise<void> {
             if (!this.pic) throw new Error('PocketIc is not initialized');
             for (let i = 0; i < n; i++) {
@@ -56,6 +60,7 @@ export function DF() {
             if (!this.pic) throw new Error('PocketIc is not initialized');
             await this.pic.advanceTime(n * 60 * 1000);
             await this.pic.tick(2);
+            // await this.passTime(5)
         },
 
         async beforeAll(): Promise<void> {
@@ -68,6 +73,7 @@ export function DF() {
             const ledgerFixture = await ICRCLedger(this.pic, this.jo.getPrincipal(), this.pic.getSnsSubnet()?.id);
             this.ledger = ledgerFixture.actor;
             this.ledgerCanisterId = ledgerFixture.canisterId;
+            this.ledger_fee = await this.ledger.icrc1_fee();
 
             // Pylon canister initialization
             const pylonFixture = await PylonCan(this.pic);
@@ -87,9 +93,11 @@ export function DF() {
                 ledger: this.ledger,
                 pylon: this.pylon,
                 ledgerCanisterId: this.ledgerCanisterId,
+                pylonCanisterId: this.pylonCanisterId,
                 user: this.jo.getPrincipal()
             });
 
+            
             // Advance time to sync with initialization
             await this.passTime(10);
         },
@@ -107,16 +115,23 @@ export function createNodeUtils({
     ledger,
     pylon,
     ledgerCanisterId,
+    pylonCanisterId,
     user
 }: {
     ledger: Actor<ICRCLedgerService>,
     pylon: Actor<PylonService>,
     ledgerCanisterId: Principal,
+    pylonCanisterId: Principal,
     user: Principal
 }) {
     return {
         async listNodes(): Promise<NodeShared[]> {
             return await pylon.icrc55_get_controller_nodes({ id: user, start:0n, length: 500n });
+        },
+        userBillingAccount() : Account {
+            let aid = AccountIdentifier.fromPrincipal({principal: user});
+            let sa = aid.toUint8Array();
+            return { owner: pylonCanisterId, subaccount: [sa] };
         },
         async sendToAccount(account: Account, amount: bigint): Promise<void> {
             ledger.setPrincipal(user);
@@ -175,7 +190,7 @@ export function createNodeUtils({
             return await ledger.icrc1_balance_of(node.destinations[port].ic.account[0]);
         },
 
-        async createNode(creq: CreateRequest): Promise<NodeId> {
+        async createNode(creq: CreateRequest): Promise<GetNodeResponse> {
             let req: NodeRequest = {
                 controllers: [user],
                 destinations: [],
@@ -185,7 +200,8 @@ export function createNodeUtils({
             };
 
             let resp = await pylon.icrc55_create_node(req, creq);
-            return toState(resp).ok.id;
+            //@ts-ignore
+            return resp.ok;
         },
 
         async getNode(nodeId: NodeId): Promise<GetNodeResponse> {

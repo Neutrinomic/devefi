@@ -1,4 +1,3 @@
-
 import { DF } from "../utils";
 
 describe('Payment', () => {
@@ -13,7 +12,7 @@ describe('Payment', () => {
   it(`Temporary vector`, async () => {
 
 
-    let id = await d.u.createNode({
+    let node = await d.u.createNode({
       'throttle': {
         'init': { 'ledger': d.ledgerCanisterId },
         'variables': {
@@ -23,7 +22,6 @@ describe('Payment', () => {
       },
     });
 
-    let node = await d.u.getNode(id);
 
     expect(node.billing.expires[0]).toBeDefined();
 
@@ -31,7 +29,7 @@ describe('Payment', () => {
   
 
   it(`Expire temporary vector`, async () => {
-    await d.passTimeMinute(60*2);
+    await d.passTimeMinute(60*3);
 
     let my_nodes = await d.u.listNodes();
 
@@ -41,7 +39,7 @@ describe('Payment', () => {
 
   it(`Create and pay temporary vector`, async () => {
 
-    let id = await d.u.createNode({
+    let node = await d.u.createNode({
       'throttle': {
         'init': { 'ledger': d.ledgerCanisterId },
         'variables': {
@@ -51,7 +49,6 @@ describe('Payment', () => {
       },
     });
 
-    let node = await d.u.getNode(id);
         
     expect(node.billing.expires[0]).toBeDefined();
     await d.u.sendToAccount(node.billing.account, 1_0000_0000n);
@@ -62,14 +59,13 @@ describe('Payment', () => {
     expect(node_after.billing.expires[0]).not.toBeDefined();
   });
 
-  it(`Idle fees`, async () => {
+  it(`Cost per day fee collecting`, async () => {
     let my_nodes = await d.u.listNodes();
     let node = my_nodes[0];
     expect(node.billing.current_balance).toBe(99990000n);
 
     await d.passTimeMinute(60*25);
     let node_after = await d.u.getNode(node.id);
-    console.log(d.toState(node_after));
     const cost_per_day = 10_0000n;
     
     expect(node_after.billing.current_balance).toBeLessThan(node.billing.current_balance);
@@ -79,6 +75,28 @@ describe('Payment', () => {
     expect(node.billing.expires[0]).not.toBeDefined();
     expect(node.billing.frozen).toBe(false);
     
+  });
+
+  it(`Create paid vector`, async () => {
+
+    // Send funds to dedicated user subaccount
+    let billing_account = d.u.userBillingAccount();
+    await d.u.sendToAccount(billing_account,  10_0000_0000n);
+    await d.passTime(3);
+    let node = await d.u.createNode({
+      'throttle': {
+        'init': { 'ledger': d.ledgerCanisterId },
+        'variables': {
+          'interval_sec': { 'fixed': 1n },
+          'max_amount': { 'fixed': 10000000n }
+        },
+      },
+    });
+
+    
+    expect(node.billing.expires[0]).not.toBeDefined();
+    expect(node.billing.current_balance).toBe(node.billing.min_create_balance - d.ledger_fee);
+
   });
 
 });
