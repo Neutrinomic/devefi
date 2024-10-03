@@ -9,9 +9,9 @@ module {
                 billing = {
                 ledger = ledger;
                 min_create_balance = 5000000;
-                hourly_cost = 100000;
+                cost_per_day = 10_0000;
                 operation_cost = 1000;
-                freezing_threshold = 1000000;
+                freezing_threshold_days = 10;
                 exempt_balance = null;
             };
             billing_fee_collecting = {

@@ -45,8 +45,12 @@ module {
         var controllers : [Principal];
         created : Nat64;
         var modified : Nat64;
-        var expires : ?Nat64;
         var active : Bool;
+        billing : {
+            var expires : ?Nat64;
+            var frozen : Bool;
+            var last_billed : Nat64;
+        };
         custom : A;
     };
 
@@ -411,7 +415,7 @@ module {
 
             if (not paid and not settings.ALLOW_TEMP_NODE_CREATION) return #err("Temp node creation not allowed");
 
-            if (not paid) node.expires := ?(U.now() + settings.TEMP_NODE_EXPIRATION_SEC * 1_000_000_000);
+            if (not paid) node.billing.expires := ?(U.now() + settings.TEMP_NODE_EXPIRATION_SEC * 1_000_000_000);
 
             ignore Map.put(mem.nodes, Map.n32hash, id, node);
 
@@ -474,6 +478,7 @@ module {
                             flow = #payment;
                             id = 0;
                         });
+            let current_billing_balance = dvf.balance(meta.billing.ledger, billing_subaccount);
             {
                 id = vid;
                 custom = toShared(vec.custom);
@@ -481,7 +486,6 @@ module {
                 extractors = vec.extractors;
                 modified = vec.modified;
                 controllers = vec.controllers;
-                expires = vec.expires;
                 sources = Array.map<ICRC55.Endpoint, ICRC55.SourceEndpointResp>(
                     vec.sources,
                     func(x) {
@@ -497,8 +501,9 @@ module {
                 active = vec.active;
                 billing = {
                     meta.billing with
-                    frozen = false;
-                    current_balance = dvf.balance(meta.billing.ledger, billing_subaccount);
+                    frozen = vec.billing.frozen;
+                    expires = vec.billing.expires;
+                    current_balance = current_billing_balance;
                     account = {
                         owner = thiscanister;
                         subaccount = billing_subaccount;
@@ -563,7 +568,7 @@ module {
                         let bal = dvf.balance(r.ledger, ?from_subaccount);
                         let meta = nodeMeta(rvec.custom, get_supported_ledgers());
                         if (bal >= meta.billing.min_create_balance) {
-                            rvec.expires := null;
+                            rvec.billing.expires := null;
                         };
 
                     };
@@ -579,7 +584,7 @@ module {
             func() : async () {
                 let now = Nat64.fromNat(Int.abs(Time.now()));
                 label vloop for ((vid, vec) in entries()) {
-                    let ?expires = vec.expires else continue vloop;
+                    let ?expires = vec.billing.expires else continue vloop;
                     if (now > expires) {
 
                         // DELETE Node from memory
@@ -588,6 +593,45 @@ module {
                 };
             },
         );
+
+        private func chargeNodeFees() : () {
+            
+            let nowU64 = U.now();
+            let now = Nat64.toNat(nowU64);
+            label vloop for ((vid, vec) in entries()) {
+                if (not vec.active) continue vloop; // Not charging stopped nodes
+                if (vec.billing.expires != null) continue vloop; // Not charging temp nodes
+
+                let meta = nodeMeta(vec.custom, get_supported_ledgers());
+                let billing_subaccount = ?port2subaccount({
+                    vid;
+                    flow = #payment;
+                    id = 0;
+                });
+
+                let current_billing_balance = dvf.balance(meta.billing.ledger, billing_subaccount);
+
+                var fee_to_charge = ((meta.billing.cost_per_day * (now - Nat64.toNat(vec.billing.last_billed):Nat)) / (60*60*24)) / 1_000_000_000;
+
+                if (current_billing_balance < fee_to_charge) {
+                    vec.billing.expires := ?(nowU64 + settings.TEMP_NODE_EXPIRATION_SEC);
+                    fee_to_charge := current_billing_balance;
+                };
+
+                if (fee_to_charge > 0) {
+                    ignore dvf.send({
+                        ledger = meta.billing.ledger;
+                        to = meta.billing_fee_collecting.author_account;
+                        amount = fee_to_charge;
+                        memo = null;
+                        from_subaccount = billing_subaccount;
+                    });
+                };
+
+                vec.billing.last_billed := nowU64;
+
+            }
+        };
 
         private func node_createRequest2Mem(req : ICRC55.NodeRequest, creq : XCreateRequest, id : NodeId, thiscan : Principal) : Result.Result<NodeMem<XMem>, Text> {
 
@@ -607,12 +651,19 @@ module {
                 var modified = U.now();
                 var controllers = req.controllers;
                 custom;
-                var expires = null;
+                billing = {
+                    var expires = null;
+                    var frozen = false;
+                    var last_billed = U.now();
+                };
                 var active = true;
+                
             };
 
             #ok(node);
         };
+
+        
 
         private func node_modifyRequest(id : NodeId, vec : NodeMem<XMem>, nreq : ?ICRC55.CommonModRequest, creq : ?XModifyRequest, thiscan : Principal) : ModifyNodeResp<XShared> {
 
@@ -700,6 +751,13 @@ module {
                     register_pylon : shared () -> async ();
                 };
                 await reg.register_pylon();
+            },
+        );
+
+        ignore Timer.recurringTimer<system>(
+            #seconds(10),
+            func() : async () {
+                chargeNodeFees();
             },
         );
     };

@@ -25,15 +25,60 @@ describe('Payment', () => {
 
     let node = await d.u.getNode(id);
 
-    expect(node.expires[0]).toBeDefined();
+    expect(node.billing.expires[0]).toBeDefined();
+
+  });
+  
+
+  it(`Expire temporary vector`, async () => {
+    await d.passTimeMinute(60*2);
+
+    let my_nodes = await d.u.listNodes();
+
+    expect(my_nodes.length).toBe(0);
 
   });
 
-  it(`Pay temporary vector`, async () => {
-    // let my_nodes = await d.u.listNodes();
-    // let node = my_nodes[0];
+  it(`Create and pay temporary vector`, async () => {
 
-    // await d.u.sendToAccount(node.)
+    let id = await d.u.createNode({
+      'throttle': {
+        'init': { 'ledger': d.ledgerCanisterId },
+        'variables': {
+          'interval_sec': { 'fixed': 1n },
+          'max_amount': { 'fixed': 10000000n }
+        },
+      },
+    });
+
+    let node = await d.u.getNode(id);
+        
+    expect(node.billing.expires[0]).toBeDefined();
+    await d.u.sendToAccount(node.billing.account, 1_0000_0000n);
+    await d.passTime(3);
+    let node_after = await d.u.getNode(node.id);
+
+    expect(node_after.billing.current_balance).toBe(99990000n);
+    expect(node_after.billing.expires[0]).not.toBeDefined();
+  });
+
+  it(`Idle fees`, async () => {
+    let my_nodes = await d.u.listNodes();
+    let node = my_nodes[0];
+    expect(node.billing.current_balance).toBe(99990000n);
+
+    await d.passTimeMinute(60*25);
+    let node_after = await d.u.getNode(node.id);
+    console.log(d.toState(node_after));
+    const cost_per_day = 10_0000n;
+    
+    expect(node_after.billing.current_balance).toBeLessThan(node.billing.current_balance);
+    let actual_cost = node.billing.current_balance - node_after.billing.current_balance;
+    expect(cost_per_day).toBeLessThan(actual_cost);
+    expect(cost_per_day*2n).toBeGreaterThan(actual_cost);
+    expect(node.billing.expires[0]).not.toBeDefined();
+    expect(node.billing.frozen).toBe(false);
+    
   });
 
 });

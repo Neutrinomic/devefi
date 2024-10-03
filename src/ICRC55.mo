@@ -82,9 +82,9 @@ module {
     public type Billing = {
         ledger : Principal;
         min_create_balance : Nat; // Min balance required to create a node
-        hourly_cost: Nat; // Cost deducted per hour of node operation
+        cost_per_day: Nat; // Cost deducted per hour of node operation
         operation_cost: Nat; // Cost incurred per operation        
-        freezing_threshold: Nat; // Min seconds of hourly cost left to freeze the node
+        freezing_threshold_days: Nat; // Min days operational cost left to freeze the node
         exempt_balance: ?Nat; // Balance threshold that exempts from hourly cost deduction
     };
 
@@ -98,6 +98,7 @@ module {
         frozen: Bool;
         current_balance: Nat;
         account : Account;
+        expires : ?Nat64;
     }; 
 
     public type GetNodeResponse<A> = {
@@ -110,7 +111,6 @@ module {
         created : Nat64;
         modified : Nat64;
         billing : Billing and BillingInternal;
-        expires : ?Nat64;
         active : Bool;
         custom : A;
     };
