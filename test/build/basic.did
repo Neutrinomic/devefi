@@ -9,8 +9,6 @@ type _anon_class_16_1 =
    get_node_addr: (NodeId) -> (opt text) query;
    icrc55_command: (vec Command) -> (vec CommandResponse);
    icrc55_create_node: (NodeRequest, CreateRequest) -> (CreateNodeResp);
-   icrc55_create_node_get_fee: (NodeRequest, CreateRequest) ->
-    (NodeCreateFeeResp) query;
    icrc55_delete_node: (LocalNodeId) -> (DeleteNodeResp);
    icrc55_get_controller_nodes: (GetControllerNodesRequest) ->
     (vec NodeShared) query;
@@ -136,6 +134,18 @@ type NumVariant =
 type NodeShared = 
  record {
    active: bool;
+   billing:
+    record {
+      account: Account;
+      current_balance: nat;
+      exempt_balance: opt nat;
+      freezing_threshold: nat;
+      frozen: bool;
+      hourly_cost: nat;
+      ledger: principal;
+      min_create_balance: nat;
+      operation_cost: nat;
+    };
    controllers: vec principal;
    created: nat64;
    custom: Shared;
@@ -157,10 +167,11 @@ type NodeRequest =
  };
 type NodeMeta = 
  record {
+   billing: Billing;
+   billing_fee_collecting: BillingFeeCollecting;
    description: text;
    id: text;
    name: text;
-   pricing: text;
    supported_ledgers: vec SupportedLedger;
    version: Version;
  };
@@ -170,17 +181,6 @@ type NodeFactoryMetaResp =
    governed_by: text;
    name: text;
    nodes: vec NodeMeta;
- };
-type NodeCreateFeeResp = 
- variant {
-   err: text;
-   ok: NodeCreateFee;
- };
-type NodeCreateFee = 
- record {
-   amount: nat;
-   ledger: principal;
-   subaccount: blob;
  };
 type ModifyRequest__7 = 
  record {
@@ -259,6 +259,18 @@ type ICEndpoint =
 type GetNodeResponse = 
  record {
    active: bool;
+   billing:
+    record {
+      account: Account;
+      current_balance: nat;
+      exempt_balance: opt nat;
+      freezing_threshold: nat;
+      frozen: bool;
+      hourly_cost: nat;
+      ledger: principal;
+      min_create_balance: nat;
+      operation_cost: nat;
+    };
    controllers: vec principal;
    created: nat64;
    custom: Shared;
@@ -430,6 +442,21 @@ type ChangeActiveNodeRequest =
  record {
    active: bool;
    id: LocalNodeId;
+ };
+type BillingFeeCollecting = 
+ record {
+   author: nat;
+   author_account: Account;
+   pylon: nat;
+ };
+type Billing = 
+ record {
+   exempt_balance: opt nat;
+   freezing_threshold: nat;
+   hourly_cost: nat;
+   ledger: principal;
+   min_create_balance: nat;
+   operation_cost: nat;
  };
 type Account = 
  record {

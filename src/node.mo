@@ -84,7 +84,7 @@ module {
         ALLOW_TEMP_NODE_CREATION : Bool;
         PYLON_GOVERNED_BY : Text;
         PYLON_NAME : Text;
-        
+
     };
 
     public let DEFAULT_SETTINGS : SETTINGS = {
@@ -94,32 +94,24 @@ module {
         PYLON_NAME = "Testing Pylon";
     };
 
-    public type SourceSendErr = ICRCLedger.SendError or {#AccountNotSet};
- 
+    public type SourceSendErr = ICRCLedger.SendError or { #AccountNotSet };
 
     public class Node<system, XCreateRequest, XMem, XShared, XModifyRequest>({
         settings : SETTINGS;
         mem : Mem<XMem>;
         dvf : DeVeFi.DeVeFi;
-        nodeCreateFee : (NodeMem<XMem>) -> {
-            amount : Nat;
-            ledger : Principal;
-        };
-        
+
         toShared : (XMem) -> XShared;
         sourceMap : (NodeId, XMem, Principal, [Endpoint]) -> R<[Endpoint], Text>;
         destinationMap : (XMem, [DestinationEndpoint]) -> R<[DestinationEndpoint], Text>;
         modifyRequestMut : (XMem, XModifyRequest) -> R<(), Text>;
         createRequest2Mem : (XCreateRequest) -> XMem;
         meta : ([ICRC55.SupportedLedger]) -> [ICRC55.NodeMeta];
+        nodeMeta : (XMem, [ICRC55.SupportedLedger]) -> ICRC55.NodeMeta;
         getDefaults : (Text, [ICRC55.SupportedLedger]) -> XCreateRequest;
     }) {
 
-
-        private func onlyIC(ep : Endpoint) : ICRC55.ICEndpoint {
-            let #ic(x) = ep else Debug.trap("Not supported");
-            x;
-        };
+   
 
         public class Source(
             cls : {
@@ -128,18 +120,17 @@ module {
             }
         ) {
 
-            public let endpoint = onlyIC(cls.endpoint) : ICRC55.ICEndpoint;
-
+            public let endpoint = U.onlyIC(cls.endpoint) : ICRC55.ICEndpoint;
 
             public func balance() : Nat {
-                
+
                 dvf.balance(endpoint.ledger, endpoint.account.subaccount);
-                
+
             };
             public func fee() : Nat {
-                
+
                 dvf.fee(endpoint.ledger);
-                
+
             };
             public func send(
                 location : {
@@ -150,33 +141,32 @@ module {
                     #external_account : Account;
                 },
                 amount : Nat,
-            ) :  R<Nat64, SourceSendErr>  {
+            ) : R<Nat64, SourceSendErr> {
                 let to : Account = switch (location) {
                     case (#destination({ port })) {
-                        let ?acc = onlyICDest(cls.vec.destinations[port]).account else return #err(#AccountNotSet);
+                        let ?acc = U.onlyICDest(cls.vec.destinations[port]).account else return #err(#AccountNotSet);
                         acc;
                     };
 
                     case (#remote_destination({ node; port })) {
                         let ?to_vec = Map.get(mem.nodes, Map.n32hash, node) else return #err(#AccountNotSet);
-                        let ?acc = onlyICDest(to_vec.destinations[port]).account else return #err(#AccountNotSet);
+                        let ?acc = U.onlyICDest(to_vec.destinations[port]).account else return #err(#AccountNotSet);
                         acc;
                     };
 
                     case (#remote_source({ node; port })) {
                         let ?to_vec = Map.get(mem.nodes, Map.n32hash, node) else return #err(#AccountNotSet);
-                        onlyIC(to_vec.sources[port]).account;
+                        U.onlyIC(to_vec.sources[port]).account;
                     };
 
                     case (#source({ port })) {
-                        onlyIC(cls.vec.sources[port]).account;
+                        U.onlyIC(cls.vec.sources[port]).account;
                     };
 
                     case (#external_account(account)) {
                         account;
                     };
                 };
-
 
                 dvf.send({
                     ledger = endpoint.ledger;
@@ -189,24 +179,28 @@ module {
         };
 
         public func hasDestination(vec : NodeMem<XMem>, port_idx : Nat) : Bool {
-            port_idx < vec.destinations.size() and not Option.isNull(onlyICDest(vec.destinations[port_idx]).account);
+            port_idx < vec.destinations.size() and not Option.isNull(U.onlyICDest(vec.destinations[port_idx]).account);
         };
 
-        private func sourceInfo(vid: NodeId, subaccount: ?Blob ) : R<{allowed: Bool; mine: Bool}, ()> {
+        private func sourceInfo(vid : NodeId, subaccount : ?Blob) : R<{ allowed : Bool; mine : Bool }, ()> {
             let ?ep_port = subaccount2port(subaccount) else return #err;
-            if (ep_port.vid != vid) { // Is it remote vector
+            if (ep_port.vid != vid) {
+                // Is it remote vector
                 let ?remote_vec = Map.get(mem.nodes, Map.n32hash, ep_port.vid) else return #err;
                 // Check if this vector is in extractors of remote vector if the source isn't its own
-                if (Option.isNull(Array.indexOf(vid, remote_vec.extractors, Nat32.equal))) return #ok({mine=false; allowed=false}); // Doesn't have access
-                return #ok({mine=false; allowed=true});
+                if (Option.isNull(Array.indexOf(vid, remote_vec.extractors, Nat32.equal))) return #ok({
+                    mine = false;
+                    allowed = false;
+                }); // Doesn't have access
+                return #ok({ mine = false; allowed = true });
             };
-            return #ok({mine=true; allowed=true});
+            return #ok({ mine = true; allowed = true });
         };
 
-        public func getSource(vid: NodeId, vec : NodeMem<XMem>, port_idx : Nat) : ?Source {
+        public func getSource(vid : NodeId, vec : NodeMem<XMem>, port_idx : Nat) : ?Source {
             if (port_idx >= vec.sources.size()) return null;
 
-            let #ok(sinfo) = sourceInfo(vid, onlyIC(vec.sources[port_idx]).account.subaccount) else return null;
+            let #ok(sinfo) = sourceInfo(vid, U.onlyIC(vec.sources[port_idx]).account.subaccount) else return null;
             if (not sinfo.allowed) return null;
 
             let source = Source({
@@ -235,7 +229,7 @@ module {
             let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return;
             // TODO: Don't allow deletion if there are no refund endpoints
 
-            let fee = nodeCreateFee(vec);
+            let meta = nodeMeta(vec.custom, get_supported_ledgers());
             // REFUND: Send staked tokens from the node to the first controller
             do {
                 let from_subaccount = port2subaccount({
@@ -244,27 +238,27 @@ module {
                     id = 0;
                 });
 
-                let bal = dvf.balance(fee.ledger, ?from_subaccount);
+                let bal = dvf.balance(meta.billing.ledger, ?from_subaccount);
                 if (bal > 0) {
-                    label refund_payment do { 
-                        let ?xf = Array.find<ICRC55.Endpoint>(vec.refund, func(x) = onlyIC(x).ledger == fee.ledger) else break refund_payment;
-                        let refund = onlyIC(xf);
+                    label refund_payment do {
+                        let ?xf = Array.find<ICRC55.Endpoint>(vec.refund, func(x) = U.onlyIC(x).ledger == meta.billing.ledger) else break refund_payment;
+                        let refund = U.onlyIC(xf);
 
                         ignore dvf.send({
-                            ledger = fee.ledger;
+                            ledger = meta.billing.ledger;
                             to = refund.account;
                             amount = bal;
                             memo = null;
                             from_subaccount = ?from_subaccount;
                         });
-                    }
+                    };
                 };
 
                 dvf.unregisterSubaccount(?port2subaccount({ vid = vid; flow = #payment; id = 0 }));
             };
 
             label source_refund for (xsource in vec.sources.vals()) {
-                let source = onlyIC(xsource);
+                let source = U.onlyIC(xsource);
 
                 let #ok(sinfo) = sourceInfo(vid, source.account.subaccount) else continue source_refund;
                 if (not sinfo.mine) return continue source_refund;
@@ -276,9 +270,9 @@ module {
                     let bal = dvf.balance(source.ledger, source.account.subaccount);
                     if (bal > 0) {
                         // try to find refund endpoint for that ledger source
-                        let ?xf = Array.find<ICRC55.Endpoint>(vec.refund, func(x) = onlyIC(x).ledger == source.ledger) else continue source_refund;
-                        let refund = onlyIC(xf);
-                        
+                        let ?xf = Array.find<ICRC55.Endpoint>(vec.refund, func(x) = U.onlyIC(x).ledger == source.ledger) else continue source_refund;
+                        let refund = U.onlyIC(xf);
+
                         ignore dvf.send({
                             ledger = source.ledger;
                             to = refund.account;
@@ -290,8 +284,6 @@ module {
                 };
             };
 
-            
-
             ignore Map.remove(mem.nodes, Map.n32hash, vid);
         };
 
@@ -300,15 +292,15 @@ module {
         };
 
         private func get_supported_ledgers() : [ICRC55.SupportedLedger] {
-            Array.map<Principal, ICRC55.SupportedLedger>( dvf.get_ledger_ids(), func(x) = #ic(x));
+            Array.map<Principal, ICRC55.SupportedLedger>(dvf.get_ledger_ids(), func(x) = #ic(x));
         };
 
-        public func icrc55_get_defaults(id:Text) : XCreateRequest {
+        public func icrc55_get_defaults(id : Text) : XCreateRequest {
             getDefaults(id, get_supported_ledgers());
         };
 
         public func icrc55_command(caller : Principal, cmds : [ICRC55.Command<XCreateRequest, XModifyRequest>]) : [ICRC55.CommandResponse<XShared>] {
-            
+
             let res = Vector.new<ICRC55.CommandResponse<XShared>>();
             for (cmd in cmds.vals()) {
                 let r : ICRC55.CommandResponse<XShared> = switch (cmd) {
@@ -337,7 +329,6 @@ module {
 
         };
 
-
         public func icrc55_change_destination(caller : Principal, req : ICRC55.ChangeDestinationRequest) : ICRC55.ChangeDestinationResp {
             let ?(_, vec) = getNode(#id(req.id)) else return #err("Node not found");
             if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
@@ -345,7 +336,7 @@ module {
             if (req.port >= vec.destinations.size()) return #err("Destination not found");
 
             let vdest = Array.thaw<DestinationEndpoint>(vec.destinations);
-            
+
             vdest[req.port] := req.to;
 
             let d_res = destinationMap(vec.custom, Array.freeze(vdest));
@@ -354,7 +345,7 @@ module {
                 case (#ok(d)) d;
                 case (#err(e)) return #err(e);
             };
-     
+
             vec.destinations := destinations;
 
             #ok();
@@ -373,7 +364,7 @@ module {
             if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
 
             let ?source = getSource(vid, vec, req.source_port) else return #err("Source not found");
-            let acc = onlyIC(req.to).account;
+            let acc = U.onlyIC(req.to).account;
             ignore source.send(#external_account(acc), source.balance());
             #ok();
         };
@@ -393,24 +384,25 @@ module {
                 case (#err(e)) return #err(e);
             };
 
-            let nfee = nodeCreateFee(node);
+            let meta = nodeMeta(node.custom, get_supported_ledgers());
 
             let caller_subaccount = ?Principal.toLedgerAccount(caller, null);
-            let caller_balance = dvf.balance(nfee.ledger, caller_subaccount);
+            let caller_balance = dvf.balance(meta.billing.ledger, caller_subaccount);
             var paid = false;
-            if (caller_balance >= nfee.amount) {
+            let payment_amount = meta.billing.min_create_balance;
+            if (caller_balance >= payment_amount) {
                 let node_payment_account = port2subaccount({
                     vid = id;
                     flow = #payment;
                     id = 0;
                 });
                 ignore dvf.send({
-                    ledger = nfee.ledger;
+                    ledger = meta.billing.ledger;
                     to = {
                         owner = thiscanister;
                         subaccount = ?node_payment_account;
                     };
-                    amount = nfee.amount;
+                    amount = payment_amount;
                     memo = null;
                     from_subaccount = caller_subaccount;
                 });
@@ -427,7 +419,7 @@ module {
             dvf.registerSubaccount(?port2subaccount({ vid = id; flow = #payment; id = 0 }));
 
             label source_reg for (xsource in node.sources.vals()) {
-                let source = onlyIC(xsource);
+                let source = U.onlyIC(xsource);
                 dvf.registerSubaccount(source.account.subaccount);
             };
             mem.next_node_id += 1;
@@ -441,17 +433,16 @@ module {
             let ?(_, vec) = getNode(#id(vid)) else return #err("Node not found");
             if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
 
-           
             node_modifyRequest(vid, vec, nreq, custom, thiscanister);
-             
+
         };
 
         public func icrc55_get_nodefactory_meta() : ICRC55.NodeFactoryMetaResp {
             {
                 name = settings.PYLON_NAME;
                 governed_by = settings.PYLON_GOVERNED_BY;
-                nodes = meta(get_supported_ledgers())
-                };
+                nodes = meta(get_supported_ledgers());
+            };
         };
 
         public func getNode(req : ICRC55.GetNode) : ?(NodeId, NodeMem<XMem>) {
@@ -476,6 +467,13 @@ module {
         };
 
         public func vecToShared(vec : NodeMem<XMem>, vid : NodeId) : NodeShared<XShared> {
+            let ?thiscanister = mem.thiscan else Debug.trap("Not initialized");
+            let meta = nodeMeta(vec.custom, get_supported_ledgers());
+            let billing_subaccount = ?port2subaccount({
+                            vid;
+                            flow = #payment;
+                            id = 0;
+                        });
             {
                 id = vid;
                 custom = toShared(vec.custom);
@@ -484,13 +482,28 @@ module {
                 modified = vec.modified;
                 controllers = vec.controllers;
                 expires = vec.expires;
-                sources = Array.map<ICRC55.Endpoint, ICRC55.SourceEndpointResp>(vec.sources, func (x) {
-                    let s = onlyIC(x);
-                    {balance = dvf.balance(s.ledger, s.account.subaccount); endpoint = x};   
-                });
+                sources = Array.map<ICRC55.Endpoint, ICRC55.SourceEndpointResp>(
+                    vec.sources,
+                    func(x) {
+                        let s = U.onlyIC(x);
+                        {
+                            balance = dvf.balance(s.ledger, s.account.subaccount);
+                            endpoint = x;
+                        };
+                    },
+                );
                 destinations = vec.destinations;
                 refund = vec.refund;
                 active = vec.active;
+                billing = {
+                    meta.billing with
+                    frozen = false;
+                    current_balance = dvf.balance(meta.billing.ledger, billing_subaccount);
+                    account = {
+                        owner = thiscanister;
+                        subaccount = billing_subaccount;
+                    };
+                };
             };
         };
 
@@ -508,15 +521,15 @@ module {
             Vector.toArray(res);
         };
 
-        public func icrc55_create_node_get_fee(creator : Principal, req : ICRC55.NodeRequest, custom : XCreateRequest) : ICRC55.NodeCreateFeeResp {
-            let ?thiscanister = mem.thiscan else Debug.trap("Not initialized");
-            let { ledger; amount } = nodeCreateFee(switch (node_createRequest2Mem(req, custom, 0, thiscanister)) { case (#ok(x)) x; case (#err(e)) return #err(e) });
-            #ok({
-                ledger;
-                amount;
-                subaccount = Principal.toLedgerAccount(creator, null);
-            });
-        };
+        // public func icrc55_create_node_get_fee(creator : Principal, req : ICRC55.NodeRequest, custom : XCreateRequest) : ICRC55.NodeCreateFeeResp {
+        //     let ?thiscanister = mem.thiscan else Debug.trap("Not initialized");
+        //     let { ledger; amount } = nodeCreateFee(switch (node_createRequest2Mem(req, custom, 0, thiscanister)) { case (#ok(x)) x; case (#err(e)) return #err(e) });
+        //     #ok({
+        //         ledger;
+        //         amount;
+        //         subaccount = Principal.toLedgerAccount(creator, null);
+        //     });
+        // };
 
         dvf.onEvent(
             func(event) {
@@ -548,8 +561,8 @@ module {
                         });
 
                         let bal = dvf.balance(r.ledger, ?from_subaccount);
-                        let fee = nodeCreateFee(rvec);
-                        if (bal >= fee.amount) {
+                        let meta = nodeMeta(rvec.custom, get_supported_ledgers());
+                        if (bal >= meta.billing.min_create_balance) {
                             rvec.expires := null;
                         };
 
@@ -559,10 +572,7 @@ module {
             }
         );
 
-        private func onlyICDest(ep : ICRC55.DestinationEndpoint) : ICRC55.DestICEndpoint {
-            let #ic(x) = ep else Debug.trap("Not supported");
-            x;
-        };
+ 
         // Remove expired nodes
         ignore Timer.recurringTimer<system>(
             #seconds(60),
@@ -583,10 +593,8 @@ module {
 
             let custom = createRequest2Mem(creq);
 
-            
-
             let { sources; destinations } = switch (portMap(id, custom, thiscan, req.destinations, req.sources)) {
-                case (#err(e)) return #err(e); 
+                case (#err(e)) return #err(e);
                 case (#ok(x)) x;
             };
 
@@ -607,12 +615,12 @@ module {
         };
 
         private func node_modifyRequest(id : NodeId, vec : NodeMem<XMem>, nreq : ?ICRC55.CommonModRequest, creq : ?XModifyRequest, thiscan : Principal) : ModifyNodeResp<XShared> {
-            
+
             label source_unregister for (xsource in vec.sources.vals()) {
-                let source = onlyIC(xsource);
+                let source = U.onlyIC(xsource);
                 dvf.unregisterSubaccount(source.account.subaccount);
             };
-            
+
             switch (creq) {
                 case (?cr) {
                     switch (modifyRequestMut(vec.custom, cr)) {
@@ -638,7 +646,6 @@ module {
                 case (#ok(x)) x;
             };
 
-     
             // Modify if no errors
             vec.destinations := destinations;
             vec.sources := sources;
@@ -651,22 +658,20 @@ module {
                 vec.controllers := nreq!.controllers;
                 vec.refund := nreq!.refund;
             };
-            
+
             label source_register for (xsource in vec.sources.vals()) {
-                let source = onlyIC(xsource);
+                let source = U.onlyIC(xsource);
                 dvf.registerSubaccount(source.account.subaccount);
             };
-            
+
             #ok(vecToShared(vec, id));
 
         };
 
-        private func portMap(id : NodeId, custom : XMem, thiscan : Principal, destinationsProvided : [ICRC55.DestinationEndpoint], sourcesProvided: [ICRC55.Endpoint]) : Result.Result<{ sources : [ICRC55.Endpoint]; destinations : [ICRC55.DestinationEndpoint] }, Text> {
+        private func portMap(id : NodeId, custom : XMem, thiscan : Principal, destinationsProvided : [ICRC55.DestinationEndpoint], sourcesProvided : [ICRC55.Endpoint]) : Result.Result<{ sources : [ICRC55.Endpoint]; destinations : [ICRC55.DestinationEndpoint] }, Text> {
 
             // Sources
             let s_res = sourceMap(id, custom, thiscan, sourcesProvided);
-
-          
 
             let sources = switch (s_res) {
                 case (#ok(s)) s;
@@ -687,13 +692,16 @@ module {
             });
         };
 
-         ignore Timer.setTimer<system>(#seconds(1), func() : async () {
-            // Register the canister in pylon registry
-            let reg = actor("elgu6-jiaaa-aaaal-qkkiq-cai") : actor {
-                register_pylon : shared () -> async ();
-            };
-            await reg.register_pylon();
-        });
+        ignore Timer.setTimer<system>(
+            #seconds(1),
+            func() : async () {
+                // Register the canister in pylon registry
+                let reg = actor ("elgu6-jiaaa-aaaal-qkkiq-cai") : actor {
+                    register_pylon : shared () -> async ();
+                };
+                await reg.register_pylon();
+            },
+        );
     };
 
     public func port2subaccount(p : Port) : Blob {
@@ -719,6 +727,4 @@ module {
 
     };
 
-
-  
 };

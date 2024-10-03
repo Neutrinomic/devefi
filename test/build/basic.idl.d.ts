@@ -6,6 +6,19 @@ export interface Account {
   'owner' : Principal,
   'subaccount' : [] | [Uint8Array | number[]],
 }
+export interface Billing {
+  'freezing_threshold' : bigint,
+  'operation_cost' : bigint,
+  'min_create_balance' : bigint,
+  'exempt_balance' : [] | [bigint],
+  'hourly_cost' : bigint,
+  'ledger' : Principal,
+}
+export interface BillingFeeCollecting {
+  'author' : bigint,
+  'pylon' : bigint,
+  'author_account' : Account,
+}
 export interface ChangeActiveNodeRequest {
   'id' : LocalNodeId,
   'active' : boolean,
@@ -111,6 +124,17 @@ export interface GetNodeResponse {
   'expires' : [] | [bigint],
   'custom' : Shared,
   'extractors' : Uint32Array | number[],
+  'billing' : {
+    'freezing_threshold' : bigint,
+    'operation_cost' : bigint,
+    'min_create_balance' : bigint,
+    'current_balance' : bigint,
+    'exempt_balance' : [] | [bigint],
+    'hourly_cost' : bigint,
+    'ledger' : Principal,
+    'account' : Account,
+    'frozen' : boolean,
+  },
   'destinations' : Array<DestinationEndpoint>,
   'sources' : Array<SourceEndpointResp>,
   'refund' : Array<Endpoint>,
@@ -172,13 +196,6 @@ export interface ModifyRequest__7 {
   'interval_sec' : NumVariant,
   'max_amount' : NumVariant,
 }
-export interface NodeCreateFee {
-  'subaccount' : Uint8Array | number[],
-  'ledger' : Principal,
-  'amount' : bigint,
-}
-export type NodeCreateFeeResp = { 'ok' : NodeCreateFee } |
-  { 'err' : string };
 export interface NodeFactoryMetaResp {
   'name' : string,
   'nodes' : Array<NodeMeta>,
@@ -187,10 +204,11 @@ export interface NodeFactoryMetaResp {
 export type NodeId = number;
 export interface NodeMeta {
   'id' : string,
+  'billing_fee_collecting' : BillingFeeCollecting,
   'name' : string,
+  'billing' : Billing,
   'description' : string,
   'supported_ledgers' : Array<SupportedLedger>,
-  'pricing' : string,
   'version' : Version,
 }
 export interface NodeRequest {
@@ -209,6 +227,17 @@ export interface NodeShared {
   'expires' : [] | [bigint],
   'custom' : Shared,
   'extractors' : Uint32Array | number[],
+  'billing' : {
+    'freezing_threshold' : bigint,
+    'operation_cost' : bigint,
+    'min_create_balance' : bigint,
+    'current_balance' : bigint,
+    'exempt_balance' : [] | [bigint],
+    'hourly_cost' : bigint,
+    'ledger' : Principal,
+    'account' : Account,
+    'frozen' : boolean,
+  },
   'destinations' : Array<DestinationEndpoint>,
   'sources' : Array<SourceEndpointResp>,
   'refund' : Array<Endpoint>,
@@ -291,10 +320,6 @@ export interface _anon_class_16_1 {
   'icrc55_create_node' : ActorMethod<
     [NodeRequest, CreateRequest],
     CreateNodeResp
-  >,
-  'icrc55_create_node_get_fee' : ActorMethod<
-    [NodeRequest, CreateRequest],
-    NodeCreateFeeResp
   >,
   'icrc55_delete_node' : ActorMethod<[LocalNodeId], DeleteNodeResp>,
   'icrc55_get_controller_nodes' : ActorMethod<

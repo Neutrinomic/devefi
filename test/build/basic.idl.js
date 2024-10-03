@@ -248,6 +248,17 @@ export const idlFactory = ({ IDL }) => {
     'expires' : IDL.Opt(IDL.Nat64),
     'custom' : Shared,
     'extractors' : IDL.Vec(LocalNodeId),
+    'billing' : IDL.Record({
+      'freezing_threshold' : IDL.Nat,
+      'operation_cost' : IDL.Nat,
+      'min_create_balance' : IDL.Nat,
+      'current_balance' : IDL.Nat,
+      'exempt_balance' : IDL.Opt(IDL.Nat),
+      'hourly_cost' : IDL.Nat,
+      'ledger' : IDL.Principal,
+      'account' : Account,
+      'frozen' : IDL.Bool,
+    }),
     'destinations' : IDL.Vec(DestinationEndpoint),
     'sources' : IDL.Vec(SourceEndpointResp),
     'refund' : IDL.Vec(Endpoint),
@@ -285,15 +296,6 @@ export const idlFactory = ({ IDL }) => {
     'ok' : GetNodeResponse,
     'err' : IDL.Text,
   });
-  const NodeCreateFee = IDL.Record({
-    'subaccount' : IDL.Vec(IDL.Nat8),
-    'ledger' : IDL.Principal,
-    'amount' : IDL.Nat,
-  });
-  const NodeCreateFeeResp = IDL.Variant({
-    'ok' : NodeCreateFee,
-    'err' : IDL.Text,
-  });
   const GetControllerNodesRequest = IDL.Record({
     'id' : IDL.Principal,
     'start' : IDL.Nat,
@@ -308,6 +310,17 @@ export const idlFactory = ({ IDL }) => {
     'expires' : IDL.Opt(IDL.Nat64),
     'custom' : Shared,
     'extractors' : IDL.Vec(LocalNodeId),
+    'billing' : IDL.Record({
+      'freezing_threshold' : IDL.Nat,
+      'operation_cost' : IDL.Nat,
+      'min_create_balance' : IDL.Nat,
+      'current_balance' : IDL.Nat,
+      'exempt_balance' : IDL.Opt(IDL.Nat),
+      'hourly_cost' : IDL.Nat,
+      'ledger' : IDL.Principal,
+      'account' : Account,
+      'frozen' : IDL.Bool,
+    }),
     'destinations' : IDL.Vec(DestinationEndpoint),
     'sources' : IDL.Vec(SourceEndpointResp),
     'refund' : IDL.Vec(Endpoint),
@@ -315,6 +328,19 @@ export const idlFactory = ({ IDL }) => {
   const GetNode = IDL.Variant({
     'id' : LocalNodeId,
     'subaccount' : IDL.Opt(IDL.Vec(IDL.Nat8)),
+  });
+  const BillingFeeCollecting = IDL.Record({
+    'author' : IDL.Nat,
+    'pylon' : IDL.Nat,
+    'author_account' : Account,
+  });
+  const Billing = IDL.Record({
+    'freezing_threshold' : IDL.Nat,
+    'operation_cost' : IDL.Nat,
+    'min_create_balance' : IDL.Nat,
+    'exempt_balance' : IDL.Opt(IDL.Nat),
+    'hourly_cost' : IDL.Nat,
+    'ledger' : IDL.Principal,
   });
   const SupportedLedger = IDL.Variant({
     'ic' : IDL.Principal,
@@ -330,10 +356,11 @@ export const idlFactory = ({ IDL }) => {
   });
   const NodeMeta = IDL.Record({
     'id' : IDL.Text,
+    'billing_fee_collecting' : BillingFeeCollecting,
     'name' : IDL.Text,
+    'billing' : Billing,
     'description' : IDL.Text,
     'supported_ledgers' : IDL.Vec(SupportedLedger),
-    'pricing' : IDL.Text,
     'version' : Version,
   });
   const NodeFactoryMetaResp = IDL.Record({
@@ -363,11 +390,6 @@ export const idlFactory = ({ IDL }) => {
         [NodeRequest, CreateRequest],
         [CreateNodeResp],
         [],
-      ),
-    'icrc55_create_node_get_fee' : IDL.Func(
-        [NodeRequest, CreateRequest],
-        [NodeCreateFeeResp],
-        ['query'],
       ),
     'icrc55_delete_node' : IDL.Func([LocalNodeId], [DeleteNodeResp], []),
     'icrc55_get_controller_nodes' : IDL.Func(
