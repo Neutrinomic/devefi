@@ -12,7 +12,7 @@ describe('Split', () => {
 
   it(`50/50`, async () => {
 
-    let id = await d.u.createNode({
+    let node = await d.u.createNode({
       'split' : {
           'init' : {'ledger' : d.ledgerCanisterId},
           'variables' : {
@@ -21,19 +21,19 @@ describe('Split', () => {
         }
     });
 
-    await d.u.sendToNode(id, 0, 99990000n);
+    await d.u.sendToNode(node.id, 0, 99990000n);
 
     await d.passTime(5);
 
     // Nothing should happen if there are no destinations
-    expect(await d.u.getSourceBalance(id, 0)).toBe(99980000n);
+    expect(await d.u.getSourceBalance(node.id, 0)).toBe(99980000n);
 
-    await d.u.setDestination(id, 0n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] });
-    await d.u.setDestination(id, 1n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(2)] });
+    await d.u.setDestination(node.id, 0n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] });
+    await d.u.setDestination(node.id, 1n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(2)] });
 
     await d.passTime(10);
 
-    expect(await d.u.getSourceBalance(id, 0)).not.toBe(99980000n);
+    expect(await d.u.getSourceBalance(node.id, 0)).not.toBe(99980000n);
 
     expect(await d.u.getLedgerBalance({ owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] })).toBe(49980000n);
     expect(await d.u.getLedgerBalance({ owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(2)] })).toBe(49980000n);
@@ -42,7 +42,7 @@ describe('Split', () => {
 
   it(`4/3/2`, async () => {
 
-    let id = await d.u.createNode({
+    let node = await d.u.createNode({
       'split' : {
           'init' : {'ledger' : d.ledgerCanisterId},
           'variables' : {
@@ -51,26 +51,26 @@ describe('Split', () => {
         }
     });
 
-    await d.u.sendToNode(id, 0, 99990000n);
+    await d.u.sendToNode(node.id, 0, 99990000n);
 
     await d.passTime(5);
 
     // Nothing should happen if there are no destinations
-    expect(await d.u.getSourceBalance(id, 0)).toBe(99980000n);
+    expect(await d.u.getSourceBalance(node.id, 0)).toBe(99980000n);
 
-    await d.u.setDestination(id, 0n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(5)] });
-    await d.u.setDestination(id, 1n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(6)] });
-    await d.u.setDestination(id, 2n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(7)] });
+    await d.u.setDestination(node.id, 0n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(5)] });
+    await d.u.setDestination(node.id, 1n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(6)] });
+    await d.u.setDestination(node.id, 2n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(7)] });
 
     await d.passTime(10);
 
-    expect(await d.u.getSourceBalance(id, 0)).not.toBe(99980000n);
+    expect(await d.u.getSourceBalance(node.id, 0)).not.toBe(99980000n);
 
     expect(await d.u.getLedgerBalance({ owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(5)] })).toBe(44425557n);
     expect(await d.u.getLedgerBalance({ owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(6)] })).toBe(33316666n);
     expect(await d.u.getLedgerBalance({ owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(7)] })).toBe(22207777n);
 
-    expect(await d.u.getSourceBalance(id, 0)).toBe(0n);
+    expect(await d.u.getSourceBalance(node.id, 0)).toBe(0n);
 
   }, 600 * 1000);
 });

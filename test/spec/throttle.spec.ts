@@ -13,7 +13,7 @@ describe('Throttle', () => {
   it(`Throttle`, async () => {
 
 
-    let id = await d.u.createNode({
+    let node = await d.u.createNode({
       'throttle': {
         'init': { 'ledger': d.ledgerCanisterId },
         'variables': {
@@ -23,16 +23,16 @@ describe('Throttle', () => {
       },
     });
 
-    await d.u.sendToNode(id, 0, 99990000n);
+    await d.u.sendToNode(node.id, 0, 99990000n);
 
     await d.passTime(5);
 
-    expect(await d.u.getSourceBalance(id, 0)).toBe(99980000n);
+    expect(await d.u.getSourceBalance(node.id, 0)).toBe(99980000n);
 
-    await d.u.setDestination(id, 0n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] });
+    await d.u.setDestination(node.id, 0n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] });
     await d.passTime(10);
 
-    expect(await d.u.getSourceBalance(id, 0)).not.toBe(99980000n);
+    expect(await d.u.getSourceBalance(node.id, 0)).not.toBe(99980000n);
 
     expect(await d.u.getLedgerBalance({ owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] })).toBe(89910000n);
 

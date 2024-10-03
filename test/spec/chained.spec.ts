@@ -13,7 +13,7 @@ describe('Chained vectors', () => {
   it(`throttle->split`, async () => {
 
 
-    let id = await d.u.createNode({
+    let node = await d.u.createNode({
       'throttle': {
         'init': { 'ledger': d.ledgerCanisterId },
         'variables': {
@@ -23,7 +23,7 @@ describe('Chained vectors', () => {
       },
     });
 
-    let tid = await d.u.createNode({
+    let node2 = await d.u.createNode({
       'split' : {
           'init' : {'ledger' : d.ledgerCanisterId},
           'variables' : {
@@ -32,11 +32,11 @@ describe('Chained vectors', () => {
         }
     });
 
-    await d.u.connectNodes(id, 0, tid, 0);
-    await d.u.setDestination(tid, 0n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] });
-    await d.u.setDestination(tid, 1n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(2)] });
+    await d.u.connectNodes(node.id, 0, node2.id, 0);
+    await d.u.setDestination(node2.id, 0n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] });
+    await d.u.setDestination(node2.id, 1n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(2)] });
 
-    await d.u.sendToNode(id, 0, 99990000n);
+    await d.u.sendToNode(node.id, 0, 99990000n);
 
     await d.passTime(50);
 

@@ -329,12 +329,22 @@
     "@noble/hashes" "^1.3.1"
     borc "^2.1.1"
 
+"@dfinity/ledger-icp@^2.6.0":
+  version "2.6.0"
+  resolved "https://registry.yarnpkg.com/@dfinity/ledger-icp/-/ledger-icp-2.6.0.tgz#8b4a67806fae21db88591eb6b85305044453e872"
+  integrity sha512-EXYYtZe+hCyjkIczG6ONlThElrnX0IOxOr/1ahCkvMJ9mnMpS+2zfkzOe+1MBawhLidDAtOwXaCVHMOIbxJ6TQ==
+
 "@dfinity/principal@^1.0.0":
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/@dfinity/principal/-/principal-1.4.0.tgz#cfb4303824a4731cf2380660b7e379e02a95889d"
   integrity sha512-SuTBVlc71ub89ji0WN5/T100zUG2uIMn5x4+We4vS4nJ0R3/Xt89XJsHepjd5SQTSQPOvP7eQ+S8cQKWRz/RkA==
   dependencies:
     "@noble/hashes" "^1.3.1"
+
+"@dfinity/utils@^2.5.1":
+  version "2.5.1"
+  resolved "https://registry.yarnpkg.com/@dfinity/utils/-/utils-2.5.1.tgz#c5f3ec95cae0e93f00bb50ab7ba6f7d4f2e9de73"
+  integrity sha512-ypu63xSX/7f79rVVe/T/2eiEwwi2+XvPNEuHz+isj8zf4jvEoG8DDDBZF9hedDgYC5uxuBDm1UJqHGYUcaCmRg==
 
 "@hadronous/pic@^0.8.1":
   version "0.8.1"
@@ -603,7 +613,7 @@
   dependencies:
     "@noble/hashes" "1.5.0"
 
-"@noble/hashes@1.5.0", "@noble/hashes@^1.2.0", "@noble/hashes@^1.3.1":
+"@noble/hashes@1.5.0", "@noble/hashes@^1.2.0", "@noble/hashes@^1.3.1", "@noble/hashes@^1.5.0":
   version "1.5.0"
   resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-1.5.0.tgz#abadc5ca20332db2b1b2aa3e496e9af1213570b0"
   integrity sha512-1j6kQFb7QRru7eKN3ZDvRcP13rugwdxZqCjbiAVZfIJwgj2A65UmT4TgARXGlXgnRkORLTDTrO19ZErt7+QXgA==
