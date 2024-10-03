@@ -1,6 +1,6 @@
 import { DF } from "../utils";
 
-describe('Payment', () => {
+describe('Billing', () => {
 
   let d: ReturnType<typeof DF>
 
@@ -83,6 +83,7 @@ describe('Payment', () => {
     let billing_account = d.u.userBillingAccount();
     await d.u.sendToAccount(billing_account,  10_0000_0000n);
     await d.passTime(3);
+
     let node = await d.u.createNode({
       'throttle': {
         'init': { 'ledger': d.ledgerCanisterId },
