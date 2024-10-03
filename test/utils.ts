@@ -44,12 +44,18 @@ export function DF() {
         u: undefined as ReturnType<typeof createNodeUtils>,
         jo : undefined as ReturnType<typeof createIdentity>,
 
+        toState : toState,
         async passTime(n: number): Promise<void> {
             if (!this.pic) throw new Error('PocketIc is not initialized');
             for (let i = 0; i < n; i++) {
                 await this.pic.advanceTime(3 * 1000);
                 await this.pic.tick(2);
             }
+        },
+        async passTimeMinute(n: number): Promise<void> {
+            if (!this.pic) throw new Error('PocketIc is not initialized');
+            await this.pic.advanceTime(n * 60 * 1000);
+            await this.pic.tick(2);
         },
 
         async beforeAll(): Promise<void> {
