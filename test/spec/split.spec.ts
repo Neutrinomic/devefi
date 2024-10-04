@@ -23,7 +23,9 @@ describe('Split', () => {
 
     await d.u.sendToNode(node.id, 0, 99990000n);
 
-    await d.passTime(5);
+    await d.passTime(20);
+
+    
 
     // Nothing should happen if there are no destinations
     expect(await d.u.getSourceBalance(node.id, 0)).toBe(99980000n);
@@ -31,7 +33,9 @@ describe('Split', () => {
     await d.u.setDestination(node.id, 0n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] });
     await d.u.setDestination(node.id, 1n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(2)] });
 
-    await d.passTime(10);
+
+
+    await d.passTime(20);
 
     expect(await d.u.getSourceBalance(node.id, 0)).not.toBe(99980000n);
 
@@ -53,7 +57,7 @@ describe('Split', () => {
 
     await d.u.sendToNode(node.id, 0, 99990000n);
 
-    await d.passTime(5);
+    await d.passTime(10);
 
     // Nothing should happen if there are no destinations
     expect(await d.u.getSourceBalance(node.id, 0)).toBe(99980000n);

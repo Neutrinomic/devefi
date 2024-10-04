@@ -52,9 +52,8 @@ describe('Billing', () => {
         
     expect(node.billing.expires[0]).toBeDefined();
     await d.u.sendToAccount(node.billing.account, 1_0000_0000n);
-    await d.passTime(3);
+    await d.passTime(6);
     let node_after = await d.u.getNode(node.id);
-
     expect(node_after.billing.current_balance).toBe(99990000n);
     expect(node_after.billing.expires[0]).not.toBeDefined();
   });
@@ -97,8 +96,10 @@ describe('Billing', () => {
     
     expect(node.billing.expires[0]).not.toBeDefined();
     expect(node.billing.current_balance).toBe(node.billing.min_create_balance - d.ledger_fee);
-
+    // d.inspect(node);
   });
+
+  
 
 });
 

@@ -18,7 +18,7 @@ import { Account } from './icrc_ledger/ledger.idl.js';
 //@ts-ignore
 import { toState } from "@infu/icblast";
 import {AccountIdentifier} from "@dfinity/ledger-icp"
-
+import util from 'util';
 const WASM_PYLON_PATH = resolve(__dirname, "./build/basic.wasm");
 
 
@@ -48,18 +48,20 @@ export function DF() {
 
         toState : toState,
 
-    
+        inspect(obj: any) : void {
+            console.log(util.inspect(toState(obj), { depth: null, colors: true }));
+        },
         async passTime(n: number): Promise<void> {
             if (!this.pic) throw new Error('PocketIc is not initialized');
             for (let i = 0; i < n; i++) {
                 await this.pic.advanceTime(3 * 1000);
-                await this.pic.tick(2);
+                await this.pic.tick(6);
             }
         },
         async passTimeMinute(n: number): Promise<void> {
             if (!this.pic) throw new Error('PocketIc is not initialized');
             await this.pic.advanceTime(n * 60 * 1000);
-            await this.pic.tick(2);
+            await this.pic.tick(6);
             // await this.passTime(5)
         },
 
@@ -70,19 +72,20 @@ export function DF() {
             this.pic = await PocketIc.create(process.env.PIC_URL);
 
             // Ledger initialization
-            const ledgerFixture = await ICRCLedger(this.pic, this.jo.getPrincipal(), this.pic.getSnsSubnet()?.id);
+            const ledgerFixture = await ICRCLedger(this.pic, this.jo.getPrincipal(), undefined); // , this.pic.getSnsSubnet()?.id
             this.ledger = ledgerFixture.actor;
             this.ledgerCanisterId = ledgerFixture.canisterId;
             this.ledger_fee = await this.ledger.icrc1_fee();
 
+            await this.pic.addCycles(this.ledgerCanisterId, 100_000_000_000_000);
             // Pylon canister initialization
             const pylonFixture = await PylonCan(this.pic);
             this.pylon = pylonFixture.actor;
             this.pylonCanisterId = pylonFixture.canisterId;
-
+            await this.pic.addCycles(this.pylonCanisterId, 100_000_000_000_000);
             // Setup interactions between ledger and pylon
-            this.pylon.add_supported_ledger(this.ledgerCanisterId, { icrc: null });
-            this.pylon.start();
+            await this.pylon.add_supported_ledger(this.ledgerCanisterId, { icrc: null });
+            await this.pylon.start();
 
             // Set the identity for ledger and pylon
             this.ledger.setIdentity(this.jo);
