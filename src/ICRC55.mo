@@ -8,6 +8,10 @@ module {
         name: Text;
         governed_by : Text;
         nodes: [NodeMeta];
+        temporary_nodes: {
+            allowed : Bool;
+            expire_sec: Nat64;
+        };
     };
     public type Version = {#production; #beta; #alpha};
     public type NodeMeta = {

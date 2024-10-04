@@ -446,6 +446,10 @@ module {
                 name = settings.PYLON_NAME;
                 governed_by = settings.PYLON_GOVERNED_BY;
                 nodes = meta(get_supported_ledgers());
+                temporary_nodes = {
+                    allowed = settings.ALLOW_TEMP_NODE_CREATION;
+                    expire_sec = settings.TEMP_NODE_EXPIRATION_SEC;
+                };
             };
         };
 
@@ -594,12 +598,12 @@ module {
             },
         );
 
+
         private func chargeNodeFees() : () {
             
             let nowU64 = U.now();
             let now = Nat64.toNat(nowU64);
             label vloop for ((vid, vec) in entries()) {
-                if (not vec.active) continue vloop; // Not charging stopped nodes
                 if (vec.billing.expires != null) continue vloop; // Not charging temp nodes
 
                 let meta = nodeMeta(vec.custom, get_supported_ledgers());
@@ -616,6 +620,12 @@ module {
                 if (current_billing_balance < fee_to_charge) {
                     vec.billing.expires := ?(nowU64 + settings.TEMP_NODE_EXPIRATION_SEC);
                     fee_to_charge := current_billing_balance;
+                };
+
+                // Freeze nodes if bellow threshold
+                let days_left = (current_billing_balance - fee_to_charge:Nat) / meta.billing.cost_per_day; 
+                if (days_left <= meta.billing.freezing_threshold_days) {
+                    vec.billing.frozen := true;
                 };
 
                 if (fee_to_charge > 0) {

@@ -96,10 +96,40 @@ describe('Billing', () => {
     
     expect(node.billing.expires[0]).not.toBeDefined();
     expect(node.billing.current_balance).toBe(node.billing.min_create_balance - d.ledger_fee);
-    // d.inspect(node);
+    expect(node.id).toBe(2);
   });
 
-  
+  it(`Wait for freeze of paid vector`, async () => {
+    let node = await d.u.getNode(2);
+
+    let days_to_exp = node.billing.current_balance / node.billing.cost_per_day ;
+
+    let days_to_freeze = days_to_exp - node.billing.freezing_threshold_days + 0n;
+
+    expect(node.billing.frozen).toBe(false);
+    expect(node.billing.expires[0]).not.toBeDefined();
+
+    // Wait for freeze
+    await d.passTimeMinute(60*24*Number(days_to_freeze));
+    let node_frozen = await d.u.getNode(2);
+    expect(node_frozen.billing.frozen).toBe(true);
+    expect(node_frozen.billing.expires[0]).not.toBeDefined();
+
+    // Wait for expiration
+    await d.passTimeMinute(60*24*Number(days_to_exp - days_to_freeze + 1n));
+    let node_expiring = await d.u.getNode(2);
+
+    expect(node_expiring.billing.expires[0]).toBeDefined();
+    expect(node_expiring.billing.current_balance).toBe(0n);
+    
+    // Wait for deletion
+    let meta = await d.u.getPylonMeta();
+    
+    await d.passTimeMinute(Number(meta.temporary_nodes.expire_sec) / 60 + 1);
+
+    await expect(d.u.getNode(2)).rejects.toThrow('Node not found');
+    
+  });
 
 });
 
