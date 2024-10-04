@@ -9,7 +9,8 @@ import {
     NodeRequest,
     CreateRequest,
     GetNodeResponse,
-    NodeShared
+    NodeShared,
+    NodeFactoryMetaResp
 } from './build/basic.idl.js';
 
 import { ICRCLedgerService, ICRCLedger } from "./icrc_ledger/ledgerCanister";
@@ -135,6 +136,9 @@ export function createNodeUtils({
             let aid = AccountIdentifier.fromPrincipal({principal: user});
             let sa = aid.toUint8Array();
             return { owner: pylonCanisterId, subaccount: [sa] };
+        },
+        async getPylonMeta() : Promise<NodeFactoryMetaResp> {
+            return pylon.icrc55_get_nodefactory_meta();
         },
         async sendToAccount(account: Account, amount: bigint): Promise<void> {
             ledger.setPrincipal(user);
