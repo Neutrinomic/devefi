@@ -18,7 +18,6 @@ module {
             name = "Escrow";
             description = "Escrow X tokens";
             supported_ledgers = all_ledgers;
-            pricing = "1 NTN";
             version = #alpha;
         };
     };

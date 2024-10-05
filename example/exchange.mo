@@ -18,7 +18,6 @@ module {
             name = "Exchange";
             description = "Exchange X for Y";
             supported_ledgers = all_ledgers;
-            pricing = "1 NTN";
             version = #alpha;
         };
     };

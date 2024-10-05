@@ -19,7 +19,6 @@ module {
             name = "Borrow";
             description = "Borrow X tokens while providing Y tokens collateral";
             supported_ledgers = all_ledgers;
-            pricing = "1 NTN";
             version = #alpha;
         };
     };

@@ -20,7 +20,6 @@ module {
             name = "Split";
             description = "Split X tokens";
             supported_ledgers = all_ledgers;
-            pricing = "1 NTN";
             version = #alpha;
         };
     };

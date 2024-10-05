@@ -18,7 +18,6 @@ module {
             name = "Mint";
             description = "Mint X tokens for Y tokens";
             supported_ledgers = all_ledgers;
-            pricing = "1 NTN";
             version = #alpha;
         };
     };

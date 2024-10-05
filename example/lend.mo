@@ -18,7 +18,6 @@ module {
             name = "Lend";
             description = "Lend X tokens against Y tokens";
             supported_ledgers = all_ledgers;
-            pricing = "1 NTN";
             version = #alpha;
         };
     };
