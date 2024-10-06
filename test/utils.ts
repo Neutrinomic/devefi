@@ -216,22 +216,80 @@ export function createNodeUtils({
             if (resp[0] === undefined) throw new Error("Node not found");
             return resp[0];
         },
-
-        async setDestination(nodeId: NodeId, port: bigint, account: Account): Promise<void> {
+        async setActive(nodeId: NodeId, active: boolean): Promise<void> {
             await pylon.icrc55_command([{
-                change_destination: {
-                    id: nodeId,
-                    port: port,
-                    to: { ic: { name: '', ledger: ledgerCanisterId, account: [account] } }
-                }
+                modify_node: [nodeId, [{ 
+                    destinations : [],
+                    refund: [],
+                    sources: [],
+                    extractors: [],
+                    controllers : [],
+                    active :[active]
+                }], []]
             }]);
         },
+        async setDestination(nodeId: NodeId, port: number, account: Account): Promise<void> {
+            let node = await this.getNode(nodeId);
+            let destinations = node.destinations;
+            destinations[port] = { ic: { name: '', ledger: ledgerCanisterId, account: [account] } };
+            await pylon.icrc55_command([{
+                modify_node: [nodeId, [{ 
+                    destinations : [destinations],
+                    refund: [],
+                    sources: [],
+                    extractors: [],
+                    controllers : [],
+                    active :[]
+                }], []]
+            }]);
+        },
+        async setSource(nodeId: NodeId, port: number, account: Account): Promise<void> {
+            let node = await this.getNode(nodeId);
+            let sources = node.sources.map(x=> x.endpoint);
+            sources[port] = { ic: { name: '', ledger: ledgerCanisterId, account: account } };
+            await pylon.icrc55_command([{
+                modify_node: [nodeId, [{ 
+                    destinations : [],
+                    refund: [],
+                    sources: [sources],
+                    extractors: [],
+                    controllers : [],
+                    active :[]
+                }], []]
+            }]);
+        },
+
+        async addExtractor(from: NodeId, to: NodeId): Promise<void> {
+            let node = await this.getNode(from);
+            let extractors = [...node.extractors, to];
+            await pylon.icrc55_command([{
+                modify_node: [from, [{ 
+                    destinations : [],
+                    refund: [],
+                    sources: [],
+                    extractors: [extractors],
+                    controllers : [],
+                    active :[]
+                }], []]
+            }]);
+        },
+
 
         async connectNodes(from: NodeId, fromPort: number, to: NodeId, toPort: number): Promise<void> {
             let to_node = await this.getNode(to);
 
             //@ts-ignore
-            this.setDestination(from, fromPort, to_node.sources[toPort].endpoint.ic.account);
+            await this.setDestination(from, fromPort, to_node.sources[toPort].endpoint.ic.account);
+        },
+
+
+        async connectNodeSource(from: NodeId, fromPort: number, to: NodeId, toPort: number): Promise<void> {
+            let from_node = await this.getNode(from);
+
+            //@ts-ignore
+            await this.setSource(to, toPort, from_node.sources[fromPort].endpoint.ic.account);
+
+            await this.addExtractor(from, to);
         },
 
         subaccountFromId(id: number): Uint8Array {

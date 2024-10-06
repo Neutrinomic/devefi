@@ -33,8 +33,8 @@ describe('Chained vectors', () => {
     });
 
     await d.u.connectNodes(node.id, 0, node2.id, 0);
-    await d.u.setDestination(node2.id, 0n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] });
-    await d.u.setDestination(node2.id, 1n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(2)] });
+    await d.u.setDestination(node2.id, 0, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] });
+    await d.u.setDestination(node2.id, 1, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(2)] });
 
     await d.u.sendToNode(node.id, 0, 99990000n);
 
