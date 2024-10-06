@@ -7,16 +7,12 @@ import Timer "mo:base/Timer";
 import Prng "mo:prng";
 import DeVeFi "../src/";
 import Nat "mo:base/Nat";
-import Account "mo:account";
 import ICRC55 "../src/ICRC55";
 import Node "../src/node";
 import Nat8 "mo:base/Nat8";
 import Array "mo:base/Array";
 
 actor class () = this {
-
-    // Throttle vector
-    // It will send X amount of tokens every Y seconds
 
 
     stable let dvf_mem = DeVeFi.Mem();
@@ -26,10 +22,7 @@ actor class () = this {
 
 
     let dvf = DeVeFi.DeVeFi<system>({ mem = dvf_mem });
-    // dvf.add_ledger<system>(supportedLedgers[0], #icp);
-    // dvf.add_ledger<system>(supportedLedgers[1], #icrc);
-    // dvf.add_ledger<system>(supportedLedgers[2], #icrc);
-    // dvf.add_ledger<system>(supportedLedgers[3], #icrc);
+
 
     stable let node_mem = Node.Mem<T.Mem>();
     let nodes = Node.Node<system, T.CreateRequest, T.Mem, T.Shared, T.ModifyRequest>({
@@ -53,15 +46,6 @@ actor class () = this {
         nodeMeta = T.nodeMeta;
     });
 
-    // Main DeVeFi logic
-    //
-    // Every 2 seconds it goes over all nodes
-    // And decides whether to send tokens to destinations or not
-
-    // Notes:
-    // The balances are automatically synced with ledgers and can be used synchronously
-    // Sending tokens also works synchronously - adds them to queue and sends them in the background
-    // No need to handle errors when sending, the transactions will be retried until they are successful
     private func proc() {
             let now = Nat64.fromNat(Int.abs(Time.now()));
             label vloop for ((vid, vec) in nodes.entries()) {
@@ -160,16 +144,9 @@ actor class () = this {
         nodes.icrc55_get_nodefactory_meta();
     };
 
-    // public query ({ caller }) func icrc55_create_node_get_fee(req : ICRC55.NodeRequest, creq : T.CreateRequest) : async ICRC55.NodeCreateFeeResp {
-    //     nodes.icrc55_create_node_get_fee(caller, req, creq);
-    // };
 
     public shared ({ caller }) func icrc55_command(cmds : [ICRC55.Command<T.CreateRequest, T.ModifyRequest>]) : async [ICRC55.CommandResponse<T.Shared>] {
         nodes.icrc55_command(caller, cmds);
-    };
-
-    public shared ({ caller }) func icrc55_create_node(req : ICRC55.NodeRequest, creq : T.CreateRequest) : async Node.CreateNodeResp<T.Shared> {
-        nodes.icrc55_create_node(caller, req, creq);
     };
 
     public query func icrc55_get_node(req : ICRC55.GetNode) : async ?Node.NodeShared<T.Shared> {
@@ -178,14 +155,6 @@ actor class () = this {
 
     public query ({ caller }) func icrc55_get_controller_nodes(req : ICRC55.GetControllerNodesRequest) : async [Node.NodeShared<T.Shared>] {
         nodes.icrc55_get_controller_nodes(caller, req);
-    };
-
-    public shared ({ caller }) func icrc55_delete_node(vid : ICRC55.LocalNodeId) : async ICRC55.DeleteNodeResp {
-        nodes.icrc55_delete_node(caller, vid);
-    };
-
-    public shared ({ caller }) func icrc55_modify_node(vid : ICRC55.LocalNodeId, req : ?ICRC55.CommonModRequest, creq : ?T.ModifyRequest) : async Node.ModifyNodeResp<T.Shared> {
-        nodes.icrc55_modify_node(caller, vid, req, creq);
     };
 
     public query func icrc55_get_defaults(id : Text) : async T.CreateRequest {
@@ -215,17 +184,5 @@ actor class () = this {
         dvf.getLedgersInfo();
     };
 
-    // Dashboard explorer doesn't show icrc accounts in text format, this does
-    // Hard to send tokens to Candid ICRC Accounts
-    public query func get_node_addr(vid : Node.NodeId) : async ?Text {
-        let ?(_, vec) = nodes.getNode(#id(vid)) else return null;
 
-        let subaccount = ?Node.port2subaccount({
-            vid;
-            flow = #input;
-            id = 0;
-        });
-
-        ?Account.toText({ owner = Principal.fromActor(this); subaccount });
-    };
 };

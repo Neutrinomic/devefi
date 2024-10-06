@@ -206,9 +206,9 @@ export function createNodeUtils({
                 extractors: [],
             };
 
-            let resp = await pylon.icrc55_create_node(req, creq);
+            let resp = await pylon.icrc55_command([{create_node:[req, creq]}]);
             //@ts-ignore
-            return resp.ok;
+            return resp[0].create_node.ok;
         },
 
         async getNode(nodeId: NodeId): Promise<GetNodeResponse> {
