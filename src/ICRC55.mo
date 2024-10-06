@@ -203,10 +203,6 @@ module {
         
         icrc55_command : shared ([Command<Any, Any>]) -> async [CommandResponse<Any>];
 
-        icrc55_create_node : shared CreateNodeRequest<Any> -> async CreateNodeResponse<Any>;
-        icrc55_delete_node : shared (LocalNodeId) -> async DeleteNodeResp;
-        icrc55_modify_node : shared ModifyNodeRequest<Any> -> async ModifyNodeResponse<Any>;
-
         icrc55_get_node : shared query GetNode -> async ?GetNodeResponse<Any>;
         icrc55_get_nodefactory_meta : shared query () -> async NodeFactoryMetaResp;
     };
