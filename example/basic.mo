@@ -62,9 +62,7 @@ actor class () = this {
     // The balances are automatically synced with ledgers and can be used synchronously
     // Sending tokens also works synchronously - adds them to queue and sends them in the background
     // No need to handle errors when sending, the transactions will be retried until they are successful
-    ignore Timer.recurringTimer<system>(
-        #seconds(2),
-        func() : async () {
+    private func proc() {
             let now = Nat64.fromNat(Int.abs(Time.now()));
             label vloop for ((vid, vec) in nodes.entries()) {
                 if (not vec.active) continue vloop;
@@ -152,8 +150,11 @@ actor class () = this {
                 };
 
             };
-        },
-    );
+        };
+
+    system func heartbeat() : async () {
+        nodes.heartbeat(proc);
+    };
 
     public query func icrc55_get_nodefactory_meta() : async ICRC55.NodeFactoryMetaResp {
         nodes.icrc55_get_nodefactory_meta();
