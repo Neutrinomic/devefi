@@ -320,12 +320,6 @@ module {
                     case (#withdraw_node(req)) {
                         #withdraw_node(icrc55_withdraw_node(caller, req));
                     };
-                    // case (#change_active_node(req)) {
-                    //     #change_active_node(icrc55_change_active_node(caller, req));
-                    // };
-                    // case (#change_destination(req)) {
-                    //     #change_destination(icrc55_change_destination(caller, req));
-                    // };
                 };
                 Vector.add(res, r);
             };
@@ -334,35 +328,7 @@ module {
         };
 
 
-        // public func icrc55_change_destination(caller : Principal, req : ICRC55.ChangeDestinationRequest) : ICRC55.ChangeDestinationResp {
-        //     let ?(_, vec) = getNode(#id(req.id)) else return #err("Node not found");
-        //     if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
-
-        //     if (req.port >= vec.destinations.size()) return #err("Destination not found");
-
-        //     let vdest = Array.thaw<DestinationEndpoint>(vec.destinations);
-
-        //     vdest[req.port] := req.to;
-
-        //     let d_res = destinationMap(vec.custom, Array.freeze(vdest));
-
-        //     let destinations = switch (d_res) {
-        //         case (#ok(d)) d;
-        //         case (#err(e)) return #err(e);
-        //     };
-
-        //     vec.destinations := destinations;
-
-        //     #ok();
-        // };
-
-        // public func icrc55_change_active_node(caller : Principal, req : ICRC55.ChangeActiveNodeRequest) : ICRC55.ChangeActiveNodeResponse {
-        //     let ?(_, vec) = getNode(#id(req.id)) else return #err("Node not found");
-        //     if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
-
-        //     vec.active := req.active;
-        //     #ok();
-        // };
+      
 
         public func icrc55_withdraw_node(caller : Principal, req : ICRC55.WithdrawNodeRequest) : ICRC55.WithdrawNodeResponse {
             let ?(vid, vec) = getNode(#id(req.id)) else return #err("Node not found");
@@ -531,15 +497,7 @@ module {
             Vector.toArray(res);
         };
 
-        // public func icrc55_create_node_get_fee(creator : Principal, req : ICRC55.NodeRequest, custom : XCreateRequest) : ICRC55.NodeCreateFeeResp {
-        //     let ?thiscanister = mem.thiscan else Debug.trap("Not initialized");
-        //     let { ledger; amount } = nodeCreateFee(switch (node_createRequest2Mem(req, custom, 0, thiscanister)) { case (#ok(x)) x; case (#err(e)) return #err(e) });
-        //     #ok({
-        //         ledger;
-        //         amount;
-        //         subaccount = Principal.toLedgerAccount(creator, null);
-        //     });
-        // };
+
 
         dvf.onEvent(
             func(event) {
@@ -548,19 +506,6 @@ module {
 
                         let ?port = subaccount2port(r.to_subaccount) else return; // We can still recieve tokens in caller subaccounts, which we won't send back right away
                         let found = getNode(#id(port.vid));
-
-                        // RETURN tokens: If no node is found send tokens back (perhaps it was deleted)
-                        // if (Option.isNull(found)) {
-                        //     let #icrc(addr) = r.from else return; // Can only send to icrc accounts for now
-                        //     ignore dvf.send({
-                        //         ledger = r.ledger;
-                        //         to = addr;
-                        //         amount = r.amount;
-                        //         memo = null;
-                        //         from_subaccount = r.to.subaccount;
-                        //     });
-                        //     return;
-                        // };
 
                         // Handle payment after temporary vector was created
                         let ?(_, rvec) = found else return;
@@ -700,7 +645,7 @@ module {
             ignore do ? { vec.refund := nreq!.refund! };
                 
             ignore do ? {vec.active := nreq!.active!};
-            
+
             label source_register for (xsource in vec.sources.vals()) {
                 let source = U.onlyIC(xsource);
                 dvf.registerSubaccount(source.account.subaccount);
