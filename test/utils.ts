@@ -283,13 +283,12 @@ export function createNodeUtils({
         },
 
 
-        async connectNodeSource(from: NodeId, fromPort: number, to: NodeId, toPort: number): Promise<void> {
-            let from_node = await this.getNode(from);
+        async connectNodeSource(extractor: NodeId, extractorPort: number, sourceFrom: NodeId, sourcePort: number): Promise<void> {
+            let from_node = await this.getNode(sourceFrom);
 
             //@ts-ignore
-            await this.setSource(to, toPort, from_node.sources[fromPort].endpoint.ic.account);
+            await this.setSource(extractor, extractorPort, from_node.sources[sourcePort].endpoint.ic.account);
 
-            await this.addExtractor(from, to);
         },
 
         subaccountFromId(id: number): Uint8Array {
