@@ -19,6 +19,7 @@ import Vector "mo:vector";
 import Debug "mo:base/Debug";
 import Nat32 "mo:base/Nat32";
 import ICRCLedger "mo:devefi-icrc-ledger";
+import Prim "mo:⛔";
 
 module {
 
@@ -73,6 +74,7 @@ module {
         nodes : Map.Map<NodeId, NodeMem<A>>;
         var next_node_id : NodeId;
         var thiscan : ?Principal;
+        var ops : Nat; // Each transaction is one op
     };
 
     public func Mem<A>() : Mem<A> {
@@ -80,6 +82,7 @@ module {
             nodes = Map.new<NodeId, NodeMem<A>>();
             var next_node_id : NodeId = 0;
             var thiscan = null;
+            var ops = 0;
         };
     };
 
@@ -88,7 +91,7 @@ module {
         ALLOW_TEMP_NODE_CREATION : Bool;
         PYLON_GOVERNED_BY : Text;
         PYLON_NAME : Text;
-
+        MAX_INSTRUCTIONS_PER_HEARTBEAT : Nat64; // 2 billion is max on the IC, double check
     };
 
     public let DEFAULT_SETTINGS : SETTINGS = {
@@ -96,6 +99,7 @@ module {
         TEMP_NODE_EXPIRATION_SEC = 3600;
         PYLON_GOVERNED_BY = "Unknown";
         PYLON_NAME = "Testing Pylon";
+        MAX_INSTRUCTIONS_PER_HEARTBEAT = 500_000_000;
     };
 
     public type SourceSendErr = ICRCLedger.SendError or { #AccountNotSet };
@@ -115,7 +119,23 @@ module {
         getDefaults : (Text, [ICRC55.SupportedLedger]) -> XCreateRequest;
     }) {
 
-   
+        /// Heartbeat will execute f until it uses MAX_INSTRUCTIONS_PER_HEARTBEAT or it doesn't send any transactions
+        public func heartbeat(f : () -> ()) : () {
+            let inst_start = Prim.performanceCounter(0); 
+
+            while (true) {
+                let ops_before = mem.ops;
+                f();
+                if (mem.ops == ops_before) return; // No more f calls needed
+                let inst_now = Prim.performanceCounter(0);
+                if (inst_now - inst_start > settings.MAX_INSTRUCTIONS_PER_HEARTBEAT) return; // We have used enough instructions
+            }
+
+        };
+
+        public func ops() : Nat {
+            mem.ops;
+        };
 
         public class Source(
             cls : {
@@ -131,6 +151,7 @@ module {
                 dvf.balance(endpoint.ledger, endpoint.account.subaccount);
 
             };
+
             public func fee() : Nat {
 
                 dvf.fee(endpoint.ledger);
@@ -172,6 +193,8 @@ module {
                     };
                 };
 
+                mem.ops += 1;
+                
                 dvf.send({
                     ledger = endpoint.ledger;
                     to;
