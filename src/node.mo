@@ -320,12 +320,12 @@ module {
                     case (#withdraw_node(req)) {
                         #withdraw_node(icrc55_withdraw_node(caller, req));
                     };
-                    case (#change_active_node(req)) {
-                        #change_active_node(icrc55_change_active_node(caller, req));
-                    };
-                    case (#change_destination(req)) {
-                        #change_destination(icrc55_change_destination(caller, req));
-                    };
+                    // case (#change_active_node(req)) {
+                    //     #change_active_node(icrc55_change_active_node(caller, req));
+                    // };
+                    // case (#change_destination(req)) {
+                    //     #change_destination(icrc55_change_destination(caller, req));
+                    // };
                 };
                 Vector.add(res, r);
             };
@@ -333,35 +333,36 @@ module {
 
         };
 
-        public func icrc55_change_destination(caller : Principal, req : ICRC55.ChangeDestinationRequest) : ICRC55.ChangeDestinationResp {
-            let ?(_, vec) = getNode(#id(req.id)) else return #err("Node not found");
-            if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
 
-            if (req.port >= vec.destinations.size()) return #err("Destination not found");
+        // public func icrc55_change_destination(caller : Principal, req : ICRC55.ChangeDestinationRequest) : ICRC55.ChangeDestinationResp {
+        //     let ?(_, vec) = getNode(#id(req.id)) else return #err("Node not found");
+        //     if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
 
-            let vdest = Array.thaw<DestinationEndpoint>(vec.destinations);
+        //     if (req.port >= vec.destinations.size()) return #err("Destination not found");
 
-            vdest[req.port] := req.to;
+        //     let vdest = Array.thaw<DestinationEndpoint>(vec.destinations);
 
-            let d_res = destinationMap(vec.custom, Array.freeze(vdest));
+        //     vdest[req.port] := req.to;
 
-            let destinations = switch (d_res) {
-                case (#ok(d)) d;
-                case (#err(e)) return #err(e);
-            };
+        //     let d_res = destinationMap(vec.custom, Array.freeze(vdest));
 
-            vec.destinations := destinations;
+        //     let destinations = switch (d_res) {
+        //         case (#ok(d)) d;
+        //         case (#err(e)) return #err(e);
+        //     };
 
-            #ok();
-        };
+        //     vec.destinations := destinations;
 
-        public func icrc55_change_active_node(caller : Principal, req : ICRC55.ChangeActiveNodeRequest) : ICRC55.ChangeActiveNodeResponse {
-            let ?(_, vec) = getNode(#id(req.id)) else return #err("Node not found");
-            if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
+        //     #ok();
+        // };
 
-            vec.active := req.active;
-            #ok();
-        };
+        // public func icrc55_change_active_node(caller : Principal, req : ICRC55.ChangeActiveNodeRequest) : ICRC55.ChangeActiveNodeResponse {
+        //     let ?(_, vec) = getNode(#id(req.id)) else return #err("Node not found");
+        //     if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
+
+        //     vec.active := req.active;
+        //     #ok();
+        // };
 
         public func icrc55_withdraw_node(caller : Principal, req : ICRC55.WithdrawNodeRequest) : ICRC55.WithdrawNodeResponse {
             let ?(vid, vec) = getNode(#id(req.id)) else return #err("Node not found");
@@ -647,10 +648,8 @@ module {
 
             let custom = createRequest2Mem(creq);
 
-            let { sources; destinations } = switch (portMap(id, custom, thiscan, req.destinations, req.sources)) {
-                case (#err(e)) return #err(e);
-                case (#ok(x)) x;
-            };
+            let sources = switch (portMapSources(id, custom, thiscan, req.sources)) { case (#err(e)) return #err(e); case (#ok(x)) x; };
+            let destinations = switch (portMapDestinations(id, custom, req.destinations)) { case (#err(e)) return #err(e); case (#ok(x)) x; };
 
             let node : NodeMem<XMem> = {
                 var sources = sources;
@@ -682,44 +681,26 @@ module {
                 dvf.unregisterSubaccount(source.account.subaccount);
             };
 
-            switch (creq) {
-                case (?cr) {
-                    switch (modifyRequestMut(vec.custom, cr)) {
+            ignore do ? {
+                  switch (modifyRequestMut(vec.custom, creq!)) {
                         case (#err(e)) return #err(e);
                         case (#ok()) ();
                     };
-                };
-                case (null) ();
             };
 
-            let provided_destinations = switch (nreq) {
-                case (?r) r.destinations;
-                case (null) vec.destinations;
-            };
-
-            let provided_sources = switch (nreq) {
-                case (?r) r.sources;
-                case (null) vec.sources;
-            };
             // TODO: Check this - we are mutating and then returning error if source/destination fails
-            let { sources; destinations } = switch (portMap(id, vec.custom, thiscan, provided_destinations, provided_sources)) {
-                case (#err(e)) return #err(e);
-                case (#ok(x)) x;
-            };
 
-            // Modify if no errors
-            vec.destinations := destinations;
-            vec.sources := sources;
-            vec.extractors := switch (nreq) {
-                case (?r) r.extractors;
-                case (null) vec.extractors;
-            };
+            ignore do ? { vec.destinations := switch(portMapDestinations(id, vec.custom, nreq!.destinations!)) {case (#err(e)) return #err(e); case (#ok(d)) d; } };
+            ignore do ? { vec.sources := switch(portMapSources(id, vec.custom, thiscan, nreq!.sources!)) {case (#err(e)) return #err(e); case (#ok(d)) d; } };
+
+            ignore do ? { vec.extractors := nreq!.extractors! };
+             
             vec.modified := U.now();
-            ignore do ? {
-                vec.controllers := nreq!.controllers;
-                vec.refund := nreq!.refund;
-            };
-
+            ignore do ? { vec.controllers := nreq!.controllers!};
+            ignore do ? { vec.refund := nreq!.refund! };
+                
+            ignore do ? {vec.active := nreq!.active!};
+            
             label source_register for (xsource in vec.sources.vals()) {
                 let source = U.onlyIC(xsource);
                 dvf.registerSubaccount(source.account.subaccount);
@@ -729,7 +710,7 @@ module {
 
         };
 
-        private func portMap(id : NodeId, custom : XMem, thiscan : Principal, destinationsProvided : [ICRC55.DestinationEndpoint], sourcesProvided : [ICRC55.Endpoint]) : Result.Result<{ sources : [ICRC55.Endpoint]; destinations : [ICRC55.DestinationEndpoint] }, Text> {
+        private func portMapSources(id : NodeId, custom : XMem, thiscan : Principal, sourcesProvided : [ICRC55.Endpoint]) : Result.Result<[ICRC55.Endpoint], Text> {
 
             // Sources
             let s_res = sourceMap(id, custom, thiscan, sourcesProvided);
@@ -739,6 +720,11 @@ module {
                 case (#err(e)) return #err(e);
             };
 
+            #ok(sources)
+        };
+
+        private func portMapDestinations(id : NodeId, custom : XMem,  destinationsProvided : [ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
+
             // Destinations
             let d_res = destinationMap(custom, destinationsProvided);
 
@@ -747,10 +733,7 @@ module {
                 case (#err(e)) return #err(e);
             };
 
-            #ok({
-                sources = sources;
-                destinations = destinations;
-            });
+            #ok(destinations);
         };
 
         ignore Timer.setTimer<system>(

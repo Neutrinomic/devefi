@@ -30,8 +30,8 @@ describe('Split', () => {
     // Nothing should happen if there are no destinations
     expect(await d.u.getSourceBalance(node.id, 0)).toBe(99980000n);
 
-    await d.u.setDestination(node.id, 0n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] });
-    await d.u.setDestination(node.id, 1n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(2)] });
+    await d.u.setDestination(node.id, 0, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] });
+    await d.u.setDestination(node.id, 1, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(2)] });
 
 
 
@@ -62,9 +62,9 @@ describe('Split', () => {
     // Nothing should happen if there are no destinations
     expect(await d.u.getSourceBalance(node.id, 0)).toBe(99980000n);
 
-    await d.u.setDestination(node.id, 0n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(5)] });
-    await d.u.setDestination(node.id, 1n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(6)] });
-    await d.u.setDestination(node.id, 2n, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(7)] });
+    await d.u.setDestination(node.id, 0, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(5)] });
+    await d.u.setDestination(node.id, 1, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(6)] });
+    await d.u.setDestination(node.id, 2, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(7)] });
 
     await d.passTime(10);
 

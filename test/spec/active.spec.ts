@@ -1,7 +1,7 @@
 
 import { DF } from "../utils";
 
-describe('Throttle', () => {
+describe('Active', () => {
 
   let d: ReturnType<typeof DF>
 
@@ -10,7 +10,7 @@ describe('Throttle', () => {
   afterAll(async () => { await d.afterAll(); });
 
 
-  it(`Throttle`, async () => {
+  it(`Active`, async () => {
 
 
     let node = await d.u.createNode({
@@ -30,11 +30,24 @@ describe('Throttle', () => {
     expect(await d.u.getSourceBalance(node.id, 0)).toBe(99980000n);
 
     await d.u.setDestination(node.id, 0, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] });
+
+    await d.u.setActive(node.id, false);
     await d.passTime(10);
+    let bal1 = await d.u.getSourceBalance(node.id, 0);
+    expect(bal1).toBe(99980000n);
 
-    expect(await d.u.getSourceBalance(node.id, 0)).not.toBe(99980000n);
+    await d.u.setActive(node.id, true);
+    await d.passTime(2);
+    let bal2 = await d.u.getSourceBalance(node.id, 0);
+    expect(bal2).toBeLessThan(bal1);
 
-    expect(await d.u.getLedgerBalance({ owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(1)] })).toBe(89910000n);
+    await d.u.setActive(node.id, false);
+    await d.passTime(2);
+    expect(await d.u.getSourceBalance(node.id, 0)).toBe(bal2);
+
+    await d.u.setActive(node.id, true);
+    await d.passTime(2);
+    expect(await d.u.getSourceBalance(node.id, 0)).toBeLessThan(bal2);
 
   }, 600 * 1000);
 
