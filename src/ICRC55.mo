@@ -162,10 +162,14 @@ module {
         #err : Text;
     };
 
+    public type Port = Nat8;
+
+
     public type WithdrawNodeRequest = {
         id : LocalNodeId;
-        source_port : Nat;
+        source_port : Port;
         to: Endpoint;
+        amount: Nat;
     };
     public type WithdrawNodeResponse = {
         #ok : ();
@@ -203,7 +207,7 @@ module {
         
         icrc55_command : shared ([Command<Any, Any>]) -> async [CommandResponse<Any>];
 
-        icrc55_get_node : shared query GetNode -> async ?GetNodeResponse<Any>;
-        icrc55_get_nodefactory_meta : shared query () -> async NodeFactoryMetaResp;
+        icrc55_get_nodes : shared query [GetNode] -> async [?GetNodeResponse<Any>];
+        icrc55_get_pylon_meta : shared query () -> async NodeFactoryMetaResp;
     };
 };

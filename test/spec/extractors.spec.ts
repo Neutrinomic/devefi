@@ -49,7 +49,7 @@ describe('Extractors', () => {
 
   }, 600 * 1000);
 
-  it(`two throttles sharing a source without being allowed`, async () => {
+  it(`Connecting to a source without being allowed in extractors`, async () => {
 
 
     let node = await d.u.createNode({
@@ -72,7 +72,7 @@ describe('Extractors', () => {
       },
     });
 
-     await d.u.connectNodeSource(node2.id, 0, node.id, 0);
+    await d.u.connectNodeSource(node2.id, 0, node.id, 0);
 
     await d.u.setDestination(node.id, 0, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(10)] });
     await d.u.setDestination(node2.id, 0, { owner: d.jo.getPrincipal(), subaccount: [d.u.subaccountFromId(11)] });

@@ -140,8 +140,8 @@ actor class () = this {
         nodes.heartbeat(proc);
     };
 
-    public query func icrc55_get_nodefactory_meta() : async ICRC55.NodeFactoryMetaResp {
-        nodes.icrc55_get_nodefactory_meta();
+    public query func icrc55_get_pylon_meta() : async ICRC55.NodeFactoryMetaResp {
+        nodes.icrc55_get_pylon_meta();
     };
 
 
@@ -149,8 +149,8 @@ actor class () = this {
         nodes.icrc55_command(caller, cmds);
     };
 
-    public query func icrc55_get_node(req : ICRC55.GetNode) : async ?Node.NodeShared<T.Shared> {
-        nodes.icrc55_get_node(req);
+    public query func icrc55_get_nodes(req : [ICRC55.GetNode]) : async [?Node.NodeShared<T.Shared>] {
+        nodes.icrc55_get_nodes(req);
     };
 
     public query ({ caller }) func icrc55_get_controller_nodes(req : ICRC55.GetControllerNodesRequest) : async [Node.NodeShared<T.Shared>] {
