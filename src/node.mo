@@ -357,9 +357,11 @@ module {
             let ?(vid, vec) = getNode(#id(req.id)) else return #err("Node not found");
             if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
 
-            let ?source = getSource(vid, vec, req.source_port) else return #err("Source not found");
+            let ?source = getSource(vid, vec, Nat8.toNat(req.source_port)) else return #err("Source not found");
             let acc = U.onlyIC(req.to).account;
-            ignore source.send(#external_account(acc), source.balance());
+            let bal = source.balance();
+            if (req.amount > bal) return #err("Insufficient balance");
+            ignore source.send(#external_account(acc), req.amount);
             #ok();
         };
 
@@ -418,7 +420,7 @@ module {
             };
             mem.next_node_id += 1;
 
-            let ?node_shared = icrc55_get_node(#id(id)) else return #err("Couldn't find after create");
+            let ?node_shared = get_node(#id(id)) else return #err("Couldn't find after create");
             #ok(node_shared);
         };
 
@@ -431,7 +433,7 @@ module {
 
         };
 
-        public func icrc55_get_nodefactory_meta() : ICRC55.NodeFactoryMetaResp {
+        public func icrc55_get_pylon_meta() : ICRC55.NodeFactoryMetaResp {
             {
                 name = settings.PYLON_NAME;
                 governed_by = settings.PYLON_GOVERNED_BY;
@@ -459,9 +461,13 @@ module {
             return ?(vid, vec);
         };
 
-        public func icrc55_get_node(req : ICRC55.GetNode) : ?NodeShared<XShared> {
+        public func get_node(req : ICRC55.GetNode) : ?NodeShared<XShared> {
             let ?(vid, vec) = getNode(req) else return null;
             return ?vecToShared(vec, vid);
+        };
+
+        public func icrc55_get_nodes(req : [ICRC55.GetNode]) : [?NodeShared<XShared>] {
+            return Array.map<ICRC55.GetNode, ?NodeShared<XShared>>(req, func(x) = get_node(x));
         };
 
         public func vecToShared(vec : NodeMem<XMem>, vid : NodeId) : NodeShared<XShared> {
