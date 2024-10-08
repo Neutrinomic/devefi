@@ -442,6 +442,7 @@ module {
                     allowed = settings.ALLOW_TEMP_NODE_CREATION;
                     expire_sec = settings.TEMP_NODE_EXPIRATION_SEC;
                 };
+                create_allowed = true;
             };
         };
 
@@ -606,7 +607,7 @@ module {
                 if (fee_to_charge > 0) {
                     ignore dvf.send({
                         ledger = meta.billing.ledger;
-                        to = meta.billing_fee_collecting.author_account;
+                        to = meta.billing_fee_collecting.author_account_ic;
                         amount = fee_to_charge;
                         memo = null;
                         from_subaccount = billing_subaccount;

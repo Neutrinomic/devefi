@@ -12,6 +12,7 @@ module {
             allowed : Bool;
             expire_sec: Nat64;
         };
+        create_allowed: Bool;
     };
     public type Version = {#production; #beta; #alpha};
     public type NodeMeta = {
@@ -86,16 +87,22 @@ module {
     public type Billing = {
         ledger : Principal;
         min_create_balance : Nat; // Min balance required to create a node
-        cost_per_day: Nat; // Cost deducted per hour of node operation
-        operation_cost: Nat; // Cost incurred per operation        
-        freezing_threshold_days: Nat; // Min days operational cost left to freeze the node
-        exempt_balance: ?Nat; // Balance threshold that exempts from hourly cost deduction
+        cost_per_day: Nat; 
+        operation_cost: Nat; // Cost incurred per operation (Ex: modify, withdraw)        
+        freezing_threshold_days: Nat; // Min days left to freeze the node if it has insufficient balance
+        exempt_balance: ?Nat; // Balance threshold that exempts from cost deduction
+        transaction_fee: {
+            #none;
+            #flat_fee_multiplier: Nat;
+            #transaction_percentage_fee: Nat // 8 decimal places
+        }
     };
 
     public type BillingFeeCollecting = {
         pylon : Nat; // Ratio
         author : Nat; // Ratio
-        author_account : Account;
+        author_account_ic : Account;
+        author_account_other : [RemoteEndpoint]
     };
 
     public type BillingInternal = {
