@@ -80,6 +80,20 @@ module {
         };
     };
 
+    public func authorAccount(node: Mem) : ICRC55.Account {
+        switch (node) {
+            case (#throttle(_)) ThrottleVector.authorAccount();
+            case (#lend(_)) Lend.authorAccount();
+            case (#borrow(_)) Borrow.authorAccount();
+            case (#exchange(_)) Exchange.authorAccount();
+            case (#escrow(_)) Escrow.authorAccount();
+            case (#split(_)) Split.authorAccount();
+            case (#mint(_)) Mint.authorAccount();
+            //...
+        };
+     
+    };
+
     public func sourceMap(id: Node.NodeId, custom : Mem, thiscan : Principal, sourcesProvided: [ICRC55.Endpoint]) : Result.Result<[ICRC55.Endpoint], Text> {
         switch (custom) {
             case (#throttle(t)) ThrottleVector.request2Sources(t, id, thiscan, sourcesProvided);
