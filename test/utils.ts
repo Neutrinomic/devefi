@@ -11,7 +11,8 @@ import {
     GetNodeResponse,
     CommandResponse,
     NodeShared,
-    NodeFactoryMetaResp
+    NodeFactoryMetaResp,
+    VirtualBalancesResponse
 } from './build/basic.idl.js';
 
 import { ICRCLedgerService, ICRCLedger } from "./icrc_ledger/ledgerCanister";
@@ -203,13 +204,29 @@ export function createNodeUtils({
         getRefundAccount() : Account {
             return {owner: user, subaccount: [this.subaccountFromId(1000)]};
         },
+        getAffiliateAccount() : Account {
+            return {owner: user, subaccount: [this.subaccountFromId(100000)]};
+        },
+        async withdrawVirtual(from: Account, to:Account, amount: bigint): Promise<CommandResponse[]> {
+            return await pylon.icrc55_command([{
+                withdraw_virtual: {
+                    account: from,
+                    to: { ic: { ledger: ledgerCanisterId, account: to } },
+                    amount
+                }
+            }]);
+            },
+        async virtualBalances(acc: Account) : Promise<VirtualBalancesResponse> {
+            return await pylon.icrc55_virtual_balances(acc);
+        },
         async createNode(creq: CreateRequest): Promise<GetNodeResponse> {
             let req: NodeRequest = {
                 controllers: [user],
                 destinations: [],
-                refund: [{ ic: { name: '', ledger: ledgerCanisterId, account: this.getRefundAccount() } }],
+                refund: this.getRefundAccount(),
                 sources: [],
                 extractors: [],
+                affiliate: [this.getAffiliateAccount()]
             };
 
             let resp = await pylon.icrc55_command([{create_node:[req, creq]}]);

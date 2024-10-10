@@ -21,7 +21,7 @@ module {
         description : Text;
         supported_ledgers : [SupportedLedger];
         billing : Billing;
-        billing_fee_collecting : BillingFeeCollecting;
+        split : BillingFeeSplit;
         version: Version; //TODO: each node should have different princing token
     };
 
@@ -84,13 +84,30 @@ module {
         #remote : RemoteEndpoint;
     };
 
+    public type ICEndpointRaw = {
+        ledger : Principal;
+        account : Account;
+    };
+
+    public type RemoteEndpointRaw = {
+        platform : Nat64;
+        ledger : Blob;
+        account : Blob;
+    };
+
+    public type EndpointRaw = {
+        #ic : ICEndpointRaw;
+        #remote : RemoteEndpointRaw;
+    };
+
+
     public type Billing = {
         ledger : Principal;
         min_create_balance : Nat; // Min balance required to create a node
         cost_per_day: Nat; 
         operation_cost: Nat; // Cost incurred per operation (Ex: modify, withdraw)        
         freezing_threshold_days: Nat; // Min days left to freeze the node if it has insufficient balance
-        exempt_balance: ?Nat; // Balance threshold that exempts from cost deduction
+        one_time_payment: ?Nat; // Balance threshold that exempts from cost deduction
         transaction_fee: {
             #none;
             #flat_fee_multiplier: Nat;
@@ -98,11 +115,10 @@ module {
         }
     };
 
-    public type BillingFeeCollecting = {
+    public type BillingFeeSplit = {
         pylon : Nat; // Ratio
         author : Nat; // Ratio
-        author_account_ic : Account;
-        author_account_other : [RemoteEndpoint]
+        affiliate: Nat; // Ratio
     };
 
     public type BillingInternal = {
@@ -117,7 +133,7 @@ module {
         sources : [SourceEndpointResp];
         destinations : [DestinationEndpoint];
         extractors: [LocalNodeId];
-        refund: [Endpoint];
+        refund: Account;
         controllers : [Principal];
         created : Nat64;
         modified : Nat64;
@@ -144,15 +160,16 @@ module {
         sources:[Endpoint];
         extractors : [LocalNodeId];
         destinations : [DestinationEndpoint];
-        refund: [Endpoint];
+        refund: Account;
         controllers : [Principal];
+        affiliate: ?Account
     };
 
     public type CommonModRequest = {
         sources: ?[Endpoint];
         destinations : ?[DestinationEndpoint];
         extractors : ?[LocalNodeId];
-        refund: ?[Endpoint];
+        refund: ?Account;
         controllers : ?[Principal];
         active: ?Bool;
     };
@@ -192,12 +209,23 @@ module {
     };
 
 
+    public type WithdrawVirtualRequest = {
+        account : Account;
+        to: EndpointRaw;
+        amount: Nat;
+    };
+
+    public type WithdrawVirtualResponse = {
+        #ok : Nat64;
+        #err : Text;
+    };
 
     public type Command<C,M> = {
         #create_node : CreateNodeRequest<C>;
         #delete_node : LocalNodeId;
         #modify_node : ModifyNodeRequest<M>;
         #withdraw_node: WithdrawNodeRequest;
+        #withdraw_virtual: WithdrawVirtualRequest;
        
     };
 
@@ -206,8 +234,11 @@ module {
         #delete_node : DeleteNodeResp;
         #modify_node : ModifyNodeResponse<A>;
         #withdraw_node: WithdrawNodeResponse;
-
+        #withdraw_virtual: WithdrawVirtualResponse;
     };
+
+    public type VirtualBalancesRequest = Account;
+    public type VirtualBalancesResponse = [(SupportedLedger, Nat)];
 
     public type Self = actor {
         icrc55_get_controller_nodes : shared query GetControllerNodesRequest -> async GetControllerNodes<Any>;
@@ -216,5 +247,7 @@ module {
 
         icrc55_get_nodes : shared query [GetNode] -> async [?GetNodeResponse<Any>];
         icrc55_get_pylon_meta : shared query () -> async NodeFactoryMetaResp;
+
+        icrc55_virtual_balances : shared query (VirtualBalancesRequest) -> async VirtualBalancesResponse;
     };
 };

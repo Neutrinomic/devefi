@@ -52,10 +52,13 @@ describe('Delete', () => {
     await expect(d.u.getNode(node.id)).rejects.toThrow('Node not found');
     await d.passTime(10);
     let refund_account = d.u.getRefundAccount();
-    let refund_bal = await d.u.getLedgerBalance( refund_account )
+    let refund_virtual = await d.u.virtualBalances(refund_account);
+    let refund_bal = refund_virtual[0][1];
 
     expect(refund_bal).toBe(1_0000_0000n - d.ledger_fee*2n);
-    await d.u.sendToAccount( d.u.mainAccount(), refund_bal - d.ledger_fee, refund_account.subaccount[0] );
+
+    await d.u.withdrawVirtual(refund_account, d.u.mainAccount(), refund_bal);
+  
   }, 600 * 1000);
 
   it(`Check refunding of node billing account after deletion`, async () => {
@@ -83,9 +86,9 @@ describe('Delete', () => {
 
     await expect(d.u.getNode(node.id)).rejects.toThrow('Node not found');
     await d.passTime(10);
-    let refund_source_bal = await d.u.getLedgerBalance( d.u.getRefundAccount())
-
-    expect(refund_source_bal).toBe(1_0000_0000n - d.ledger_fee*3n + node.billing.min_create_balance);
+    let refund_virtual = await d.u.virtualBalances( d.u.getRefundAccount());
+    let refund_bal = refund_virtual[0][1];
+    expect(refund_bal).toBe(1_0000_0000n - d.ledger_fee*4n + node.billing.min_create_balance);
 
   }, 600 * 1000);
 

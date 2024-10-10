@@ -22,6 +22,12 @@ module {
         };
     };
 
+
+    public func authorAccount() : ICRC55.Account {
+        Billing.authorAccount();
+    };
+
+
     // Internal vector state
     public type Mem = {
         init : {

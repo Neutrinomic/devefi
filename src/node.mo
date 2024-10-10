@@ -42,7 +42,7 @@ module {
         var sources : [Endpoint];
         var extractors : [NodeId];
         var destinations : [DestinationEndpoint];
-        var refund : [Endpoint];
+        var refund : Account;
         var controllers : [Principal];
         created : Nat64;
         var modified : Nat64;
@@ -91,6 +91,7 @@ module {
         ALLOW_TEMP_NODE_CREATION : Bool;
         PYLON_GOVERNED_BY : Text;
         PYLON_NAME : Text;
+        PYLON_FEE_ACCOUNT : ?Account;
         MAX_INSTRUCTIONS_PER_HEARTBEAT : Nat64; // 2 billion is max on the IC, double check
     };
 
@@ -100,6 +101,7 @@ module {
         PYLON_GOVERNED_BY = "Unknown";
         PYLON_NAME = "Testing Pylon";
         MAX_INSTRUCTIONS_PER_HEARTBEAT = 500_000_000;
+        PYLON_FEE_ACCOUNT = null;
     };
 
     public type SourceSendErr = ICRCLedger.SendError or { #AccountNotSet };
@@ -117,6 +119,7 @@ module {
         meta : ([ICRC55.SupportedLedger]) -> [ICRC55.NodeMeta];
         nodeMeta : (XMem, [ICRC55.SupportedLedger]) -> ICRC55.NodeMeta;
         getDefaults : (Text, [ICRC55.SupportedLedger]) -> XCreateRequest;
+        authorAccount : (XMem) -> ICRC55.Account;
     }) {
 
         /// Heartbeat will execute f until it uses MAX_INSTRUCTIONS_PER_HEARTBEAT or it doesn't send any transactions
@@ -252,11 +255,21 @@ module {
 
             #ok(delete(vid));
         };
+
+        public func get_virtual_user_account(acc : Account) : Account {
+            let ?thiscanister = mem.thiscan else Debug.trap("Canister not set");
+            {
+                owner = thiscanister;
+                subaccount = ?Principal.toLedgerAccount(acc.owner, acc.subaccount)
+            };
+        };
+
         public func delete(vid : NodeId) : () {
             let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return;
             // TODO: Don't allow deletion if there are no refund endpoints
 
             let meta = nodeMeta(vec.custom, get_supported_ledgers());
+            let refund_acc = get_virtual_user_account(vec.refund);
             // REFUND: Send staked tokens from the node to the first controller
             do {
                 let from_subaccount = port2subaccount({
@@ -268,12 +281,10 @@ module {
                 let bal = dvf.balance(meta.billing.ledger, ?from_subaccount);
                 if (bal > 0) {
                     label refund_payment do {
-                        let ?xf = Array.find<ICRC55.Endpoint>(vec.refund, func(x) = U.onlyIC(x).ledger == meta.billing.ledger) else break refund_payment;
-                        let refund = U.onlyIC(xf);
-
+                        
                         ignore dvf.send({
                             ledger = meta.billing.ledger;
-                            to = refund.account;
+                            to = refund_acc;
                             amount = bal;
                             memo = null;
                             from_subaccount = ?from_subaccount;
@@ -296,13 +307,9 @@ module {
                 do {
                     let bal = dvf.balance(source.ledger, source.account.subaccount);
                     if (bal > 0) {
-                        // try to find refund endpoint for that ledger source
-                        let ?xf = Array.find<ICRC55.Endpoint>(vec.refund, func(x) = U.onlyIC(x).ledger == source.ledger) else continue source_refund;
-                        let refund = U.onlyIC(xf);
-
                         ignore dvf.send({
                             ledger = source.ledger;
-                            to = refund.account;
+                            to = refund_acc;
                             amount = bal;
                             memo = null;
                             from_subaccount = source.account.subaccount;
@@ -343,6 +350,9 @@ module {
                     case (#withdraw_node(req)) {
                         #withdraw_node(icrc55_withdraw_node(caller, req));
                     };
+                    case (#withdraw_virtual(req)) {
+                        #withdraw_virtual(icrc55_withdraw_virtual(caller, req));
+                    };
                 };
                 Vector.add(res, r);
             };
@@ -350,7 +360,36 @@ module {
 
         };
 
+        public func icrc55_withdraw_virtual(caller:Principal, req: ICRC55.WithdrawVirtualRequest) : ICRC55.WithdrawVirtualResponse {
+            if (caller != req.account.owner) return #err("Not owner");
+            let acc = get_virtual_user_account(req.account);
+            let to = switch(req.to) {
+                case (#ic(to)) to;
+                case (_) return #err("Ledger not supported");
+            };
 
+            switch(dvf.send({
+                ledger = to.ledger;
+                to = to.account;
+                amount = req.amount;
+                memo = null;
+                from_subaccount = acc.subaccount;
+            })) {
+                case (#ok(id)) #ok(id);
+                case (#err(e)) #err(debug_show(e));
+            };
+
+        };
+
+        public func icrc55_virtual_balances(_caller: Principal, req: ICRC55.VirtualBalancesRequest) : ICRC55.VirtualBalancesResponse {
+            let acc = get_virtual_user_account(req);
+            let rez = Vector.new<(ICRC55.SupportedLedger, Nat)>();
+            for (ledger in dvf.get_ledger_ids().vals()) {
+                let bal = dvf.balance(ledger, acc.subaccount);
+                Vector.add(rez, (#ic(ledger), bal));
+            };
+            Vector.toArray(rez);
+        };
       
 
         public func icrc55_withdraw_node(caller : Principal, req : ICRC55.WithdrawNodeRequest) : ICRC55.WithdrawNodeResponse {
@@ -607,7 +646,7 @@ module {
                 if (fee_to_charge > 0) {
                     ignore dvf.send({
                         ledger = meta.billing.ledger;
-                        to = meta.billing_fee_collecting.author_account_ic;
+                        to = authorAccount(vec.custom);
                         amount = fee_to_charge;
                         memo = null;
                         from_subaccount = billing_subaccount;

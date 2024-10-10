@@ -4,7 +4,7 @@ import Principal "mo:base/Principal";
 module {
 
 
-    public func get(ledger: Principal) : {billing: ICRC55.Billing; billing_fee_collecting: ICRC55.BillingFeeCollecting} {
+    public func get(ledger: Principal) : {billing: ICRC55.Billing; split: ICRC55.BillingFeeSplit;} {
             {
             billing = {
                 ledger = ledger;
@@ -12,18 +12,21 @@ module {
                 cost_per_day = 10_0000;
                 operation_cost = 1000;
                 freezing_threshold_days = 10;
-                exempt_balance = null;
+                one_time_payment = null;
                 transaction_fee = #none;
             };
-            billing_fee_collecting = {
+            split = {
                 pylon = 1; 
                 author = 10;
-                author_account_ic = {
-                    owner = Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai");
-                    subaccount = null;
-                };
-                author_account_other = []
+                affiliate = 1;
             };
             }
+    };
+
+    public func authorAccount() : ICRC55.Account {
+        {
+            owner = Principal.fromText("rrkah-fqaaa-aaaaa-aaaaq-cai");
+            subaccount = null;
+        }
     }
 }
