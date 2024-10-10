@@ -14,8 +14,7 @@ module {
     public func meta(all_ledgers : [ICRC55.SupportedLedger]) : ICRC55.NodeMeta {
         let billing = Billing.get(U.onlyICLedger(all_ledgers[0]));
         {
-            billing
-            with
+            billing;
             id = "throttle"; // This has to be same as the variant in vec.custom
             name = "Throttle";
             description = "Send X tokens every Y seconds";

@@ -20,7 +20,7 @@ import { ICRCLedgerService, ICRCLedger } from "./icrc_ledger/ledgerCanister";
 import { Account, Subaccount} from './icrc_ledger/ledger.idl.js';
 //@ts-ignore
 import { toState } from "@infu/icblast";
-import {AccountIdentifier} from "@dfinity/ledger-icp"
+import {AccountIdentifier, SubAccount} from "@dfinity/ledger-icp"
 import util from 'util';
 const WASM_PYLON_PATH = resolve(__dirname, "./build/basic.wasm");
 
@@ -147,6 +147,15 @@ export function createNodeUtils({
         },
         async getPylonMeta() : Promise<NodeFactoryMetaResp> {
             return pylon.icrc55_get_pylon_meta();
+        },
+        virtual(account: Account): Account {
+            let asu = account?.subaccount[0] ? SubAccount.fromBytes(new Uint8Array(account.subaccount[0])) : undefined;
+            if (asu instanceof Error) {
+                throw asu;
+            }
+            let aid = AccountIdentifier.fromPrincipal({principal: account.owner, subAccount: asu as SubAccount});
+            let sa = aid.toUint8Array();
+            return { owner: pylonCanisterId, subaccount: [sa]};
         },
         async sendToAccount(account: Account, amount: bigint, from_subaccount:Subaccount | undefined = undefined): Promise<void> {
             ledger.setPrincipal(user);
