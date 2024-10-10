@@ -44,6 +44,7 @@ module {
         var destinations : [DestinationEndpoint];
         var refund : Account;
         var controllers : [Principal];
+        var affiliate : ?Account;
         created : Nat64;
         var modified : Nat64;
         var active : Bool;
@@ -673,6 +674,7 @@ module {
                 created = U.now();
                 var modified = U.now();
                 var controllers = req.controllers;
+                var affiliate = req.affiliate;
                 custom;
                 billing = {
                     var expires = null;

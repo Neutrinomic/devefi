@@ -21,8 +21,7 @@ module {
         description : Text;
         supported_ledgers : [SupportedLedger];
         billing : Billing;
-        split : BillingFeeSplit;
-        version: Version; //TODO: each node should have different princing token
+        version: Version;
     };
 
     public type SupportedLedger = {
@@ -112,7 +111,8 @@ module {
             #none;
             #flat_fee_multiplier: Nat;
             #transaction_percentage_fee: Nat // 8 decimal places
-        }
+        };
+        split: BillingFeeSplit;
     };
 
     public type BillingFeeSplit = {
@@ -226,7 +226,6 @@ module {
         #modify_node : ModifyNodeRequest<M>;
         #withdraw_node: WithdrawNodeRequest;
         #withdraw_virtual: WithdrawVirtualRequest;
-       
     };
 
     public type CommandResponse<A> = {

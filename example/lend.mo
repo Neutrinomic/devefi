@@ -12,8 +12,7 @@ module {
     public func meta(all_ledgers : [ICRC55.SupportedLedger]) : ICRC55.NodeMeta {
         let billing = Billing.get(U.onlyICLedger(all_ledgers[0]));
         {
-            billing
-            with
+            billing;
             id = "lend"; // This has to be same as the variant in vec.custom
             name = "Lend";
             description = "Lend X tokens against Y tokens";
