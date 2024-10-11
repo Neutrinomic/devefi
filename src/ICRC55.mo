@@ -217,12 +217,23 @@ module {
         #err : Text;
     };
 
+    public type TopUpNodeRequest = {
+        id : LocalNodeId;
+        amount: Nat;
+    };
+
+    public type TopUpNodeResponse = {
+        #ok : ();
+        #err : Text;
+    };
+
     public type Command<C,M> = {
         #create_node : CreateNodeRequest<C>;
         #delete_node : LocalNodeId;
         #modify_node : ModifyNodeRequest<M>;
         #withdraw_node: WithdrawNodeRequest;
         #withdraw_virtual: WithdrawVirtualRequest;
+        #top_up_node : TopUpNodeRequest;
     };
 
     public type CommandResponse<A> = {
@@ -231,6 +242,7 @@ module {
         #modify_node : ModifyNodeResponse<A>;
         #withdraw_node: WithdrawNodeResponse;
         #withdraw_virtual: WithdrawVirtualResponse;
+        #top_up_node : TopUpNodeResponse;
     };
 
     public type VirtualBalancesRequest = Account;
