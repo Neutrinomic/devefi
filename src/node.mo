@@ -148,15 +148,15 @@ module {
             cls : {
                 endpoint : Endpoint;
                 vec : NodeMem<XMem>;
+                vid : NodeId;
             }
         ) {
+
 
             public let endpoint = U.onlyIC(cls.endpoint) : ICRC55.ICEndpoint;
 
             public func balance() : Nat {
-
                 dvf.balance(endpoint.ledger, endpoint.account.subaccount);
-
             };
 
             public func fee() : Nat {
@@ -174,6 +174,25 @@ module {
                 },
                 amount : Nat,
             ) : R<Nat64, SourceSendErr> {
+                let ?pylonAccount = pylonVirtualAccount else Debug.trap("Pylon account not set");
+                let billing = nodeBilling(cls.vec.custom);
+                let ledger_fee = dvf.fee(endpoint.ledger);
+                let tx_fee : Nat = switch(location) {
+                    case (#destination(_) or #remote_destination(_)) {
+                            
+                            switch(billing.transaction_fee) {
+                                case (#none) 0;
+                                case (#flat_fee_multiplier(m)) {
+                                    ledger_fee * m;
+                                };
+                                case (#transaction_percentage_fee(p)) {
+                                    amount * p / 1_0000_0000;
+                                };
+                            };
+                    };
+                    case (_) 0;
+                };
+                
                 let to : Account = switch (location) {
                     case (#destination({ port })) {
                         let ?acc = U.onlyICDest(cls.vec.destinations[port]).account else return #err(#AccountNotSet);
@@ -201,11 +220,44 @@ module {
                 };
 
                 mem.ops += 1;
-                
-                dvf.send({
+                if (tx_fee + ledger_fee >= amount) return #err(#InsufficientFunds);
+                let amount_to_send = amount - tx_fee:Nat;
+
+                let ?virtual = dvf.get_virtual(billing.ledger) else Debug.trap("Virtual account not found");
+
+                if (tx_fee > 0) {
+                    let billing_subaccount = ?port2subaccount({
+                        vid = cls.vid;
+                        flow = #payment;
+                        id = 0;
+                    });
+
+                    ignore virtual.send({
+                        to = authorAccount(cls.vec.custom);
+                        amount = tx_fee * billing.split.author / 1000;
+                        memo = null;
+                        from_subaccount = billing_subaccount;
+                    });
+                    ignore virtual.send({
+                        to = pylonAccount;
+                        amount = tx_fee * billing.split.pylon / 1000;
+                        memo = null;
+                        from_subaccount = billing_subaccount;
+                    });
+                    ignore do ? {
+                        ignore virtual.send({
+                            to = get_virtual_user_account(cls.vec.affiliate!);
+                            amount = tx_fee * billing.split.affiliate / 1000;
+                            memo = null;
+                            from_subaccount = billing_subaccount;
+                        });
+                    };
+                };
+
+                virtual.send({
                     ledger = endpoint.ledger;
                     to;
-                    amount;
+                    amount = amount_to_send;
                     memo = null;
                     from_subaccount = endpoint.account.subaccount;
                 });
@@ -239,7 +291,8 @@ module {
 
             let source = Source({
                 endpoint = vec.sources[port_idx];
-                vec = vec;
+                vec;
+                vid;
             });
             return ?source;
         };
@@ -399,7 +452,7 @@ module {
                 memo = null;
                 from_subaccount = caller_subaccount;
             });
-            
+
             #ok();
         };  
 

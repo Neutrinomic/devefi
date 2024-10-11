@@ -110,14 +110,18 @@ module {
 
         operation_cost: Nat; // Cost incurred per operation (Ex: modify, withdraw). Has to be at least 4 * ledger fee. Paid to the pylon only since the costs are incurred by the pylon
 
-        transaction_fee: { // Split to all
+        // Transaction fees apply only to transactions sent to destination addresses
+        // These are split to all
+        transaction_fee: BillingTransactionFee;
+
+        split: BillingFeeSplit;
+    };
+
+    public type BillingTransactionFee = { 
             #none;
             #flat_fee_multiplier: Nat; // On top of that the pylon always gets 1 fee for virtual transfers and 4 fees for external transfers to cover its costs
             #transaction_percentage_fee: Nat // 8 decimal places
         };
-
-        split: BillingFeeSplit;
-    };
 
     public type BillingFeeSplit = { // Ratios, their sum has to be 1000
         pylon : Nat; 
