@@ -249,6 +249,9 @@ export function createNodeUtils({
             if (resp[0][0] === undefined) throw new Error("Node not found");
             return resp[0][0];
         },
+        async topUpNode(nodeId: NodeId, amount: bigint): Promise<CommandResponse[]> {
+            return await pylon.icrc55_command([{top_up_node: {id:nodeId, amount}}]);
+        },
         async setControllers(nodeId: NodeId, controllers: Principal[]): Promise<CommandResponse[]> {
             return await pylon.icrc55_command([{
                 modify_node: [nodeId, [{ 

@@ -361,12 +361,47 @@ module {
                     case (#withdraw_virtual(req)) {
                         #withdraw_virtual(icrc55_withdraw_virtual(caller, req));
                     };
+                    case (#top_up_node(req)) {
+                        #top_up_node(icrc55_top_up_node(caller, req));
+                    }
                 };
                 Vector.add(res, r);
             };
             Vector.toArray(res);
 
         };
+
+        public func icrc55_top_up_node(caller : Principal, req : ICRC55.TopUpNodeRequest) : ICRC55.TopUpNodeResponse {
+            let ?(vid, vec) = getNode(#id(req.id)) else return #err("Node not found");
+            if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
+
+            let billing = nodeBilling(vec.custom);
+
+            let caller_subaccount = ?Principal.toLedgerAccount(caller, null);
+            let caller_balance = dvf.balance(billing.ledger, caller_subaccount);
+
+            let payment_account = port2subaccount({
+                vid;
+                flow = #payment;
+                id = 0;
+            });
+
+            if (caller_balance < req.amount) return #err("Insufficient balance");
+            let ?thiscanister = mem.thiscan else return #err("This canister not set");
+
+            ignore dvf.send({
+                ledger = billing.ledger;
+                to = {
+                    owner = thiscanister;
+                    subaccount = ?payment_account;
+                };
+                amount = req.amount;
+                memo = null;
+                from_subaccount = caller_subaccount;
+            });
+            
+            #ok();
+        };  
 
         public func icrc55_withdraw_virtual(caller:Principal, req: ICRC55.WithdrawVirtualRequest) : ICRC55.WithdrawVirtualResponse {
             if (caller != req.account.owner) return #err("Not owner");
@@ -621,17 +656,6 @@ module {
                 };
             },
         );
-
-        // private func splitFees(amount: Nat, ) : () {
-        //     let meta = nodeMeta(vec.custom, get_supported_ledgers());
-        //     ignore dvf.send({
-        //         ledger = meta.billing.ledger;
-        //         to = authorAccount(vec.custom);
-        //         amount = amount;
-        //         memo = null;
-        //         from_subaccount = billing_subaccount;
-        //     });
-        // };
 
         private func chargeOpCost(vid:NodeId, vec: NodeMem<XMem>, number_of_fees: Nat) : () {
             let ?pylonAccount = pylonVirtualAccount else Debug.trap("Pylon account not set");
