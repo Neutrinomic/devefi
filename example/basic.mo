@@ -31,8 +31,6 @@ actor class () = this {
         
         settings = {
             Node.DEFAULT_SETTINGS with
-            MAX_SOURCES = 1 : Nat8;
-            MAX_DESTINATIONS = 1 : Nat8;
             PYLON_NAME = "Transcendence";
             PYLON_GOVERNED_BY = "Neutrinite DAO";
             PYLON_FEE_ACCOUNT = ?{ owner = Principal.fromText("eqsml-lyaaa-aaaaq-aacdq-cai"); subaccount = null };
