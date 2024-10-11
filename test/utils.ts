@@ -11,7 +11,7 @@ import {
     GetNodeResponse,
     CommandResponse,
     NodeShared,
-    NodeFactoryMetaResp,
+    PylonMetaResp,
     VirtualBalancesResponse
 } from './build/basic.idl.js';
 
@@ -78,6 +78,7 @@ export function DF() {
             const ledgerFixture = await ICRCLedger(this.pic, this.jo.getPrincipal(), undefined); // , this.pic.getSnsSubnet()?.id
             this.ledger = ledgerFixture.actor;
             this.ledgerCanisterId = ledgerFixture.canisterId;
+            // console.log("Ledger Canister Id: ", this.ledgerCanisterId.toText());
             this.ledger_fee = await this.ledger.icrc1_fee();
 
             await this.pic.addCycles(this.ledgerCanisterId, 100_000_000_000_000);
@@ -145,7 +146,7 @@ export function createNodeUtils({
             let sa = aid.toUint8Array();
             return { owner: pylonCanisterId, subaccount: [sa] };
         },
-        async getPylonMeta() : Promise<NodeFactoryMetaResp> {
+        async getPylonMeta() : Promise<PylonMetaResp> {
             return pylon.icrc55_get_pylon_meta();
         },
         virtual(account: Account): Account {

@@ -46,6 +46,7 @@ actor class () = this {
         meta = T.meta;
         nodeMeta = T.nodeMeta;
         authorAccount = T.authorAccount;
+        nodeBilling = T.nodeBilling;
     });
 
     private func proc() {
@@ -142,7 +143,7 @@ actor class () = this {
         nodes.heartbeat(proc);
     };
 
-    public query func icrc55_get_pylon_meta() : async ICRC55.NodeFactoryMetaResp {
+    public query func icrc55_get_pylon_meta() : async ICRC55.PylonMetaResp {
         nodes.icrc55_get_pylon_meta();
     };
 

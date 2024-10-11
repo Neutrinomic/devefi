@@ -101,7 +101,7 @@ module {
         TEMP_NODE_EXPIRATION_SEC = 3600;
         PYLON_GOVERNED_BY = "Unknown";
         PYLON_NAME = "Testing Pylon";
-        MAX_INSTRUCTIONS_PER_HEARTBEAT = 500_000_000;
+        MAX_INSTRUCTIONS_PER_HEARTBEAT = 300_000_000;
         PYLON_FEE_ACCOUNT = null;
     };
 
@@ -121,7 +121,10 @@ module {
         nodeMeta : (XMem, [ICRC55.SupportedLedger]) -> ICRC55.NodeMeta;
         getDefaults : (Text, [ICRC55.SupportedLedger]) -> XCreateRequest;
         authorAccount : (XMem) -> ICRC55.Account;
+        nodeBilling : (XMem) -> ICRC55.Billing;
     }) {
+        
+        var pylonVirtualAccount : ?Account = null;
 
         /// Heartbeat will execute f until it uses MAX_INSTRUCTIONS_PER_HEARTBEAT or it doesn't send any transactions
         public func heartbeat(f : () -> ()) : () {
@@ -265,11 +268,12 @@ module {
             };
         };
 
+
         public func delete(vid : NodeId) : () {
             let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return;
             // TODO: Don't allow deletion if there are no refund endpoints
 
-            let meta = nodeMeta(vec.custom, get_supported_ledgers());
+            let billing = nodeBilling(vec.custom);
             let refund_acc = get_virtual_user_account(vec.refund);
             // REFUND: Send staked tokens from the node to the first controller
             do {
@@ -279,12 +283,12 @@ module {
                     id = 0;
                 });
 
-                let bal = dvf.balance(meta.billing.ledger, ?from_subaccount);
+                let bal = dvf.balance(billing.ledger, ?from_subaccount);
                 if (bal > 0) {
                     label refund_payment do {
                         
                         ignore dvf.send({
-                            ledger = meta.billing.ledger;
+                            ledger = billing.ledger;
                             to = refund_acc;
                             amount = bal;
                             memo = null;
@@ -324,6 +328,9 @@ module {
 
         public func start<system>(can : Principal) : () {
             mem.thiscan := ?can;
+
+            let ?acc = do ? {get_virtual_user_account(settings.PYLON_FEE_ACCOUNT!)} else Debug.trap("PYLON_FEE_ACCOUNT required");
+            pylonVirtualAccount := ?acc;
         };
 
         private func get_supported_ledgers() : [ICRC55.SupportedLedger] {
@@ -402,6 +409,7 @@ module {
             let bal = source.balance();
             if (req.amount > bal) return #err("Insufficient balance");
             ignore source.send(#external_account(acc), req.amount);
+            chargeOpCost(vid, vec, 1);
             #ok();
         };
 
@@ -420,12 +428,12 @@ module {
                 case (#err(e)) return #err(e);
             };
 
-            let meta = nodeMeta(node.custom, get_supported_ledgers());
+            let billing = nodeBilling(node.custom);
 
             let caller_subaccount = ?Principal.toLedgerAccount(caller, null);
-            let caller_balance = dvf.balance(meta.billing.ledger, caller_subaccount);
+            let caller_balance = dvf.balance(billing.ledger, caller_subaccount);
             var paid = false;
-            let payment_amount = meta.billing.min_create_balance;
+            let payment_amount = billing.min_create_balance;
             if (caller_balance >= payment_amount) {
                 let node_payment_account = port2subaccount({
                     vid = id;
@@ -433,7 +441,7 @@ module {
                     id = 0;
                 });
                 ignore dvf.send({
-                    ledger = meta.billing.ledger;
+                    ledger = billing.ledger;
                     to = {
                         owner = thiscanister;
                         subaccount = ?node_payment_account;
@@ -468,12 +476,12 @@ module {
             let ?thiscanister = mem.thiscan else return #err("This canister not set");
             let ?(_, vec) = getNode(#id(vid)) else return #err("Node not found");
             if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
-
+            chargeOpCost(vid, vec, 1);
             node_modifyRequest(vid, vec, nreq, custom, thiscanister);
-
+            
         };
 
-        public func icrc55_get_pylon_meta() : ICRC55.NodeFactoryMetaResp {
+        public func icrc55_get_pylon_meta() : ICRC55.PylonMetaResp {
             {
                 name = settings.PYLON_NAME;
                 governed_by = settings.PYLON_GOVERNED_BY;
@@ -513,13 +521,13 @@ module {
 
         public func vecToShared(vec : NodeMem<XMem>, vid : NodeId) : NodeShared<XShared> {
             let ?thiscanister = mem.thiscan else Debug.trap("Not initialized");
-            let meta = nodeMeta(vec.custom, get_supported_ledgers());
+            let billing = nodeBilling(vec.custom);
             let billing_subaccount = ?port2subaccount({
                             vid;
                             flow = #payment;
                             id = 0;
                         });
-            let current_billing_balance = dvf.balance(meta.billing.ledger, billing_subaccount);
+            let current_billing_balance = dvf.balance(billing.ledger, billing_subaccount);
             {
                 id = vid;
                 custom = toShared(vec.custom);
@@ -541,7 +549,7 @@ module {
                 refund = vec.refund;
                 active = vec.active;
                 billing = {
-                    meta.billing with
+                    billing with
                     frozen = vec.billing.frozen;
                     expires = vec.billing.expires;
                     current_balance = current_billing_balance;
@@ -614,24 +622,56 @@ module {
             },
         );
 
+        // private func splitFees(amount: Nat, ) : () {
+        //     let meta = nodeMeta(vec.custom, get_supported_ledgers());
+        //     ignore dvf.send({
+        //         ledger = meta.billing.ledger;
+        //         to = authorAccount(vec.custom);
+        //         amount = amount;
+        //         memo = null;
+        //         from_subaccount = billing_subaccount;
+        //     });
+        // };
 
-        private func chargeNodeFees() : () {
-            
+        private func chargeOpCost(vid:NodeId, vec: NodeMem<XMem>, number_of_fees: Nat) : () {
+            let ?pylonAccount = pylonVirtualAccount else Debug.trap("Pylon account not set");
+            let billing = nodeBilling(vec.custom);
+            let fee_to_charge = billing.operation_cost * number_of_fees;
+            let ?virtual = dvf.get_virtual(billing.ledger) else Debug.trap("Virtual ledger not found");
+            let billing_subaccount = ?port2subaccount({
+                vid;
+                flow = #payment;
+                id = 0;
+            });
+
+            ignore virtual.send({
+                to = pylonAccount;
+                amount = fee_to_charge;
+                memo = null;
+                from_subaccount = billing_subaccount;
+            });
+        };
+
+        private func chargeTimeBasedFees() : () {
+            let ?pylonAccount = pylonVirtualAccount else Debug.trap("Pylon account not set");
+
             let nowU64 = U.now();
             let now = Nat64.toNat(nowU64);
             label vloop for ((vid, vec) in entries()) {
                 if (vec.billing.expires != null) continue vloop; // Not charging temp nodes
 
-                let meta = nodeMeta(vec.custom, get_supported_ledgers());
+                let billing = nodeBilling(vec.custom);
                 let billing_subaccount = ?port2subaccount({
                     vid;
                     flow = #payment;
                     id = 0;
                 });
 
-                let current_billing_balance = dvf.balance(meta.billing.ledger, billing_subaccount);
+                let current_billing_balance = dvf.balance(billing.ledger, billing_subaccount);
 
-                var fee_to_charge = ((meta.billing.cost_per_day * (now - Nat64.toNat(vec.billing.last_billed):Nat)) / (60*60*24)) / 1_000_000_000;
+                ignore do ? { if (billing.exempt_daily_cost_balance! < current_billing_balance) continue vloop; };
+                
+                var fee_to_charge = ((billing.cost_per_day * (now - Nat64.toNat(vec.billing.last_billed):Nat)) / (60*60*24)) / 1_000_000_000;
 
                 if (current_billing_balance < fee_to_charge) {
                     vec.billing.expires := ?(nowU64 + settings.TEMP_NODE_EXPIRATION_SEC);
@@ -639,19 +679,35 @@ module {
                 };
 
                 // Freeze nodes if bellow threshold
-                let days_left = (current_billing_balance - fee_to_charge:Nat) / meta.billing.cost_per_day; 
-                if (days_left <= meta.billing.freezing_threshold_days) {
+                let days_left = (current_billing_balance - fee_to_charge:Nat) / billing.cost_per_day; 
+                if (days_left <= billing.freezing_threshold_days) {
                     vec.billing.frozen := true;
                 };
 
                 if (fee_to_charge > 0) {
-                    ignore dvf.send({
-                        ledger = meta.billing.ledger;
+                    let ?virtual = dvf.get_virtual(billing.ledger) else Debug.trap("Virtual account not found");
+
+                    ignore virtual.send({
                         to = authorAccount(vec.custom);
-                        amount = fee_to_charge;
+                        amount = fee_to_charge * billing.split.author / 1000;
                         memo = null;
                         from_subaccount = billing_subaccount;
                     });
+                    ignore virtual.send({
+                        to = pylonAccount;
+                        amount = fee_to_charge * billing.split.pylon / 1000;
+                        memo = null;
+                        from_subaccount = billing_subaccount;
+                    });
+                    ignore do ? {
+                        ignore virtual.send({
+                            to = get_virtual_user_account(vec.affiliate!);
+                            amount = fee_to_charge * billing.split.affiliate / 1000;
+                            memo = null;
+                            from_subaccount = billing_subaccount;
+                        });
+                    }
+                    
                 };
 
                 vec.billing.last_billed := nowU64;
@@ -659,6 +715,7 @@ module {
             }
         };
 
+    
         private func node_createRequest2Mem(req : ICRC55.NodeRequest, creq : XCreateRequest, id : NodeId, thiscan : Principal) : Result.Result<NodeMem<XMem>, Text> {
 
             let custom = createRequest2Mem(creq);
@@ -766,7 +823,7 @@ module {
         ignore Timer.recurringTimer<system>(
             #seconds(10),
             func() : async () {
-                chargeNodeFees();
+                chargeTimeBasedFees();
             },
         );
     };
