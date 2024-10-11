@@ -65,7 +65,7 @@ describe('Billing', () => {
 
     await d.passTimeMinute(60*25);
     let node_after = await d.u.getNode(node.id);
-    const cost_per_day = 10_0000n;
+    const cost_per_day = node.billing.cost_per_day;
     
     expect(node_after.billing.current_balance).toBeLessThan(node.billing.current_balance);
     let actual_cost = node.billing.current_balance - node_after.billing.current_balance;

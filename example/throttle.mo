@@ -12,15 +12,18 @@ import Billing "./billing_all";
 module {
 
     public func meta(all_ledgers : [ICRC55.SupportedLedger]) : ICRC55.NodeMeta {
-        let billing = Billing.get(U.onlyICLedger(all_ledgers[0]));
         {
-            billing;
+            billing = billing();
             id = "throttle"; // This has to be same as the variant in vec.custom
             name = "Throttle";
             description = "Send X tokens every Y seconds";
             supported_ledgers = all_ledgers;
             version = #alpha;
         }
+    };
+
+    public func billing() : ICRC55.Billing {
+        Billing.get();
     };
 
 

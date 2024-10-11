@@ -10,9 +10,8 @@ import Billing "./billing_all";
 module {
 
     public func meta(all_ledgers : [ICRC55.SupportedLedger]) : ICRC55.NodeMeta {
-        let billing = Billing.get(U.onlyICLedger(all_ledgers[0]));
         {
-            billing;
+            billing = billing();
             id = "mint"; // This has to be same as the variant in vec.custom
             name = "Mint";
             description = "Mint X tokens for Y tokens";
@@ -21,6 +20,9 @@ module {
         };
     };
 
+    public func billing() : ICRC55.Billing {
+        Billing.get();
+    };
 
     public func authorAccount() : ICRC55.Account {
         Billing.authorAccount();

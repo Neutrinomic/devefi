@@ -4,7 +4,7 @@ import Text "mo:base/Text";
 module {
 
     public type LocalNodeId = Nat32;
-    public type NodeFactoryMetaResp = {
+    public type PylonMetaResp = {
         name: Text;
         governed_by : Text;
         nodes: [NodeMeta];
@@ -100,25 +100,29 @@ module {
     };
 
 
-    public type Billing = {
+    public type Billing = { // The billing parameters need to make sure author, pylon and affiliate get paid.
         ledger : Principal;
         min_create_balance : Nat; // Min balance required to create a node
-        cost_per_day: Nat; 
-        operation_cost: Nat; // Cost incurred per operation (Ex: modify, withdraw)        
-        freezing_threshold_days: Nat; // Min days left to freeze the node if it has insufficient balance
-        one_time_payment: ?Nat; // Balance threshold that exempts from cost deduction
-        transaction_fee: {
+        freezing_threshold_days: Nat; // Min days left to freeze the node if it has insufficient balance. Frozen nodes can't do transactions, but can be modified or deleted
+
+        cost_per_day: Nat; // Split to all
+        exempt_daily_cost_balance: ?Nat; // Balance threshold that exempts from cost per day deduction
+
+        operation_cost: Nat; // Cost incurred per operation (Ex: modify, withdraw). Has to be at least 4 * ledger fee. Paid to the pylon only since the costs are incurred by the pylon
+
+        transaction_fee: { // Split to all
             #none;
-            #flat_fee_multiplier: Nat;
+            #flat_fee_multiplier: Nat; // On top of that the pylon always gets 1 fee for virtual transfers and 4 fees for external transfers to cover its costs
             #transaction_percentage_fee: Nat // 8 decimal places
         };
+
         split: BillingFeeSplit;
     };
 
-    public type BillingFeeSplit = {
-        pylon : Nat; // Ratio
-        author : Nat; // Ratio
-        affiliate: Nat; // Ratio
+    public type BillingFeeSplit = { // Ratios, their sum has to be 1000
+        pylon : Nat; 
+        author : Nat; 
+        affiliate: Nat; 
     };
 
     public type BillingInternal = {
@@ -199,14 +203,7 @@ module {
         #ok : ();
         #err : Text;
     };
-    public type ChangeActiveNodeRequest = {
-        id : LocalNodeId;
-        active : Bool;
-    };
-    public type ChangeActiveNodeResponse = {
-        #ok : ();
-        #err : Text;
-    };
+
 
 
     public type WithdrawVirtualRequest = {
@@ -245,7 +242,7 @@ module {
         icrc55_command : shared ([Command<Any, Any>]) -> async [CommandResponse<Any>];
 
         icrc55_get_nodes : shared query [GetNode] -> async [?GetNodeResponse<Any>];
-        icrc55_get_pylon_meta : shared query () -> async NodeFactoryMetaResp;
+        icrc55_get_pylon_meta : shared query () -> async PylonMetaResp;
 
         icrc55_virtual_balances : shared query (VirtualBalancesRequest) -> async VirtualBalancesResponse;
     };

@@ -149,13 +149,26 @@ module {
 
     public func nodeMeta(custom: Mem, all_ledgers : [ICRC55.SupportedLedger]) : ICRC55.NodeMeta {
         switch (custom) {
-            case (#throttle(t)) ThrottleVector.meta(all_ledgers);
-            case (#lend(t)) Lend.meta(all_ledgers);
-            case (#borrow(t)) Borrow.meta(all_ledgers);
-            case (#exchange(t)) Exchange.meta(all_ledgers);
-            case (#escrow(t)) Escrow.meta(all_ledgers);
-            case (#split(t)) Split.meta(all_ledgers);
-            case (#mint(t)) Mint.meta(all_ledgers);
+            case (#throttle(_t)) ThrottleVector.meta(all_ledgers);
+            case (#lend(_t)) Lend.meta(all_ledgers);
+            case (#borrow(_t)) Borrow.meta(all_ledgers);
+            case (#exchange(_t)) Exchange.meta(all_ledgers);
+            case (#escrow(_t)) Escrow.meta(all_ledgers);
+            case (#split(_t)) Split.meta(all_ledgers);
+            case (#mint(_t)) Mint.meta(all_ledgers);
+            //...
+        };
+    };
+
+    public func nodeBilling(custom: Mem) : ICRC55.Billing {
+        switch (custom) {
+            case (#throttle(_t)) ThrottleVector.billing();
+            case (#lend(_t)) Lend.billing();
+            case (#borrow(_t)) Borrow.billing();
+            case (#exchange(_t)) Exchange.billing();
+            case (#escrow(_t)) Escrow.billing();
+            case (#split(_t)) Split.billing();
+            case (#mint(_t)) Mint.billing();
             //...
         };
     };

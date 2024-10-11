@@ -4,19 +4,22 @@ import Principal "mo:base/Principal";
 module {
 
 
-    public func get(ledger: Principal) : ICRC55.Billing {
+    public func get() : ICRC55.Billing {
            {
-                ledger = ledger;
+                // The ledger id from pocket IC tests
+                // We will need a script replace this, can't be drilling from root to here to make tests work
+                // And this needs to be hardcoded by authors at the end
+                ledger = Principal.fromText("lxzze-o7777-77777-aaaaa-cai"); 
                 min_create_balance = 5000000;
                 cost_per_day = 10_0000;
                 operation_cost = 1000;
                 freezing_threshold_days = 10;
-                one_time_payment = null;
+                exempt_daily_cost_balance = null;
                 transaction_fee = #none;
                 split = {
-                    pylon = 1; 
-                    author = 10;
-                    affiliate = 1;
+                    pylon = 300; 
+                    author = 500;
+                    affiliate = 200;
                 };
             };
           
