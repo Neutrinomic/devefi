@@ -17,6 +17,7 @@ module {
             description = "Exchange X for Y";
             supported_ledgers = all_ledgers;
             version = #alpha;
+            create_allowed = true;
         };
     };
 
@@ -135,7 +136,7 @@ module {
     // Allows you to change destinations and dynamically create new ones based on node state upon creation or modification
     // Fills in the account field when destination accounts are given
     // or leaves them null when not given
-    public func request2Destinations(t : Mem, req : [ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
+    public func request2Destinations(t : Mem, req : [ICRC55.EndpointOpt]) : Result.Result<[ICRC55.EndpointOpt], Text> {
    
         let #ok(to_account) = U.expectDestinationAccount(t.init.ledger_to, req, 0) else return #err("Invalid destination 0");
 

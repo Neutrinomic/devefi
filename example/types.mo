@@ -107,7 +107,7 @@ module {
         };
     };
 
-    public func destinationMap(custom : Mem,  destinationsProvided: [ICRC55.DestinationEndpoint] ) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
+    public func destinationMap(custom : Mem,  destinationsProvided: [ICRC55.EndpointOpt] ) : Result.Result<[ICRC55.EndpointOpt], Text> {
         switch (custom) {
             case (#throttle(t)) ThrottleVector.request2Destinations(t, destinationsProvided);
             case (#lend(t)) Lend.request2Destinations(t, destinationsProvided);

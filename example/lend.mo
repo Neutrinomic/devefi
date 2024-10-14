@@ -17,6 +17,7 @@ module {
             description = "Lend X tokens against Y tokens";
             supported_ledgers = all_ledgers;
             version = #alpha;
+            create_allowed = true;
         };
     };
 
@@ -136,7 +137,7 @@ module {
     // Allows you to change destinations and dynamically create new ones based on node state upon creation or modification
     // Fills in the account field when destination accounts are given
     // or leaves them null when not given
-    public func request2Destinations(t : Mem, req : [ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
+    public func request2Destinations(t : Mem, req : [ICRC55.EndpointOpt]) : Result.Result<[ICRC55.EndpointOpt], Text> {
    
         let #ok(liquidation_account) = U.expectDestinationAccount(t.init.ledger_collateral, req, 0) else return #err("Invalid destination 0");
         let #ok(fee_account) = U.expectDestinationAccount(t.init.ledger_collateral, req, 1) else return #err("Invalid destination 1");
