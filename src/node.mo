@@ -579,6 +579,7 @@ module {
                     expire_sec = settings.TEMP_NODE_EXPIRATION_SEC;
                 };
                 create_allowed = true;
+                supported_ledgers = get_supported_ledgers();
             };
         };
 

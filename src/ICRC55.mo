@@ -12,14 +12,14 @@ module {
             allowed : Bool;
             expire_sec: Nat64;
         };
-        
+        supported_ledgers : [SupportedLedger];
     };
     public type Version = {#production; #beta; #alpha};
     public type NodeMeta = {
         id : Text;
         name : Text;
         description : Text;
-        supported_ledgers : [SupportedLedger];
+        supported_ledgers : [SupportedLedger]; // SPEC: If it's empty, this means it supports all pylon ledgers
         billing : Billing;
         version: Version;
         create_allowed: Bool;
