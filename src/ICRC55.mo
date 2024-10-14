@@ -123,7 +123,7 @@ module {
             #transaction_percentage_fee: Nat // 8 decimal places
         };
 
-    public type BillingFeeSplit = { // Ratios, their sum has to be 1000
+    public type BillingFeeSplit = { /// Ratios, their sum has to be 1000
         pylon : Nat; 
         author : Nat; 
         affiliate: Nat; 
