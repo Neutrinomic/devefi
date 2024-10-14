@@ -12,7 +12,7 @@ module {
             allowed : Bool;
             expire_sec: Nat64;
         };
-        create_allowed: Bool;
+        
     };
     public type Version = {#production; #beta; #alpha};
     public type NodeMeta = {
@@ -22,6 +22,7 @@ module {
         supported_ledgers : [SupportedLedger];
         billing : Billing;
         version: Version;
+        create_allowed: Bool;
     };
 
     public type SupportedLedger = {
@@ -47,57 +48,81 @@ module {
         balance : Nat;
     };
 
-    public type DestICEndpoint = {
-        ledger : Principal;
-        account : ?Account;
-        name: Text
+
+    public module Endpoint {
+        public module IC {
+            public type Ledger = {
+                ledger : Principal;
+            };
+            public type WithAccount = {
+                account : Account;
+            };
+            public type Name = {
+                name : Text;
+            };
+            public type OptAccount = {
+                account : ?Account;
+            }
+        };
+        public module Remote {
+            public type Ledger = {
+                platform : Nat64;
+                ledger : Blob;
+            };
+            public type WithAccount = {
+                account : Blob;
+            };
+            public type OptAccount = {
+                account : ?Blob;
+            };
+            public type Name = {
+                name : Text;
+            };
+        }
     };
 
-    public type DestRemoteEndpoint = {
-        platform : Nat64;
-        ledger : Blob;
-        account : ?Blob;
-        name: Text;
+    //--
+    public type EndpointOpt = {
+        #ic : EndpointOptIC;
+        #remote : EndpointOptRemote;
     };
+
+    public type EndpointOptIC = Endpoint.IC.Ledger and Endpoint.IC.OptAccount and Endpoint.IC.Name;
+    public type EndpointOptRemote = Endpoint.Remote.Ledger and Endpoint.Remote.OptAccount and Endpoint.Remote.Name;
     
-    public type DestinationEndpoint = {
-        #ic : DestICEndpoint;
-        #remote : DestRemoteEndpoint;
+    //--
+    public type EndpointOptNameless = {
+        #ic : EndpointOptNamelessIC;
+        #remote : EndpointOptNamelessRemote;
     };
 
-    public type ICEndpoint = {
-        ledger : Principal;
-        account : Account;
-        name :Text;
-    };
+    public type EndpointOptNamelessIC = Endpoint.IC.Ledger and Endpoint.IC.WithAccount;
+    public type EndpointOptNamelessRemote = Endpoint.Remote.Ledger and Endpoint.Remote.WithAccount;
+    
 
-    public type RemoteEndpoint = {
-        platform : Nat64;
-        ledger : Blob;
-        account : Blob;
-        name:Text;
-    };
-
+    //--
     public type Endpoint = {
-        #ic : ICEndpoint;
-        #remote : RemoteEndpoint;
+        #ic : EndpointIC;
+        #remote : EndpointRemote;
     };
 
-    public type ICEndpointRaw = {
-        ledger : Principal;
-        account : Account;
+    public type EndpointIC = Endpoint.IC.Ledger and Endpoint.IC.WithAccount and Endpoint.IC.Name;
+ 
+    public type EndpointRemote = Endpoint.Remote.Ledger and Endpoint.Remote.WithAccount and Endpoint.Remote.Name;
+  
+
+
+    //--
+    public type EndpointNameless = {
+        #ic : EndpointNamelessIC;
+        #remote : EndpointNamelessRemote;
     };
 
-    public type RemoteEndpointRaw = {
-        platform : Nat64;
-        ledger : Blob;
-        account : Blob;
-    };
+    public type EndpointNamelessIC = Endpoint.IC.Ledger and Endpoint.IC.WithAccount;
+    
+    public type EndpointNamelessRemote = Endpoint.Remote.Ledger and Endpoint.Remote.WithAccount;
 
-    public type EndpointRaw = {
-        #ic : ICEndpointRaw;
-        #remote : RemoteEndpointRaw;
-    };
+
 
 
     public type Billing = { // The billing parameters need to make sure author, pylon and affiliate get paid.
@@ -139,7 +164,7 @@ module {
     public type GetNodeResponse<A> = {
         id : LocalNodeId;
         sources : [SourceEndpointResp];
-        destinations : [DestinationEndpoint];
+        destinations : [EndpointOpt];
         extractors: [LocalNodeId];
         refund: Account;
         controllers : [Principal];
@@ -167,7 +192,7 @@ module {
     public type NodeRequest = {
         sources:[Endpoint];
         extractors : [LocalNodeId];
-        destinations : [DestinationEndpoint];
+        destinations : [EndpointOpt];
         refund: Account;
         controllers : [Principal];
         affiliate: ?Account
@@ -175,7 +200,7 @@ module {
 
     public type CommonModRequest = {
         sources: ?[Endpoint];
-        destinations : ?[DestinationEndpoint];
+        destinations : ?[EndpointOpt];
         extractors : ?[LocalNodeId];
         refund: ?Account;
         controllers : ?[Principal];
@@ -212,7 +237,7 @@ module {
 
     public type WithdrawVirtualRequest = {
         account : Account;
-        to: EndpointRaw;
+        to: EndpointNameless;
         amount: Nat;
     };
 

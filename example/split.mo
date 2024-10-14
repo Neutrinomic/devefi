@@ -19,6 +19,7 @@ module {
             description = "Split X tokens";
             supported_ledgers = all_ledgers;
             version = #alpha;
+            create_allowed = true;
         };
     };
 
@@ -137,10 +138,10 @@ module {
     // Allows you to change destinations and dynamically create new ones based on node state upon creation or modification
     // Fills in the account field when destination accounts are given
     // or leaves them null when not given
-    public func request2Destinations(t : Mem, req : [ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
+    public func request2Destinations(t : Mem, req : [ICRC55.EndpointOpt]) : Result.Result<[ICRC55.EndpointOpt], Text> {
 
         #ok(
-            Array.tabulate<ICRC55.DestinationEndpoint>(
+            Array.tabulate<ICRC55.EndpointOpt>(
                 t.variables.split.size(),
                 func(idx : Nat) {
                     let acc = switch (U.expectDestinationAccount(t.init.ledger, req, idx)) {

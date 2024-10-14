@@ -32,7 +32,7 @@ module {
     };
 
     public type Endpoint = ICRC55.Endpoint;
-    public type DestinationEndpoint = ICRC55.DestinationEndpoint;
+    public type EndpointOpt = ICRC55.EndpointOpt;
 
     public type CreateNodeResp<A> = ICRC55.CreateNodeResponse<A>;
 
@@ -41,7 +41,7 @@ module {
     public type NodeMem<A> = {
         var sources : [Endpoint];
         var extractors : [NodeId];
-        var destinations : [DestinationEndpoint];
+        var destinations : [EndpointOpt];
         var refund : Account;
         var controllers : [Principal];
         var affiliate : ?Account;
@@ -114,7 +114,7 @@ module {
 
         toShared : (XMem) -> XShared;
         sourceMap : (NodeId, XMem, Principal, [Endpoint]) -> R<[Endpoint], Text>;
-        destinationMap : (XMem, [DestinationEndpoint]) -> R<[DestinationEndpoint], Text>;
+        destinationMap : (XMem, [EndpointOpt]) -> R<[EndpointOpt], Text>;
         modifyRequestMut : (XMem, XModifyRequest) -> R<(), Text>;
         createRequest2Mem : (XCreateRequest) -> XMem;
         meta : ([ICRC55.SupportedLedger]) -> [ICRC55.NodeMeta];
@@ -153,7 +153,7 @@ module {
         ) {
 
 
-            public let endpoint = U.onlyIC(cls.endpoint) : ICRC55.ICEndpoint;
+            public let endpoint = U.onlyIC(cls.endpoint) : ICRC55.EndpointIC;
 
             public func balance() : Nat {
                 dvf.balance(endpoint.ledger, endpoint.account.subaccount);
@@ -873,7 +873,7 @@ module {
             #ok(sources)
         };
 
-        private func portMapDestinations(id : NodeId, custom : XMem,  destinationsProvided : [ICRC55.DestinationEndpoint]) : Result.Result<[ICRC55.DestinationEndpoint], Text> {
+        private func portMapDestinations(id : NodeId, custom : XMem,  destinationsProvided : [ICRC55.EndpointOpt]) : Result.Result<[ICRC55.EndpointOpt], Text> {
 
             // Destinations
             let d_res = destinationMap(custom, destinationsProvided);

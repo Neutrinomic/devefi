@@ -9,11 +9,11 @@ import Debug "mo:base/Debug";
 
 module {
 
-    public func onlyIC(ep : ICRC55.Endpoint) : ICRC55.ICEndpoint {
+    public func onlyIC(ep : ICRC55.Endpoint) : ICRC55.EndpointIC {
         let #ic(x) = ep else Debug.trap("Not supported");
         x;
     };
-    public func onlyICDest(ep : ICRC55.DestinationEndpoint) : ICRC55.DestICEndpoint {
+    public func onlyICDest(ep : ICRC55.EndpointOpt) : ICRC55.EndpointOptIC {
         let #ic(x) = ep else Debug.trap("Not supported");
         x;
     };
@@ -69,7 +69,7 @@ module {
         #ok(?x.account);
     };
 
-    public func expectDestinationAccount(expected_ledger : Principal, req : [ICRC55.DestinationEndpoint], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
+    public func expectDestinationAccount(expected_ledger : Principal, req : [ICRC55.EndpointOpt], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
         if (req.size() <= idx) return #ok(null);
 
         let #ic(x) = req[idx] else return #err;
