@@ -254,7 +254,7 @@ module {
                     };
                 };
 
-                virtual.send({
+                dvf.send({
                     ledger = endpoint.ledger;
                     to;
                     amount = amount_to_send;
