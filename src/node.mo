@@ -618,7 +618,7 @@ module {
             let current_billing_balance = dvf.balance(billing.ledger, billing_subaccount);
             {
                 id = vid;
-                custom = toShared(vec.custom);
+                custom = ?toShared(vec.custom);
                 created = vec.created;
                 extractors = vec.extractors;
                 modified = vec.modified;

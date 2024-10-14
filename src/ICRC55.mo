@@ -172,7 +172,7 @@ module {
         modified : Nat64;
         billing : Billing and BillingInternal;
         active : Bool;
-        custom : A;
+        custom : ?A;
     };
 
     public type GetControllerNodesRequest = {
