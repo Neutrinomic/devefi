@@ -60,7 +60,7 @@ actor class () = this {
                 if (bal <= fee * 100) continue vloop;
 
                 switch (vec.custom) {
-                    case (#throttle(th)) {
+                    case (?#throttle(th)) {
                         if (now > th.internals.wait_until_ts) {
                             switch (th.variables.interval_sec) {
                                 case (#fixed(fixed)) {
@@ -84,7 +84,7 @@ actor class () = this {
 
                         };
                     };
-                    case (#split(n)) {
+                    case (?#split(n)) {
 
                           // First loop: Calculate totalSplit and find the largest share destination
                         var totalSplit = 0;
