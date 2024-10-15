@@ -882,11 +882,8 @@ module {
         
 
         private func node_modifyRequest(id : NodeId, vec : NodeMem<XMem>, nreq : ?ICRC55.CommonModRequest, creq : ?XModifyRequest, thiscan : Principal) : ModifyNodeResp<XShared> {
-
-            label source_unregister for (xsource in vec.sources.vals()) {
-                let source = U.onlyIC(xsource);
-                dvf.unregisterSubaccount(source.account.subaccount);
-            };
+            
+            let old_sources = vec.sources;
 
             ignore do ? {
                   switch (nodeModify(unwrapCustom(vec.custom), creq!)) {
@@ -905,6 +902,11 @@ module {
             ignore do ? { vec.refund := nreq!.refund! };
                 
             ignore do ? {vec.active := nreq!.active!};
+
+            label source_unregister for (xsource in old_sources.vals()) {
+                let source = U.onlyIC(xsource);
+                dvf.unregisterSubaccount(source.account.subaccount);
+            };
 
             label source_register for (xsource in vec.sources.vals()) {
                 let source = U.onlyIC(xsource);
