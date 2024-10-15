@@ -394,10 +394,10 @@ module {
             getDefaults(id, get_supported_ledgers());
         };
 
-        public func icrc55_command(caller : Principal, cmds : [ICRC55.Command<XCreateRequest, XModifyRequest>]) : [ICRC55.CommandResponse<XShared>] {
-
+        public func icrc55_command(caller : Principal, req : ICRC55.BatchCommandRequest<XCreateRequest, XModifyRequest>) : ICRC55.BatchCommandResponse<XShared> {
+            ignore do ? { if (req.expire_at! < U.now()) return #err(#expired) };
             let res = Vector.new<ICRC55.CommandResponse<XShared>>();
-            for (cmd in cmds.vals()) {
+            for (cmd in req.commands.vals()) {
                 let r : ICRC55.CommandResponse<XShared> = switch (cmd) {
                     case (#create_node(req, custom)) {
                         #create_node(icrc55_create_node(caller, req, custom));
@@ -420,7 +420,7 @@ module {
                 };
                 Vector.add(res, r);
             };
-            Vector.toArray(res);
+            #ok({commands=Vector.toArray(res)});
 
         };
 
