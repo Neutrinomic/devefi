@@ -53,7 +53,7 @@ module {
             var frozen : Bool;
             var last_billed : Nat64;
         };
-        custom : A;
+        custom : ?A;
     };
 
     public type NodeShared<AS> = ICRC55.GetNodeResponse<AS>;
@@ -180,7 +180,7 @@ module {
                 amount : Nat,
             ) : R<Nat64, SourceSendErr> {
                 let ?pylonAccount = pylonVirtualAccount else Debug.trap("Pylon account not set");
-                let billing = nodeBilling(cls.vec.custom);
+                let billing = nodeBilling(unwrapCustom(cls.vec.custom));
                 let ledger_fee = dvf.fee(endpoint.ledger);
                 let tx_fee : Nat = switch(location) {
                     case (#destination(_) or #remote_destination(_)) {
@@ -238,7 +238,7 @@ module {
                     });
 
                     ignore virtual.send({
-                        to = authorAccount(cls.vec.custom);
+                        to = authorAccount(unwrapCustom(cls.vec.custom));
                         amount = tx_fee * billing.split.author / 1000;
                         memo = null;
                         from_subaccount = billing_subaccount;
@@ -331,7 +331,7 @@ module {
             let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return;
             // TODO: Don't allow deletion if there are no refund endpoints
 
-            let billing = nodeBilling(vec.custom);
+            let billing = nodeBilling(unwrapCustom(vec.custom));
             let refund_acc = get_virtual_user_account(vec.refund);
             // REFUND: Send staked tokens from the node to the first controller
             do {
@@ -433,7 +433,7 @@ module {
             let ?(vid, vec) = getNode(#id(req.id)) else return #err("Node not found");
             if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
 
-            let billing = nodeBilling(vec.custom);
+            let billing = nodeBilling(unwrapCustom(vec.custom));
 
             let caller_subaccount = ?Principal.toLedgerAccount(caller, null);
             let caller_balance = dvf.balance(billing.ledger, caller_subaccount);
@@ -521,7 +521,7 @@ module {
                 case (#err(e)) return #err(e);
             };
 
-            let billing = nodeBilling(node.custom);
+            let billing = nodeBilling(unwrapCustom(node.custom));
 
             let caller_subaccount = ?Principal.toLedgerAccount(caller, null);
             let caller_balance = dvf.balance(billing.ledger, caller_subaccount);
@@ -615,7 +615,7 @@ module {
 
         public func vecToShared(vec : NodeMem<XMem>, vid : NodeId) : NodeShared<XShared> {
             let ?thiscanister = mem.thiscan else Debug.trap("Not initialized");
-            let billing = nodeBilling(vec.custom);
+            let billing = nodeBilling(unwrapCustom(vec.custom));
             let billing_subaccount = ?port2subaccount({
                             vid;
                             flow = #payment;
@@ -624,7 +624,7 @@ module {
             let current_billing_balance = dvf.balance(billing.ledger, billing_subaccount);
             {
                 id = vid;
-                custom = ?toShared(vec.custom);
+                custom = ?toShared(unwrapCustom(vec.custom));
                 created = vec.created;
                 extractors = vec.extractors;
                 modified = vec.modified;
@@ -669,6 +669,10 @@ module {
             Vector.toArray(res);
         };
 
+        private func unwrapCustom(m: ?XMem) : XMem {
+            let ?x = m else Debug.trap("Internal node memory error. Withdraw tokens");
+            x;
+        };
 
 
         dvf.onEvent(
@@ -688,7 +692,7 @@ module {
                         });
 
                         let bal = dvf.balance(r.ledger, ?from_subaccount);
-                        let meta = nodeMeta(rvec.custom, get_supported_ledgers());
+                        let meta = nodeMeta(unwrapCustom(rvec.custom), get_supported_ledgers());
                         if (bal >= meta.billing.min_create_balance) {
                             rvec.billing.expires := null;
                         };
@@ -699,7 +703,7 @@ module {
             }
         );
 
- 
+
         // Remove expired nodes
         ignore Timer.recurringTimer<system>(
             #seconds(60),
@@ -718,7 +722,7 @@ module {
 
         private func chargeOpCost(vid:NodeId, vec: NodeMem<XMem>, number_of_fees: Nat) : () {
             let ?pylonAccount = pylonVirtualAccount else Debug.trap("Pylon account not set");
-            let billing = nodeBilling(vec.custom);
+            let billing = nodeBilling(unwrapCustom(vec.custom));
             let fee_to_charge = billing.operation_cost * number_of_fees;
             let ?virtual = dvf.get_virtual(billing.ledger) else Debug.trap("Virtual ledger not found");
             let billing_subaccount = ?port2subaccount({
@@ -743,7 +747,7 @@ module {
             label vloop for ((vid, vec) in entries()) {
                 if (vec.billing.expires != null) continue vloop; // Not charging temp nodes
 
-                let billing = nodeBilling(vec.custom);
+                let billing = nodeBilling(unwrapCustom(vec.custom));
                 let billing_subaccount = ?port2subaccount({
                     vid;
                     flow = #payment;
@@ -771,7 +775,7 @@ module {
                     let ?virtual = dvf.get_virtual(billing.ledger) else Debug.trap("Virtual account not found");
 
                     ignore virtual.send({
-                        to = authorAccount(vec.custom);
+                        to = authorAccount(unwrapCustom(vec.custom));
                         amount = fee_to_charge * billing.split.author / 1000;
                         memo = null;
                         from_subaccount = billing_subaccount;
@@ -862,7 +866,7 @@ module {
                 var modified = U.now();
                 var controllers = req.controllers;
                 var affiliate = req.affiliate;
-                custom;
+                custom = ?custom;
                 billing = {
                     var expires = null;
                     var frozen = false;
@@ -885,15 +889,15 @@ module {
             };
 
             ignore do ? {
-                  switch (nodeModify(vec.custom, creq!)) {
+                  switch (nodeModify(unwrapCustom(vec.custom), creq!)) {
                         case (#err(e)) return #err(e);
                         case (#ok()) ();
                     };
             };
             vec.modified := U.now();
 
-            ignore do ? { vec.destinations := switch(portMapDestinations(id, vec.custom, nreq!.destinations!)) {case (#err(e)) return #err(e); case (#ok(d)) d; } };
-            ignore do ? { vec.sources := switch(portMapSources(id, vec.custom, thiscan, nreq!.sources!)) {case (#err(e)) return #err(e); case (#ok(d)) d; } };
+            ignore do ? { vec.destinations := switch(portMapDestinations(id, unwrapCustom(vec.custom), nreq!.destinations!)) {case (#err(e)) return #err(e); case (#ok(d)) d; } };
+            ignore do ? { vec.sources := switch(portMapSources(id, unwrapCustom(vec.custom), thiscan, nreq!.sources!)) {case (#err(e)) return #err(e); case (#ok(d)) d; } };
 
             ignore do ? { vec.extractors := nreq!.extractors! };
              
