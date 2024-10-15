@@ -6,6 +6,7 @@ import Int "mo:base/Int";
 import ICRC55 "./ICRC55";
 import Result "mo:base/Result";
 import Debug "mo:base/Debug";
+import Vector "mo:vector";
 
 module {
 
@@ -76,4 +77,21 @@ module {
         if (x.ledger != expected_ledger) return #err;
         #ok(x.account);
     };
+
+    public func all_or_error<X,A,B>(arr : [X], f:(X, Nat) -> Result.Result<A,B>) : Result.Result<[A], B> {
+        var res = Vector.new<A>();
+        
+        for (k in arr.keys()) {
+            switch(f(arr[k], k)) {
+                case (#err(e)) {
+                    return #err(e);
+                };
+                case (#ok(x)) {
+                    Vector.add(res, x);
+                };
+            };
+        };
+        #ok(Vector.toArray(res));
+    };
+
 };

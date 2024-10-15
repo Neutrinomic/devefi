@@ -23,6 +23,7 @@ module {
         #mint: Mint.CreateRequest;
         //...
     };
+
     public type Mem = {
         #throttle : ThrottleVector.Mem;
         #lend: Lend.Mem;
@@ -94,28 +95,28 @@ module {
      
     };
 
-    public func sourceMap(id: Node.NodeId, custom : Mem, thiscan : Principal, sourcesProvided: [ICRC55.Endpoint]) : Result.Result<[ICRC55.Endpoint], Text> {
+    public func sources(custom : Mem) : Node.PortsDescription {
         switch (custom) {
-            case (#throttle(t)) ThrottleVector.request2Sources(t, id, thiscan, sourcesProvided);
-            case (#lend(t)) Lend.request2Sources(t, id, thiscan, sourcesProvided);
-            case (#borrow(t)) Borrow.request2Sources(t, id, thiscan, sourcesProvided);
-            case (#exchange(t)) Exchange.request2Sources(t, id, thiscan, sourcesProvided);
-            case (#escrow(t)) Escrow.request2Sources(t, id, thiscan, sourcesProvided);
-            case (#split(t)) Split.request2Sources(t, id, thiscan, sourcesProvided);
-            case (#mint(t)) Mint.request2Sources(t, id, thiscan, sourcesProvided);
+            case (#throttle(t)) ThrottleVector.sources(t);
+            case (#lend(t)) Lend.sources(t);
+            case (#borrow(t)) Borrow.sources(t);
+            case (#exchange(t)) Exchange.sources(t);
+            case (#escrow(t)) Escrow.sources(t);
+            case (#split(t)) Split.sources(t);
+            case (#mint(t)) Mint.sources(t);
             //...
         };
     };
 
-    public func destinationMap(custom : Mem,  destinationsProvided: [ICRC55.EndpointOpt] ) : Result.Result<[ICRC55.EndpointOpt], Text> {
+    public func destinations(custom : Mem) : Node.PortsDescription {
         switch (custom) {
-            case (#throttle(t)) ThrottleVector.request2Destinations(t, destinationsProvided);
-            case (#lend(t)) Lend.request2Destinations(t, destinationsProvided);
-            case (#borrow(t)) Borrow.request2Destinations(t, destinationsProvided);
-            case (#exchange(t)) Exchange.request2Destinations(t, destinationsProvided);
-            case (#escrow(t)) Escrow.request2Destinations(t, destinationsProvided);
-            case (#split(t)) Split.request2Destinations(t, destinationsProvided);
-            case (#mint(t)) Mint.request2Destinations(t, destinationsProvided);
+            case (#throttle(t)) ThrottleVector.destinations(t);
+            case (#lend(t)) Lend.destinations(t);
+            case (#borrow(t)) Borrow.destinations(t);
+            case (#exchange(t)) Exchange.destinations(t);
+            case (#escrow(t)) Escrow.destinations(t);
+            case (#split(t)) Split.destinations(t);
+            case (#mint(t)) Mint.destinations(t);
             //...
         };
     };

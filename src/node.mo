@@ -87,6 +87,8 @@ module {
         };
     };
 
+    public type PortsDescription = [(Principal, Text)];
+
     public type SETTINGS = {
         TEMP_NODE_EXPIRATION_SEC : Nat64;
         ALLOW_TEMP_NODE_CREATION : Bool;
@@ -113,8 +115,11 @@ module {
         dvf : DeVeFi.DeVeFi;
 
         toShared : (XMem) -> XShared;
-        sourceMap : (NodeId, XMem, Principal, [Endpoint]) -> R<[Endpoint], Text>;
-        destinationMap : (XMem, [EndpointOpt]) -> R<[EndpointOpt], Text>;
+        // sourceMap : (NodeId, XMem, Principal, [Endpoint]) -> R<[Endpoint], Text>;
+        // destinationMap : (XMem, [EndpointOpt]) -> R<[EndpointOpt], Text>;
+        nodeSources : (XMem) -> PortsDescription;
+        nodeDestinations : (XMem) -> PortsDescription;    
+
         modifyRequestMut : (XMem, XModifyRequest) -> R<(), Text>;
         createRequest2Mem : (XCreateRequest) -> XMem;
         meta : ([ICRC55.SupportedLedger]) -> [ICRC55.NodeMeta];
@@ -793,6 +798,53 @@ module {
             }
         };
 
+        private func sourceMap(id : NodeId, thiscan : Principal, sources:[ICRC55.Endpoint], portdesc:PortsDescription) : Result.Result<[ICRC55.Endpoint], Text> {
+
+            let accounts = switch(U.all_or_error<(Principal, Text), ?Account, ()>(
+                    portdesc, 
+                    func (port, idx) = U.expectSourceAccount(port.0, thiscan, sources, idx)
+                )) {
+                    case (#err) return #err("Invalid account");
+                    case (#ok(x)) x;
+                };
+            
+
+            #ok(Array.mapEntries<(Principal, Text),ICRC55.Endpoint>(
+                portdesc, func (port, idx) {
+                    #ic({
+                    ledger = port.0;
+                    account = Option.get(accounts[idx], {
+                        owner = thiscan;
+                        subaccount = ?port2subaccount({
+                            vid = id;
+                            flow = #input;
+                            id = Nat8.fromNat(idx);
+                        });
+                    });
+                    name = port.1;
+                    })
+            }));
+            
+        };
+
+        private func destinationMap(destinations:[ICRC55.EndpointOpt], portdesc: PortsDescription) : Result.Result<[ICRC55.EndpointOpt], Text> {
+            let accounts = switch(U.all_or_error<(Principal, Text), ?Account, ()>(
+                    portdesc, 
+                    func (port, idx) = U.expectDestinationAccount(port.0, destinations, idx)
+                )) {
+                    case (#err) return #err("Invalid account");
+                    case (#ok(x)) x;
+                };
+
+            #ok(Array.mapEntries<(Principal, Text),ICRC55.EndpointOpt>(
+                portdesc, func (port, idx) {
+                    #ic({
+                    ledger = port.0;
+                    account = accounts[idx];
+                    name = port.1;
+                    })
+            }));
+        };
     
         private func node_createRequest2Mem(req : ICRC55.NodeRequest, creq : XCreateRequest, id : NodeId, thiscan : Principal) : Result.Result<NodeMem<XMem>, Text> {
 
@@ -864,7 +916,7 @@ module {
         private func portMapSources(id : NodeId, custom : XMem, thiscan : Principal, sourcesProvided : [ICRC55.Endpoint]) : Result.Result<[ICRC55.Endpoint], Text> {
 
             // Sources
-            let s_res = sourceMap(id, custom, thiscan, sourcesProvided);
+            let s_res = sourceMap(id, thiscan, sourcesProvided, nodeSources(custom));
 
             let sources = switch (s_res) {
                 case (#ok(s)) s;
@@ -874,10 +926,10 @@ module {
             #ok(sources)
         };
 
-        private func portMapDestinations(id : NodeId, custom : XMem,  destinationsProvided : [ICRC55.EndpointOpt]) : Result.Result<[ICRC55.EndpointOpt], Text> {
+        private func portMapDestinations(_id : NodeId, custom : XMem,  destinationsProvided : [ICRC55.EndpointOpt]) : Result.Result<[ICRC55.EndpointOpt], Text> {
 
             // Destinations
-            let d_res = destinationMap(custom, destinationsProvided);
+            let d_res = destinationMap(destinationsProvided, nodeDestinations(custom));
 
             let destinations = switch (d_res) {
                 case (#ok(d)) d;
