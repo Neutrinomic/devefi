@@ -143,7 +143,7 @@ module {
             case (#escrow(t), #escrow(r)) Escrow.modify(t, r);
             case (#split(t), #split(r)) Split.modify(t, r);
             case (#mint(t), #mint(r)) Mint.modify(t, r);
-            case (_) Debug.trap("You need to provide same id-variant");
+            case (_) #err("You need to provide same id-variant");
             //...
         };
     };
