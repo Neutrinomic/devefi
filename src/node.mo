@@ -120,8 +120,8 @@ module {
         nodeSources : (XMem) -> PortsDescription;
         nodeDestinations : (XMem) -> PortsDescription;    
 
-        modifyRequestMut : (XMem, XModifyRequest) -> R<(), Text>;
-        createRequest2Mem : (XCreateRequest) -> XMem;
+        nodeModify : (XMem, XModifyRequest) -> R<(), Text>;
+        nodeCreate : (XCreateRequest) -> XMem;
         meta : ([ICRC55.SupportedLedger]) -> [ICRC55.NodeMeta];
         nodeMeta : (XMem, [ICRC55.SupportedLedger]) -> ICRC55.NodeMeta;
         getDefaults : (Text, [ICRC55.SupportedLedger]) -> XCreateRequest;
@@ -516,7 +516,7 @@ module {
             // Once the node is deleted, we can send the fee back to the caller
             let id = mem.next_node_id;
 
-            let node = switch (node_createRequest2Mem(req, custom, id, thiscanister)) {
+            let node = switch (node_nodeCreate(req, custom, id, thiscanister)) {
                 case (#ok(x)) x;
                 case (#err(e)) return #err(e);
             };
@@ -846,9 +846,9 @@ module {
             }));
         };
     
-        private func node_createRequest2Mem(req : ICRC55.NodeRequest, creq : XCreateRequest, id : NodeId, thiscan : Principal) : Result.Result<NodeMem<XMem>, Text> {
+        private func node_nodeCreate(req : ICRC55.NodeRequest, creq : XCreateRequest, id : NodeId, thiscan : Principal) : Result.Result<NodeMem<XMem>, Text> {
 
-            let custom = createRequest2Mem(creq);
+            let custom = nodeCreate(creq);
 
             let sources = switch (portMapSources(id, custom, thiscan, req.sources)) { case (#err(e)) return #err(e); case (#ok(x)) x; };
             let destinations = switch (portMapDestinations(id, custom, req.destinations)) { case (#err(e)) return #err(e); case (#ok(x)) x; };
@@ -885,20 +885,18 @@ module {
             };
 
             ignore do ? {
-                  switch (modifyRequestMut(vec.custom, creq!)) {
+                  switch (nodeModify(vec.custom, creq!)) {
                         case (#err(e)) return #err(e);
                         case (#ok()) ();
                     };
             };
-
-            // TODO: Check this - we are mutating and then returning error if source/destination fails
+            vec.modified := U.now();
 
             ignore do ? { vec.destinations := switch(portMapDestinations(id, vec.custom, nreq!.destinations!)) {case (#err(e)) return #err(e); case (#ok(d)) d; } };
             ignore do ? { vec.sources := switch(portMapSources(id, vec.custom, thiscan, nreq!.sources!)) {case (#err(e)) return #err(e); case (#ok(d)) d; } };
 
             ignore do ? { vec.extractors := nreq!.extractors! };
              
-            vec.modified := U.now();
             ignore do ? { vec.controllers := nreq!.controllers!};
             ignore do ? { vec.refund := nreq!.refund! };
                 

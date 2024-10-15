@@ -59,7 +59,7 @@ module {
     };
 
     // Create state from request
-    public func createRequest2Mem(t : CreateRequest) : Mem {
+    public func create(t : CreateRequest) : Mem {
         {
             init = t.init;
             variables = {
@@ -93,7 +93,7 @@ module {
     };
 
     // How does the modify request change memory
-    public func modifyRequestMut(mem : Mem, t : ModifyRequest) : Result.Result<(), Text> {
+    public func modify(mem : Mem, t : ModifyRequest) : Result.Result<(), Text> {
         mem.variables.interval_sec := t.interval_sec;
         mem.variables.max_amount := t.max_amount;
         #ok();

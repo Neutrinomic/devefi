@@ -121,28 +121,28 @@ module {
         };
     };
 
-    public func createRequest2Mem(req : CreateRequest) : Mem {
+    public func create(req : CreateRequest) : Mem {
         switch (req) {
-            case (#throttle(t)) #throttle(ThrottleVector.createRequest2Mem(t));
-            case (#lend(t)) #lend(Lend.createRequest2Mem(t));
-            case (#borrow(t)) #borrow(Borrow.createRequest2Mem(t));
-            case (#exchange(t)) #exchange(Exchange.createRequest2Mem(t));
-            case (#escrow(t)) #escrow(Escrow.createRequest2Mem(t));
-            case (#split(t)) #split(Split.createRequest2Mem(t));
-            case (#mint(t)) #mint(Mint.createRequest2Mem(t));
+            case (#throttle(t)) #throttle(ThrottleVector.create(t));
+            case (#lend(t)) #lend(Lend.create(t));
+            case (#borrow(t)) #borrow(Borrow.create(t));
+            case (#exchange(t)) #exchange(Exchange.create(t));
+            case (#escrow(t)) #escrow(Escrow.create(t));
+            case (#split(t)) #split(Split.create(t));
+            case (#mint(t)) #mint(Mint.create(t));
             //...
         };
     };
 
-    public func modifyRequestMut(custom : Mem, creq : ModifyRequest) : Result.Result<(), Text> {
+    public func modify(custom : Mem, creq : ModifyRequest) : Result.Result<(), Text> {
         switch (custom, creq) {
-            case (#throttle(t), #throttle(r)) ThrottleVector.modifyRequestMut(t, r);
-            case (#lend(t), #lend(r)) Lend.modifyRequestMut(t, r);
-            case (#borrow(t), #borrow(r)) Borrow.modifyRequestMut(t, r);
-            case (#exchange(t), #exchange(r)) Exchange.modifyRequestMut(t, r);
-            case (#escrow(t), #escrow(r)) Escrow.modifyRequestMut(t, r);
-            case (#split(t), #split(r)) Split.modifyRequestMut(t, r);
-            case (#mint(t), #mint(r)) Mint.modifyRequestMut(t, r);
+            case (#throttle(t), #throttle(r)) ThrottleVector.modify(t, r);
+            case (#lend(t), #lend(r)) Lend.modify(t, r);
+            case (#borrow(t), #borrow(r)) Borrow.modify(t, r);
+            case (#exchange(t), #exchange(r)) Exchange.modify(t, r);
+            case (#escrow(t), #escrow(r)) Escrow.modify(t, r);
+            case (#split(t), #split(r)) Split.modify(t, r);
+            case (#mint(t), #mint(r)) Mint.modify(t, r);
             case (_) Debug.trap("You need to provide same id-variant");
             //...
         };
