@@ -12,7 +12,8 @@ import {
     CommandResponse,
     NodeShared,
     PylonMetaResp,
-    VirtualBalancesResponse
+    VirtualBalancesResponse,
+    BatchCommandResponse
 } from './build/basic.idl.js';
 
 import { ICRCLedgerService, ICRCLedger } from "./icrc_ledger/ledgerCanister";
@@ -217,14 +218,17 @@ export function createNodeUtils({
         getAffiliateAccount() : Account {
             return {owner: user, subaccount: [this.subaccountFromId(100000)]};
         },
-        async withdrawVirtual(from: Account, to:Account, amount: bigint): Promise<CommandResponse[]> {
-            return await pylon.icrc55_command([{
+        async withdrawVirtual(from: Account, to:Account, amount: bigint): Promise<BatchCommandResponse> {
+            return await pylon.icrc55_command({
+                expire_at : [],
+                request_id : [],
+                commands :[{
                 withdraw_virtual: {
                     account: from,
                     to: { ic: { ledger: ledgerCanisterId, account: to } },
                     amount
                 }
-            }]);
+            }]});
             },
         async virtualBalances(acc: Account) : Promise<VirtualBalancesResponse> {
             return await pylon.icrc55_virtual_balances(acc);
@@ -239,9 +243,12 @@ export function createNodeUtils({
                 affiliate: [this.getAffiliateAccount()]
             };
 
-            let resp = await pylon.icrc55_command([{create_node:[req, creq]}]);
+            let resp = await pylon.icrc55_command({
+                expire_at : [],
+                request_id : [],
+                commands:[{create_node:[req, creq]}]});
             //@ts-ignore
-            return resp[0].create_node.ok;
+            return resp.ok.commands[0].create_node.ok;
         },
 
         async getNode(nodeId: NodeId): Promise<GetNodeResponse> {
@@ -249,11 +256,17 @@ export function createNodeUtils({
             if (resp[0][0] === undefined) throw new Error("Node not found");
             return resp[0][0];
         },
-        async topUpNode(nodeId: NodeId, amount: bigint): Promise<CommandResponse[]> {
-            return await pylon.icrc55_command([{top_up_node: {id:nodeId, amount}}]);
+        async topUpNode(nodeId: NodeId, amount: bigint): Promise<BatchCommandResponse> {
+            return await pylon.icrc55_command({
+                expire_at : [],
+                request_id : [],
+                commands:[{top_up_node: {id:nodeId, amount}}]});
         },
-        async setControllers(nodeId: NodeId, controllers: Principal[]): Promise<CommandResponse[]> {
-            return await pylon.icrc55_command([{
+        async setControllers(nodeId: NodeId, controllers: Principal[]): Promise<BatchCommandResponse> {
+            return await pylon.icrc55_command({
+                expire_at : [],
+                request_id : [],
+                commands:[{
                 modify_node: [nodeId, [{ 
                     destinations : [],
                     refund: [],
@@ -261,10 +274,13 @@ export function createNodeUtils({
                     extractors: [],
                     controllers : [controllers],
                     active :[]
-                }], []]}]);
+                }], []]}]});
         },
         async setActive(nodeId: NodeId, active: boolean): Promise<void> {
-            await pylon.icrc55_command([{
+            await pylon.icrc55_command({
+                expire_at : [],
+                request_id : [],
+                commands:[{
                 modify_node: [nodeId, [{ 
                     destinations : [],
                     refund: [],
@@ -273,21 +289,31 @@ export function createNodeUtils({
                     controllers : [],
                     active :[active]
                 }], []]
-            }]);
+            }]});
         },
-        async deleteNode(nodeId: NodeId): Promise<CommandResponse[]> {
-            return await pylon.icrc55_command([{delete_node: nodeId}]);
+        async deleteNode(nodeId: NodeId): Promise<BatchCommandResponse> {
+            return await pylon.icrc55_command({
+                expire_at : [],
+                request_id : [],
+                commands:[{delete_node: nodeId}]
+            });
         },
-        async withdrawNode(nodeId : NodeId, source_port: number, amount: bigint, to: Account): Promise<CommandResponse[]> {
-            return await pylon.icrc55_command([{
+        async withdrawNode(nodeId : NodeId, source_port: number, amount: bigint, to: Account): Promise<BatchCommandResponse> {
+            return await pylon.icrc55_command({
+                expire_at : [],
+                request_id : [],
+                commands:[{
                 withdraw_node: {id:nodeId, source_port, amount, to:{ic:{name:'', ledger:ledgerCanisterId, account:to}}}
-            }]);
+            }]});
         },
-        async setDestination(nodeId: NodeId, port: number, account: Account): Promise<CommandResponse[]> {
+        async setDestination(nodeId: NodeId, port: number, account: Account): Promise<BatchCommandResponse> {
             let node = await this.getNode(nodeId);
             let destinations = node.destinations;
             destinations[port] = { ic: { name: '', ledger: ledgerCanisterId, account: [account] } };
-            return await pylon.icrc55_command([{
+            return await pylon.icrc55_command({
+                expire_at : [],
+                request_id : [],
+                commands:[{
                 modify_node: [nodeId, [{ 
                     destinations : [destinations],
                     refund: [],
@@ -296,13 +322,16 @@ export function createNodeUtils({
                     controllers : [],
                     active :[]
                 }], []]
-            }]);
+            }]});
         },
-        async setSource(nodeId: NodeId, port: number, account: Account): Promise<CommandResponse[]> {
+        async setSource(nodeId: NodeId, port: number, account: Account): Promise<BatchCommandResponse> {
             let node = await this.getNode(nodeId);
             let sources = node.sources.map(x=> x.endpoint);
             sources[port] = { ic: { name: '', ledger: ledgerCanisterId, account: account } };
-            return await pylon.icrc55_command([{
+            return await pylon.icrc55_command({
+                expire_at : [],
+                request_id : [],
+                commands:[{
                 modify_node: [nodeId, [{ 
                     destinations : [],
                     refund: [],
@@ -311,13 +340,16 @@ export function createNodeUtils({
                     controllers : [],
                     active :[]
                 }], []]
-            }]);
+            }]});
         },
 
-        async addExtractor(from: NodeId, to: NodeId): Promise<CommandResponse[]> {
+        async addExtractor(from: NodeId, to: NodeId): Promise<BatchCommandResponse> {
             let node = await this.getNode(from);
             let extractors = [...node.extractors, to];
-            return await pylon.icrc55_command([{
+            return await pylon.icrc55_command({
+                expire_at : [],
+                request_id : [],
+                commands:[{
                 modify_node: [from, [{ 
                     destinations : [],
                     refund: [],
@@ -326,7 +358,7 @@ export function createNodeUtils({
                     controllers : [],
                     active :[]
                 }], []]
-            }]);
+            }]});
         },
 
 

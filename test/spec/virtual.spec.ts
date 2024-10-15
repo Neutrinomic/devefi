@@ -48,7 +48,7 @@ describe('Virtual', () => {
     let resp = await d.u.withdrawVirtual(d.u.mainAccount(), d.u.mainAccount(), 5000_0000n);
 
     //@ts-ignore
-    expect(resp[0].withdraw_virtual.ok).toBeDefined();
+    expect(resp.ok.commands[0].withdraw_virtual.ok).toBeDefined();
     await d.passTime(5);
 
     let virtual = await d.u.virtualBalances( d.u.mainAccount() );

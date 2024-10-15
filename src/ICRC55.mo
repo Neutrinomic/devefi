@@ -1,5 +1,4 @@
-import Principal "mo:base/Principal";
-import Text "mo:base/Text";
+
 
 module {
 
@@ -233,8 +232,6 @@ module {
         #err : Text;
     };
 
-
-
     public type WithdrawVirtualRequest = {
         account : Account;
         to: EndpointNameless;
@@ -274,13 +271,30 @@ module {
         #top_up_node : TopUpNodeResponse;
     };
 
+    public type BatchCommandRequest<C,M> = {
+        expire_at : ?Nat64;
+        request_id : ?Nat32;
+        commands: [Command<C,M>]
+    };
+
+    public type BatchCommandResponse<A> = {
+        #err : {
+            #duplicate: Nat64;
+            #expired;
+            #other: Text;
+        };
+        #ok : {
+            commands: [CommandResponse<A>]
+        };
+    };
+
     public type VirtualBalancesRequest = Account;
     public type VirtualBalancesResponse = [(SupportedLedger, Nat)];
 
     public type Self = actor {
         icrc55_get_controller_nodes : shared query GetControllerNodesRequest -> async GetControllerNodes<Any>;
         
-        icrc55_command : shared ([Command<Any, Any>]) -> async [CommandResponse<Any>];
+        icrc55_command : shared BatchCommandRequest<Any, Any> -> async BatchCommandResponse<Any>;
 
         icrc55_get_nodes : shared query [GetNode] -> async [?GetNodeResponse<Any>];
         icrc55_get_pylon_meta : shared query () -> async PylonMetaResp;

@@ -63,20 +63,20 @@ describe('Withdraw', () => {
     let resp = await d.u.withdrawNode(0, 0, node.sources[0].balance + 1000_0000n, d.u.userSubaccount(10));
 
     //@ts-ignore
-    expect(resp[0].withdraw_node.err).toBe('Insufficient balance');
+    expect(resp.ok.commands[0].withdraw_node.err).toBe('Insufficient balance');
   });
 
   it(`Withdraw non existing node`, async () => {
     let resp = await d.u.withdrawNode(3, 0, 100_0000n, d.u.userSubaccount(10));
 
     //@ts-ignore
-    expect(resp[0].withdraw_node.err).toBe('Node not found');
+    expect(resp.ok.commands[0].withdraw_node.err).toBe('Node not found');
   });
 
   it(`Withdraw non existing source port`, async () => {
     let resp = await d.u.withdrawNode(0, 3, 100_0000n, d.u.userSubaccount(10));
     //@ts-ignore
-    expect(resp[0].withdraw_node.err).toBe('Source not found');
+    expect(resp.ok.commands[0].withdraw_node.err).toBe('Source not found');
   });
 
   it(`Withdraw non controlled source`, async () => {
@@ -85,7 +85,7 @@ describe('Withdraw', () => {
     expect(node.controllers).toEqual([]);
     let resp = await d.u.withdrawNode(0, 0, 100_0000n, d.u.userSubaccount(10));
     //@ts-ignore
-    expect(resp[0].withdraw_node.err).toBe('Not a controller');
+    expect(resp.ok.commands[0].withdraw_node.err).toBe('Not a controller');
   });
 
 
@@ -122,12 +122,12 @@ describe('Withdraw', () => {
     let resp = await d.u.withdrawNode(node2.id, 0, 100_0000n, d.u.userSubaccount(10));
 
     //@ts-ignore
-    expect(resp[0].withdraw_node.err).toBe('Source not found');
+    expect(resp.ok.commands[0].withdraw_node.err).toBe('Source not found');
 
     let resp2 = await d.u.withdrawNode(node.id, 0, 100_0000n, d.u.userSubaccount(10));
     
     //@ts-ignore
-    expect(resp2[0].withdraw_node.ok).toBeDefined();
+    expect(resp2.ok.commands[0].withdraw_node.ok).toBeDefined();
 
   });
 
