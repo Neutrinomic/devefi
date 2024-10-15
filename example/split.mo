@@ -110,52 +110,19 @@ module {
         };
     };
 
-    // Mapping of source node ports
-    public func request2Sources(t : Mem, id : Node.NodeId, thiscan : Principal, sources:[ICRC55.Endpoint]) : Result.Result<[ICRC55.Endpoint], Text> {
-        let #ok(a0) = U.expectSourceAccount(t.init.ledger, thiscan, sources, 0) else return #err("Invalid source 0");
 
-        #ok(
-            Array.tabulate<ICRC55.Endpoint>(
-                1,
-                func(idx : Nat) = #ic {
-                    ledger = t.init.ledger;
-                    account = Option.get(a0, {
-                        owner = thiscan;
-                        subaccount = ?Node.port2subaccount({
-                            vid = id;
-                            flow = #input;
-                            id = Nat8.fromNat(idx);
-                        });
-                    });
-                    name = "";
-                },
-            )
+    public func sources(t : Mem) : Node.PortsDescription {
+        [(t.init.ledger, "")];
+    };
+
+    public func destinations(t : Mem) : Node.PortsDescription {
+        Array.tabulate<(Principal, Text)>(
+            t.variables.split.size(),
+            func(idx : Nat) {
+                (t.init.ledger, Nat.toText(t.variables.split[idx]))
+            },
         );
     };
 
-    // Mapping of destination node ports
-    //
-    // Allows you to change destinations and dynamically create new ones based on node state upon creation or modification
-    // Fills in the account field when destination accounts are given
-    // or leaves them null when not given
-    public func request2Destinations(t : Mem, req : [ICRC55.EndpointOpt]) : Result.Result<[ICRC55.EndpointOpt], Text> {
-
-        #ok(
-            Array.tabulate<ICRC55.EndpointOpt>(
-                t.variables.split.size(),
-                func(idx : Nat) {
-                    let acc = switch (U.expectDestinationAccount(t.init.ledger, req, idx)) {
-                        case (#ok(acc)) acc;
-                        case (#err()) null;
-                    };
-                    #ic {
-                        ledger = t.init.ledger;
-                        account = acc;
-                        name = Nat.toText(t.variables.split[idx]);
-                    };
-                },
-            )
-        );
-    };
 
 };

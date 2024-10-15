@@ -104,50 +104,14 @@ module {
         };
     };
 
-    // Mapping of source node ports
-    public func request2Sources(t : Mem, id : Node.NodeId, thiscan : Principal, sources:[ICRC55.Endpoint]) : Result.Result<[ICRC55.Endpoint], Text> {
-        let #ok(a0) = U.expectSourceAccount(t.init.ledger_for, thiscan, sources, 0) else return #err("Invalid source 0");
 
-        #ok([
-            #ic {
-                ledger = t.init.ledger_for;
-                account = Option.get(a0, {
-                    owner = thiscan;
-                    subaccount = ?Node.port2subaccount({
-                        vid = id;
-                        flow = #input;
-                        id = 0;
-                    });
-                });
-                name = "";
-            }
-        ]);
+
+    public func sources(t : Mem) : Node.PortsDescription {
+        [(t.init.ledger_for, "")];
     };
 
-    // Mapping of destination node ports
-    //
-    // Allows you to change destinations and dynamically create new ones based on node state upon creation or modification
-    // Fills in the account field when destination accounts are given
-    // or leaves them null when not given
-    public func request2Destinations(t : Mem, req : [ICRC55.EndpointOpt]) : Result.Result<[ICRC55.EndpointOpt], Text> {
-
-        let #ok(mint_account) = U.expectDestinationAccount(t.init.ledger_mint, req, 0) else return #err("Invalid destination 0");   
-        let #ok(for_account) = U.expectDestinationAccount(t.init.ledger_for, req, 1) else return #err("Invalid destination 1");
-
-        
-
-        #ok([
-            #ic {
-                ledger = t.init.ledger_mint;
-                account = mint_account;
-                name = "Mint";
-            },
-            #ic {
-                ledger = t.init.ledger_for;
-                account = for_account;
-                name = "";
-            }
-        ]);
+    public func destinations(t : Mem) : Node.PortsDescription {
+        [(t.init.ledger_mint, "Mint"), (t.init.ledger_for, "")];
     };
 
 

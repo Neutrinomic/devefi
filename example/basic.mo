@@ -36,8 +36,8 @@ actor class () = this {
             PYLON_FEE_ACCOUNT = ?{ owner = Principal.fromText("eqsml-lyaaa-aaaaq-aacdq-cai"); subaccount = null };
         };
         toShared = T.toShared;
-        sourceMap = T.sourceMap;
-        destinationMap = T.destinationMap;
+        nodeSources = T.sources;
+        nodeDestinations = T.destinations;
         createRequest2Mem = T.createRequest2Mem;
         modifyRequestMut = T.modifyRequestMut;
         getDefaults = T.getDefaults;
