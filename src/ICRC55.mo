@@ -13,7 +13,10 @@ module {
         };
         supported_ledgers : [SupportedLedger];
     };
-    public type Version = {#production; #beta; #alpha};
+    public type LedgerIdx = Nat;
+    public type LedgerLabel = Text;
+    public type PortsDescription = [(LedgerIdx, LedgerLabel)];
+    public type Version = {#release:[Nat16]; #beta:[Nat16]; #alpha:[Nat16]}; // Always 3 items. Ex: [0,1,23]
     public type NodeMeta = {
         id : Text;
         name : Text;
@@ -22,7 +25,9 @@ module {
         billing : Billing;
         version: Version;
         create_allowed: Bool;
-        ledgers_required : [Text]
+        ledgers_required : [Text];
+        sources: PortsDescription;
+        destinations: PortsDescription;
     };
 
     public type SupportedLedger = {
