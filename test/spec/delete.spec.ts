@@ -57,9 +57,19 @@ describe('Delete', () => {
 
     expect(refund_bal).toBe(1_0000_0000n - d.ledger_fee*2n);
 
-    await d.u.withdrawVirtual(refund_account, d.u.mainAccount(), refund_bal);
   
   }, 600 * 1000);
+
+  it(`Withdraw from refund account`, async () => {
+    let refund_account = d.u.getRefundAccount();
+    let refund_virtual = await d.u.virtualBalances(refund_account);
+    let refund_bal = refund_virtual[0][1];
+
+    let resp = await d.u.withdrawVirtual(refund_account, d.u.mainAccount(), refund_bal);
+
+    //@ts-ignore
+    expect(resp.ok.commands[0].withdraw_virtual.ok).toBeDefined();
+  });
 
   it(`Check refunding of node billing account after deletion`, async () => {
 
