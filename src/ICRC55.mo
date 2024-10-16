@@ -166,13 +166,14 @@ module {
         expires : ?Nat64;
     }; 
 
+    public type Controller = Account;
     public type GetNodeResponse<A> = {
         id : LocalNodeId;
         sources : [SourceEndpointResp];
         destinations : [EndpointOpt];
         extractors: [LocalNodeId];
         refund: Account;
-        controllers : [Principal];
+        controllers : [Controller];
         created : Nat64;
         modified : Nat64;
         billing : Billing and BillingInternal;
@@ -181,7 +182,7 @@ module {
     };
 
     public type GetControllerNodesRequest = {
-        id : Principal;
+        id : Controller;
         start : Nat;
         length : Nat;
     };
@@ -200,7 +201,7 @@ module {
         destinations: [EndpointOpt];
         ledgers: [SupportedLedger];
         refund: Account;
-        controllers : [Principal];
+        controllers : [Controller];
         affiliate: ?Account
     };
 
@@ -209,7 +210,7 @@ module {
         destinations : ?[EndpointOpt];
         extractors : ?[LocalNodeId];
         refund: ?Account;
-        controllers : ?[Principal];
+        controllers : ?[Controller];
         active: ?Bool;
     };
 
@@ -281,6 +282,8 @@ module {
     public type BatchCommandRequest<C,M> = {
         expire_at : ?Nat64;
         request_id : ?Nat32;
+        controller: Controller;
+        signature : ?Blob; // Optional signature
         commands: [Command<C,M>]
     };
 
@@ -288,6 +291,8 @@ module {
         #err : {
             #duplicate: Nat64;
             #expired;
+            #invalid_signature;
+            #access_denied;
             #other: Text;
         };
         #ok : {

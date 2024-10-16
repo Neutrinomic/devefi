@@ -134,7 +134,7 @@ export function createNodeUtils({
 }) {
     return {
         async listNodes(): Promise<NodeShared[]> {
-            return await pylon.icrc55_get_controller_nodes({ id: user, start:0n, length: 500n });
+            return await pylon.icrc55_get_controller_nodes({ id: {owner:user, subaccount:[]}, start:0n, length: 500n });
         },
         mainAccount(): Account {
             return { owner: user, subaccount: [] };
@@ -222,6 +222,8 @@ export function createNodeUtils({
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
+                controller: from,
+                signature : [],
                 commands :[{
                 withdraw_virtual: {
                     account: from,
@@ -235,7 +237,7 @@ export function createNodeUtils({
         },
         async createNode(creq: CreateRequest): Promise<GetNodeResponse> {
             let req: NodeRequest = {
-                controllers: [user],
+                controllers: [{owner:user, subaccount:[]}],
                 destinations: [],
                 refund: this.getRefundAccount(),
                 ledgers: [{ic: ledgerCanisterId}],
@@ -247,6 +249,8 @@ export function createNodeUtils({
             let resp = await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
+                controller: {owner:user, subaccount:[]},
+                signature : [],
                 commands:[{create_node:[req, creq]}]});
             //@ts-ignore
             return resp.ok.commands[0].create_node.ok;
@@ -261,12 +265,16 @@ export function createNodeUtils({
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
+                controller : {owner:user, subaccount:[]},
+                signature : [],
                 commands:[{top_up_node: {id:nodeId, amount}}]});
         },
-        async setControllers(nodeId: NodeId, controllers: Principal[]): Promise<BatchCommandResponse> {
+        async setControllers(nodeId: NodeId, controllers: Account[]): Promise<BatchCommandResponse> {
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
+                controller : {owner:user, subaccount:[]},
+                signature : [],
                 commands:[{
                 modify_node: [nodeId, [{ 
                     destinations : [],
@@ -281,6 +289,8 @@ export function createNodeUtils({
             await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
+                controller : {owner:user, subaccount:[]},
+                signature : [],
                 commands:[{
                 modify_node: [nodeId, [{ 
                     destinations : [],
@@ -296,6 +306,8 @@ export function createNodeUtils({
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
+                controller : {owner:user, subaccount:[]},
+                signature : [],
                 commands:[{delete_node: nodeId}]
             });
         },
@@ -303,6 +315,8 @@ export function createNodeUtils({
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
+                controller : {owner:user, subaccount:[]},
+                signature : [],
                 commands:[{
                 withdraw_node: {id:nodeId, source_port, amount, to:{ic:{name:'', ledger:ledgerCanisterId, account:to}}}
             }]});
@@ -314,6 +328,8 @@ export function createNodeUtils({
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
+                controller : {owner:user, subaccount:[]},
+                signature : [],
                 commands:[{
                 modify_node: [nodeId, [{ 
                     destinations : [destinations],
@@ -332,6 +348,8 @@ export function createNodeUtils({
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
+                controller : {owner:user, subaccount:[]},
+                signature : [],
                 commands:[{
                 modify_node: [nodeId, [{ 
                     destinations : [],
@@ -350,6 +368,8 @@ export function createNodeUtils({
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
+                controller : {owner:user, subaccount:[]},
+                signature : [],
                 commands:[{
                 modify_node: [from, [{ 
                     destinations : [],

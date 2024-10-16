@@ -43,7 +43,7 @@ module {
         var extractors : [NodeId];
         var destinations : [EndpointOpt];
         var refund : Account;
-        var controllers : [Principal];
+        var controllers : [Account];
         var affiliate : ?Account;
         var ledgers : [ICRC55.SupportedLedger];
         created : Nat64;
@@ -313,10 +313,10 @@ module {
             mem.next_node_id;
         };
 
-        public func icrc55_delete_node(caller : Principal, vid : NodeId) : R<(), Text> {
+        public func icrc55_delete_node(caller : Account, vid : NodeId) : R<(), Text> {
             // Check if caller is controller
             let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return #err("Node not found");
-            if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
+            if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
 
             #ok(delete(vid));
         };
@@ -404,26 +404,27 @@ module {
 
         public func icrc55_command(caller : Principal, req : ICRC55.BatchCommandRequest<XCreateRequest, XModifyRequest>) : ICRC55.BatchCommandResponse<XShared> {
             ignore do ? { if (req.expire_at! < U.now()) return #err(#expired) };
+            if (caller != req.controller.owner) return #err(#access_denied);
             let res = Vector.new<ICRC55.CommandResponse<XShared>>();
             for (cmd in req.commands.vals()) {
                 let r : ICRC55.CommandResponse<XShared> = switch (cmd) {
-                    case (#create_node(req, custom)) {
-                        #create_node(icrc55_create_node(caller, req, custom));
+                    case (#create_node(nreq, custom)) {
+                        #create_node(icrc55_create_node(req.controller, nreq, custom));
                     };
                     case (#delete_node(vid)) {
-                        #delete_node(icrc55_delete_node(caller, vid));
+                        #delete_node(icrc55_delete_node(req.controller, vid));
                     };
                     case (#modify_node(vid, nreq, custom)) {
-                        #modify_node(icrc55_modify_node(caller, vid, nreq, custom));
+                        #modify_node(icrc55_modify_node(req.controller, vid, nreq, custom));
                     };
-                    case (#withdraw_node(req)) {
-                        #withdraw_node(icrc55_withdraw_node(caller, req));
+                    case (#withdraw_node(nreq)) {
+                        #withdraw_node(icrc55_withdraw_node(req.controller, nreq));
                     };
-                    case (#withdraw_virtual(req)) {
-                        #withdraw_virtual(icrc55_withdraw_virtual(caller, req));
+                    case (#withdraw_virtual(nreq)) {
+                        #withdraw_virtual(icrc55_withdraw_virtual(req.controller, nreq));
                     };
-                    case (#top_up_node(req)) {
-                        #top_up_node(icrc55_top_up_node(caller, req));
+                    case (#top_up_node(nreq)) {
+                        #top_up_node(icrc55_top_up_node(req.controller, nreq));
                     }
                 };
                 Vector.add(res, r);
@@ -432,13 +433,13 @@ module {
 
         };
 
-        public func icrc55_top_up_node(caller : Principal, req : ICRC55.TopUpNodeRequest) : ICRC55.TopUpNodeResponse {
+        public func icrc55_top_up_node(caller : Account, req : ICRC55.TopUpNodeRequest) : ICRC55.TopUpNodeResponse {
             let ?(vid, vec) = getNode(#id(req.id)) else return #err("Node not found");
-            if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
+            if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
 
             let billing = nodeBilling(unwrapCustom(vec.custom));
 
-            let caller_subaccount = ?Principal.toLedgerAccount(caller, null);
+            let caller_subaccount = ?Principal.toLedgerAccount(caller.owner, caller.subaccount);
             let caller_balance = dvf.balance(billing.ledger, caller_subaccount);
 
             let payment_account = port2subaccount({
@@ -464,8 +465,8 @@ module {
             #ok();
         };  
 
-        public func icrc55_withdraw_virtual(caller:Principal, req: ICRC55.WithdrawVirtualRequest) : ICRC55.WithdrawVirtualResponse {
-            if (caller != req.account.owner) return #err("Not owner");
+        public func icrc55_withdraw_virtual(caller:Account, req: ICRC55.WithdrawVirtualRequest) : ICRC55.WithdrawVirtualResponse {
+            if (caller != req.account) return #err("Not owner");
             let acc = get_virtual_account(req.account);
             let to = switch(req.to) {
                 case (#ic(to)) to;
@@ -496,9 +497,9 @@ module {
         };
       
 
-        public func icrc55_withdraw_node(caller : Principal, req : ICRC55.WithdrawNodeRequest) : ICRC55.WithdrawNodeResponse {
+        public func icrc55_withdraw_node(caller : Account, req : ICRC55.WithdrawNodeRequest) : ICRC55.WithdrawNodeResponse {
             let ?(vid, vec) = getNode(#id(req.id)) else return #err("Node not found");
-            if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
+            if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
 
             let ?source = getSource(vid, vec, Nat8.toNat(req.source_port)) else return #err("Source not found");
             let acc = U.onlyIC(req.to).account;
@@ -509,7 +510,7 @@ module {
             #ok();
         };
 
-        public func icrc55_create_node(caller : Principal, req : ICRC55.NodeRequest, custom : XCreateRequest) : CreateNodeResp<XShared> {
+        public func icrc55_create_node(caller : Account, req : ICRC55.NodeRequest, custom : XCreateRequest) : CreateNodeResp<XShared> {
             let ?thiscanister = mem.thiscan else return #err("This canister not set");
             // TODO: Limit tempory node creation per hour (against DoS)
 
@@ -526,7 +527,7 @@ module {
 
             let billing = nodeBilling(unwrapCustom(node.custom));
 
-            let caller_subaccount = ?Principal.toLedgerAccount(caller, null);
+            let caller_subaccount = ?Principal.toLedgerAccount(caller.owner, caller.subaccount);
             let caller_balance = dvf.balance(billing.ledger, caller_subaccount);
             var paid = false;
             let payment_amount = billing.min_create_balance;
@@ -568,10 +569,10 @@ module {
             #ok(node_shared);
         };
 
-        public func icrc55_modify_node(caller : Principal, vid : NodeId, nreq : ?ICRC55.CommonModRequest, custom : ?XModifyRequest) : ModifyNodeResp<XShared> {
+        public func icrc55_modify_node(caller : Account, vid : NodeId, nreq : ?ICRC55.CommonModRequest, custom : ?XModifyRequest) : ModifyNodeResp<XShared> {
             let ?thiscanister = mem.thiscan else return #err("This canister not set");
             let ?(_, vec) = getNode(#id(vid)) else return #err("Node not found");
-            if (Option.isNull(Array.indexOf(caller, vec.controllers, Principal.equal))) return #err("Not a controller");
+            if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
             chargeOpCost(vid, vec, 1);
             node_modifyRequest(vid, vec, nreq, custom, thiscanister);
             
@@ -663,7 +664,7 @@ module {
             let res = Vector.new<NodeShared<XShared>>();
             var cid = 0;
             label search for ((vid, vec) in entries()) {
-                if (not Option.isNull(Array.indexOf(req.id, vec.controllers, Principal.equal))) {
+                if (not Option.isNull(Array.indexOf(req.id, vec.controllers, U.Account.equal))) {
                     if (req.start <= cid and cid < req.start + req.length) Vector.add(res, vecToShared(vec, vid));
                     if (cid >= req.start + req.length) break search;
                     cid += 1;

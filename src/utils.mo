@@ -102,4 +102,16 @@ module {
         Vector.toArray(res);
     };
 
+    public module Account {
+        let null_account : Blob = "\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00";
+
+        public func equal(a : ICRC55.Account, b : ICRC55.Account) : Bool {
+            a.owner == b.owner and (
+                a.subaccount == b.subaccount
+                or (a.subaccount == null and b.subaccount == ?null_account)
+                or (a.subaccount == ?null_account and b.subaccount == null)
+            );
+        };
+    }
+
 };
