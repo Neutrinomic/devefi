@@ -12,18 +12,20 @@ import Billing "./billing_all";
 module {
 
 
-    public func meta(all_ledgers : [ICRC55.SupportedLedger]) : ICRC55.NodeMeta {
+    public func meta() : ICRC55.NodeMeta {
         {
-            billing = billing();
             id = "split"; // This has to be same as the variant in vec.custom
             name = "Split";
             description = "Split X tokens";
-            supported_ledgers = all_ledgers;
-            version = #alpha;
+            supported_ledgers = [];
+            version = #alpha([0,0,1]);
             create_allowed = true;
             ledgers_required = [
                 "Split",
-            ]
+            ];
+            billing = billing();
+            sources = sources(create(defaults()));
+            destinations = destinations(create(defaults()));         
         };
     };
 
@@ -67,7 +69,7 @@ module {
         };
     };
 
-    public func defaults(all_ledgers : [ICRC55.SupportedLedger]) : CreateRequest {
+    public func defaults() : CreateRequest {
         {
             init = {
             };

@@ -65,7 +65,27 @@ actor class () = this {
                 if (bal <= fee * 100) continue vloop;
 
                 switch (vec.custom) {
-       
+                    case (?#exchange(ex)) {
+
+                        // let pool_acc = nodes.get_virtual_account(getPoolAccount([ex.init.ledger_from, ex.init.ledger_to]));
+                        // let reserve_one = dvf.balance(ex.init.ledger_from, pool_acc.subaccount);
+                        // let reserve_two = dvf.balance(ex.init.ledger_to, pool_acc.subaccount);
+                        // let request_amount = bal;
+
+                        // let rate_fwd = (reserve_one + request_amount) / reserve_two;
+                        // // let rate_backward = reserve_one  / (reserve_two - amount_required);
+
+                        // let amount_fwd = request_amount;
+                        // let fee_fwd = 10000;
+                        // let afterfee_fwd = amount_fwd - fee_fwd:Nat;
+
+                        // // let give_bwd = amount_required * rate_backward;
+                        // // if (give_bwd > request_amount) return #err("Your requirements aren't satisfied during backward swap");
+
+                        // let recieve_fwd = afterfee_fwd / rate_fwd;
+                        
+
+                    };
                     case (?#throttle(th)) {
                         if (now > th.internals.wait_until_ts) {
                             switch (th.variables.interval_sec) {

@@ -89,7 +89,8 @@ module {
     };
 
     public type LedgerIdx = Nat;
-    public type PortsDescription = [(LedgerIdx, Text)];
+    public type PortsDescription = ICRC55.PortsDescription;
+
 
     public type SETTINGS = {
         TEMP_NODE_EXPIRATION_SEC : Nat64;
@@ -124,9 +125,9 @@ module {
 
         nodeModify : (XMem, XModifyRequest) -> R<(), Text>;
         nodeCreate : (XCreateRequest) -> XMem;
-        meta : ([ICRC55.SupportedLedger]) -> [ICRC55.NodeMeta];
-        nodeMeta : (XMem, [ICRC55.SupportedLedger]) -> ICRC55.NodeMeta;
-        getDefaults : (Text, [ICRC55.SupportedLedger]) -> XCreateRequest;
+        meta : () -> [ICRC55.NodeMeta];
+        nodeMeta : (XMem) -> ICRC55.NodeMeta;
+        getDefaults : (Text) -> XCreateRequest;
         authorAccount : (XMem) -> ICRC55.Account;
         nodeBilling : (XMem) -> ICRC55.Billing;
     }) {
@@ -398,7 +399,7 @@ module {
         };
 
         public func icrc55_get_defaults(id : Text) : XCreateRequest {
-            getDefaults(id, get_supported_ledgers());
+            getDefaults(id);
         };
 
         public func icrc55_command(caller : Principal, req : ICRC55.BatchCommandRequest<XCreateRequest, XModifyRequest>) : ICRC55.BatchCommandResponse<XShared> {
@@ -580,7 +581,7 @@ module {
             {
                 name = settings.PYLON_NAME;
                 governed_by = settings.PYLON_GOVERNED_BY;
-                nodes = meta(get_supported_ledgers());
+                nodes = meta();
                 temporary_nodes = {
                     allowed = settings.ALLOW_TEMP_NODE_CREATION;
                     expire_sec = settings.TEMP_NODE_EXPIRATION_SEC;
@@ -684,9 +685,11 @@ module {
 
                         let ?port = subaccount2port(r.to_subaccount) else return; // We can still recieve tokens in caller subaccounts, which we won't send back right away
                         let found = getNode(#id(port.vid));
-
+                        
                         // Handle payment after temporary vector was created
                         let ?(_, rvec) = found else return;
+                        let billing = nodeBilling(unwrapCustom(rvec.custom));
+
                         let from_subaccount = port2subaccount({
                             vid = port.vid;
                             flow = #payment;
@@ -694,8 +697,8 @@ module {
                         });
 
                         let bal = dvf.balance(r.ledger, ?from_subaccount);
-                        let meta = nodeMeta(unwrapCustom(rvec.custom), get_supported_ledgers());
-                        if (bal >= meta.billing.min_create_balance) {
+                        let meta = nodeMeta(unwrapCustom(rvec.custom));
+                        if (bal >= billing.min_create_balance) {
                             rvec.billing.expires := null;
                         };
 
@@ -857,7 +860,7 @@ module {
             let custom = nodeCreate(creq);
             let ic_ledgers = U.onlyICLedgerArr(req.ledgers);
 
-            let meta = nodeMeta(custom, get_supported_ledgers());
+            let meta = nodeMeta(custom);
             if (meta.ledgers_required.size() != ic_ledgers.size()) return #err("Ledgers required mismatch");
 
             let sources = switch (portMapSources(ic_ledgers, id, custom, thiscan, req.sources)) { case (#err(e)) return #err(e); case (#ok(x)) x; };

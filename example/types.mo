@@ -68,15 +68,15 @@ module {
         };
     };
 
-    public func getDefaults(id:Text, all_ledgers : [ICRC55.SupportedLedger]) : CreateRequest {
+    public func getDefaults(id:Text) : CreateRequest {
         switch(id) {
-            case ("throttle") #throttle(ThrottleVector.defaults(all_ledgers));
-            case ("lend") #lend(Lend.defaults(all_ledgers));
-            case ("borrow") #borrow(Borrow.defaults(all_ledgers));
-            case ("exchange") #exchange(Exchange.defaults(all_ledgers));
-            case ("escrow") #escrow(Escrow.defaults(all_ledgers));
-            case ("split") #split(Split.defaults(all_ledgers));
-            case ("mint") #mint(Mint.defaults(all_ledgers));
+            case ("throttle") #throttle(ThrottleVector.defaults());
+            case ("lend") #lend(Lend.defaults());
+            case ("borrow") #borrow(Borrow.defaults());
+            case ("exchange") #exchange(Exchange.defaults());
+            case ("escrow") #escrow(Escrow.defaults());
+            case ("split") #split(Split.defaults());
+            case ("mint") #mint(Mint.defaults());
             case (_) Debug.trap("Unknown variant");
         };
     };
@@ -148,15 +148,15 @@ module {
         };
     };
 
-    public func nodeMeta(custom: Mem, all_ledgers : [ICRC55.SupportedLedger]) : ICRC55.NodeMeta {
+    public func nodeMeta(custom: Mem) : ICRC55.NodeMeta {
         switch (custom) {
-            case (#throttle(_t)) ThrottleVector.meta(all_ledgers);
-            case (#lend(_t)) Lend.meta(all_ledgers);
-            case (#borrow(_t)) Borrow.meta(all_ledgers);
-            case (#exchange(_t)) Exchange.meta(all_ledgers);
-            case (#escrow(_t)) Escrow.meta(all_ledgers);
-            case (#split(_t)) Split.meta(all_ledgers);
-            case (#mint(_t)) Mint.meta(all_ledgers);
+            case (#throttle(_t)) ThrottleVector.meta();
+            case (#lend(_t)) Lend.meta();
+            case (#borrow(_t)) Borrow.meta();
+            case (#exchange(_t)) Exchange.meta();
+            case (#escrow(_t)) Escrow.meta();
+            case (#split(_t)) Split.meta();
+            case (#mint(_t)) Mint.meta();
             //...
         };
     };
@@ -174,15 +174,15 @@ module {
         };
     };
 
-    public func meta(all_ledgers : [ICRC55.SupportedLedger]) : [ICRC55.NodeMeta] {
+    public func meta() : [ICRC55.NodeMeta] {
         [
-            ThrottleVector.meta(all_ledgers),
-            Lend.meta(all_ledgers),
-            Borrow.meta(all_ledgers),
-            Exchange.meta(all_ledgers),
-            Escrow.meta(all_ledgers),
-            Split.meta(all_ledgers),
-            Mint.meta(all_ledgers),
+            ThrottleVector.meta(),
+            Lend.meta(),
+            Borrow.meta(),
+            Exchange.meta(),
+            Escrow.meta(),
+            Split.meta(),
+            Mint.meta(),
         //...
         ];
     };
