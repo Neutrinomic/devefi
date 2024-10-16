@@ -45,6 +45,7 @@ module {
         var refund : Account;
         var controllers : [Principal];
         var affiliate : ?Account;
+        var ledgers : [ICRC55.SupportedLedger];
         created : Nat64;
         var modified : Nat64;
         var active : Bool;
@@ -87,7 +88,8 @@ module {
         };
     };
 
-    public type PortsDescription = [(Principal, Text)];
+    public type LedgerIdx = Nat;
+    public type PortsDescription = [(LedgerIdx, Text)];
 
     public type SETTINGS = {
         TEMP_NODE_EXPIRATION_SEC : Nat64;
@@ -251,7 +253,7 @@ module {
                     });
                     ignore do ? {
                         ignore virtual.send({
-                            to = get_virtual_user_account(cls.vec.affiliate!);
+                            to = get_virtual_account(cls.vec.affiliate!);
                             amount = tx_fee * billing.split.affiliate / 1000;
                             memo = null;
                             from_subaccount = billing_subaccount;
@@ -318,7 +320,7 @@ module {
             #ok(delete(vid));
         };
 
-        public func get_virtual_user_account(acc : Account) : Account {
+        public func get_virtual_account(acc : Account) : Account {
             let ?thiscanister = mem.thiscan else Debug.trap("Canister not set");
             {
                 owner = thiscanister;
@@ -332,7 +334,7 @@ module {
             // TODO: Don't allow deletion if there are no refund endpoints
 
             let billing = nodeBilling(unwrapCustom(vec.custom));
-            let refund_acc = get_virtual_user_account(vec.refund);
+            let refund_acc = get_virtual_account(vec.refund);
             // REFUND: Send staked tokens from the node to the first controller
             do {
                 let from_subaccount = port2subaccount({
@@ -387,7 +389,7 @@ module {
         public func start<system>(can : Principal) : () {
             mem.thiscan := ?can;
 
-            let ?acc = do ? {get_virtual_user_account(settings.PYLON_FEE_ACCOUNT!)} else Debug.trap("PYLON_FEE_ACCOUNT required");
+            let ?acc = do ? {get_virtual_account(settings.PYLON_FEE_ACCOUNT!)} else Debug.trap("PYLON_FEE_ACCOUNT required");
             pylonVirtualAccount := ?acc;
         };
 
@@ -463,7 +465,7 @@ module {
 
         public func icrc55_withdraw_virtual(caller:Principal, req: ICRC55.WithdrawVirtualRequest) : ICRC55.WithdrawVirtualResponse {
             if (caller != req.account.owner) return #err("Not owner");
-            let acc = get_virtual_user_account(req.account);
+            let acc = get_virtual_account(req.account);
             let to = switch(req.to) {
                 case (#ic(to)) to;
                 case (_) return #err("Ledger not supported");
@@ -483,7 +485,7 @@ module {
         };
 
         public func icrc55_virtual_balances(_caller: Principal, req: ICRC55.VirtualBalancesRequest) : ICRC55.VirtualBalancesResponse {
-            let acc = get_virtual_user_account(req);
+            let acc = get_virtual_account(req);
             let rez = Vector.new<(ICRC55.SupportedLedger, Nat)>();
             for (ledger in dvf.get_ledger_ids().vals()) {
                 let bal = dvf.balance(ledger, acc.subaccount);
@@ -788,7 +790,7 @@ module {
                     });
                     ignore do ? {
                         ignore virtual.send({
-                            to = get_virtual_user_account(vec.affiliate!);
+                            to = get_virtual_account(vec.affiliate!);
                             amount = fee_to_charge * billing.split.affiliate / 1000;
                             memo = null;
                             from_subaccount = billing_subaccount;
@@ -802,21 +804,21 @@ module {
             }
         };
 
-        private func sourceMap(id : NodeId, thiscan : Principal, sources:[ICRC55.Endpoint], portdesc:PortsDescription) : Result.Result<[ICRC55.Endpoint], Text> {
+        private func sourceMap(ledgers:[Principal], id : NodeId, thiscan : Principal, sources:[ICRC55.Endpoint], portdesc:PortsDescription) : Result.Result<[ICRC55.Endpoint], Text> {
 
-            let accounts = switch(U.all_or_error<(Principal, Text), ?Account, ()>(
+            let accounts = switch(U.all_or_error<(Nat, Text), ?Account, ()>(
                     portdesc, 
-                    func (port, idx) = U.expectSourceAccount(port.0, thiscan, sources, idx)
+                    func (port, idx) = U.expectSourceAccount(ledgers[port.0], thiscan, sources, idx)
                 )) {
                     case (#err) return #err("Invalid account");
                     case (#ok(x)) x;
                 };
             
 
-            #ok(Array.mapEntries<(Principal, Text),ICRC55.Endpoint>(
+            #ok(Array.mapEntries<(Nat, Text),ICRC55.Endpoint>(
                 portdesc, func (port, idx) {
                     #ic({
-                    ledger = port.0;
+                    ledger = ledgers[port.0];
                     account = Option.get(accounts[idx], {
                         owner = thiscan;
                         subaccount = ?port2subaccount({
@@ -831,19 +833,19 @@ module {
             
         };
 
-        private func destinationMap(destinations:[ICRC55.EndpointOpt], portdesc: PortsDescription) : Result.Result<[ICRC55.EndpointOpt], Text> {
-            let accounts = switch(U.all_or_error<(Principal, Text), ?Account, ()>(
+        private func destinationMap(ledgers: [Principal], destinations:[ICRC55.EndpointOpt], portdesc: PortsDescription) : Result.Result<[ICRC55.EndpointOpt], Text> {
+            let accounts = switch(U.all_or_error<(Nat, Text), ?Account, ()>(
                     portdesc, 
-                    func (port, idx) = U.expectDestinationAccount(port.0, destinations, idx)
+                    func (port, idx) = U.expectDestinationAccount(ledgers[port.0], destinations, idx)
                 )) {
                     case (#err) return #err("Invalid account");
                     case (#ok(x)) x;
                 };
 
-            #ok(Array.mapEntries<(Principal, Text),ICRC55.EndpointOpt>(
+            #ok(Array.mapEntries<(Nat, Text),ICRC55.EndpointOpt>(
                 portdesc, func (port, idx) {
                     #ic({
-                    ledger = port.0;
+                    ledger = ledgers[port.0];
                     account = accounts[idx];
                     name = port.1;
                     })
@@ -853,14 +855,19 @@ module {
         private func node_nodeCreate(req : ICRC55.NodeRequest, creq : XCreateRequest, id : NodeId, thiscan : Principal) : Result.Result<NodeMem<XMem>, Text> {
 
             let custom = nodeCreate(creq);
+            let ic_ledgers = U.onlyICLedgerArr(req.ledgers);
 
-            let sources = switch (portMapSources(id, custom, thiscan, req.sources)) { case (#err(e)) return #err(e); case (#ok(x)) x; };
-            let destinations = switch (portMapDestinations(id, custom, req.destinations)) { case (#err(e)) return #err(e); case (#ok(x)) x; };
+            let meta = nodeMeta(custom, get_supported_ledgers());
+            if (meta.ledgers_required.size() != ic_ledgers.size()) return #err("Ledgers required mismatch");
+
+            let sources = switch (portMapSources(ic_ledgers, id, custom, thiscan, req.sources)) { case (#err(e)) return #err(e); case (#ok(x)) x; };
+            let destinations = switch (portMapDestinations(ic_ledgers, id, custom, req.destinations)) { case (#err(e)) return #err(e); case (#ok(x)) x; };
 
             let node : NodeMem<XMem> = {
                 var sources = sources;
                 var destinations = destinations;
                 var refund = req.refund;
+                var ledgers = req.ledgers;
                 var extractors = req.extractors;
                 created = U.now();
                 var modified = U.now();
@@ -893,8 +900,10 @@ module {
             };
             vec.modified := U.now();
 
-            ignore do ? { vec.destinations := switch(portMapDestinations(id, unwrapCustom(vec.custom), nreq!.destinations!)) {case (#err(e)) return #err(e); case (#ok(d)) d; } };
-            ignore do ? { vec.sources := switch(portMapSources(id, unwrapCustom(vec.custom), thiscan, nreq!.sources!)) {case (#err(e)) return #err(e); case (#ok(d)) d; } };
+            let ic_ledgers = U.onlyICLedgerArr(vec.ledgers);
+
+            ignore do ? { vec.destinations := switch(portMapDestinations(ic_ledgers, id, unwrapCustom(vec.custom), nreq!.destinations!)) {case (#err(e)) return #err(e); case (#ok(d)) d; } };
+            ignore do ? { vec.sources := switch(portMapSources(ic_ledgers, id, unwrapCustom(vec.custom), thiscan, nreq!.sources!)) {case (#err(e)) return #err(e); case (#ok(d)) d; } };
 
             ignore do ? { vec.extractors := nreq!.extractors! };
              
@@ -917,10 +926,10 @@ module {
 
         };
 
-        private func portMapSources(id : NodeId, custom : XMem, thiscan : Principal, sourcesProvided : [ICRC55.Endpoint]) : Result.Result<[ICRC55.Endpoint], Text> {
+        private func portMapSources(ledgers:[Principal], id : NodeId, custom : XMem, thiscan : Principal, sourcesProvided : [ICRC55.Endpoint]) : Result.Result<[ICRC55.Endpoint], Text> {
 
             // Sources
-            let s_res = sourceMap(id, thiscan, sourcesProvided, nodeSources(custom));
+            let s_res = sourceMap(ledgers, id, thiscan, sourcesProvided, nodeSources(custom));
 
             let sources = switch (s_res) {
                 case (#ok(s)) s;
@@ -930,10 +939,10 @@ module {
             #ok(sources)
         };
 
-        private func portMapDestinations(_id : NodeId, custom : XMem,  destinationsProvided : [ICRC55.EndpointOpt]) : Result.Result<[ICRC55.EndpointOpt], Text> {
+        private func portMapDestinations(ledgers:[Principal], _id : NodeId, custom : XMem,  destinationsProvided : [ICRC55.EndpointOpt]) : Result.Result<[ICRC55.EndpointOpt], Text> {
 
             // Destinations
-            let d_res = destinationMap(destinationsProvided, nodeDestinations(custom));
+            let d_res = destinationMap(ledgers, destinationsProvided, nodeDestinations(custom));
 
             let destinations = switch (d_res) {
                 case (#ok(d)) d;

@@ -21,6 +21,9 @@ module {
             supported_ledgers = all_ledgers;
             version = #alpha;
             create_allowed = true;
+            ledgers_required = [
+                "Split",
+            ]
         };
     };
 
@@ -37,7 +40,6 @@ module {
     // Internal vector state
     public type Mem = {
         init : {
-            ledger : Principal;
         };
         variables : {
             var split : [Nat];
@@ -48,7 +50,6 @@ module {
     // Create request
     public type CreateRequest = {
         init : {
-            ledger : Principal;
         };
         variables : {
             split : [Nat];
@@ -67,10 +68,8 @@ module {
     };
 
     public func defaults(all_ledgers : [ICRC55.SupportedLedger]) : CreateRequest {
-        let #ic(ledger) = all_ledgers[0] else Debug.trap("No ledgers found");
         {
             init = {
-                ledger;
             };
             variables = {
                 split = [50, 50];
@@ -92,7 +91,6 @@ module {
     // Public shared state
     public type Shared = {
         init : {
-            ledger : Principal;
         };
         variables : {
             split : [Nat];
@@ -113,14 +111,14 @@ module {
 
 
     public func sources(t : Mem) : Node.PortsDescription {
-        [(t.init.ledger, "")];
+        [(0, "")];
     };
 
     public func destinations(t : Mem) : Node.PortsDescription {
-        Array.tabulate<(Principal, Text)>(
+        Array.tabulate<(Nat, Text)>(
             t.variables.split.size(),
             func(idx : Nat) {
-                (t.init.ledger, Nat.toText(t.variables.split[idx]))
+                (0, Nat.toText(t.variables.split[idx]))
             },
         );
     };

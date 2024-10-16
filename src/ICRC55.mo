@@ -22,6 +22,7 @@ module {
         billing : Billing;
         version: Version;
         create_allowed: Bool;
+        ledgers_required : [Text]
     };
 
     public type SupportedLedger = {
@@ -190,8 +191,9 @@ module {
 
     public type NodeRequest = {
         sources:[Endpoint];
-        extractors : [LocalNodeId];
-        destinations : [EndpointOpt];
+        extractors: [LocalNodeId];
+        destinations: [EndpointOpt];
+        ledgers: [SupportedLedger];
         refund: Account;
         controllers : [Principal];
         affiliate: ?Account
