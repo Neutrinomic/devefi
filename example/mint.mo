@@ -18,6 +18,10 @@ module {
             supported_ledgers = all_ledgers;
             version = #alpha;
             create_allowed = true;
+            ledgers_required = [
+                "Mint",
+                "Take"
+            ]
         };
     };
 
@@ -33,8 +37,7 @@ module {
     // Internal vector state
     public type Mem = {
         init : {
-            ledger_mint : Principal;
-            ledger_for : Principal;
+
         };
         variables : {
         };
@@ -44,8 +47,7 @@ module {
     // Create request
     public type CreateRequest = {
         init : {
-            ledger_mint: Principal;
-            ledger_for: Principal;
+
         };
         variables : {
         };
@@ -62,12 +64,10 @@ module {
     };
 
     public func defaults(all_ledgers : [ICRC55.SupportedLedger]) : CreateRequest {
-        let #ic(ledger_mint) = all_ledgers[0] else Debug.trap("No ledgers found");
-        let #ic(ledger_for) = all_ledgers[1] else Debug.trap("No ledgers found");
+
         {
             init = {
-                ledger_mint;
-                ledger_for;
+
             };
             variables = {
             };
@@ -86,8 +86,7 @@ module {
     // Public shared state
     public type Shared = {
         init : {
-            ledger_mint : Principal;
-            ledger_for : Principal;
+
         };
         variables : {
         };
@@ -107,11 +106,11 @@ module {
 
 
     public func sources(t : Mem) : Node.PortsDescription {
-        [(t.init.ledger_for, "")];
+        [(1, "")];
     };
 
     public func destinations(t : Mem) : Node.PortsDescription {
-        [(t.init.ledger_mint, "Mint"), (t.init.ledger_for, "")];
+        [(0, "Mint"), (1, "")];
     };
 
 

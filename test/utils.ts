@@ -238,6 +238,7 @@ export function createNodeUtils({
                 controllers: [user],
                 destinations: [],
                 refund: this.getRefundAccount(),
+                ledgers: [{ic: ledgerCanisterId}],
                 sources: [],
                 extractors: [],
                 affiliate: [this.getAffiliateAccount()]

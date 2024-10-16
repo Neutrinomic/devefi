@@ -47,6 +47,11 @@ actor class () = this {
         nodeBilling = T.nodeBilling;
     });
 
+    private func getPoolAccount(a:[Principal]) : Node.Account {
+        // let sorted = Array.sort(a, Principal.compare);
+        return { owner = Principal.fromText("aaaaa-aa"); subaccount = null };
+    };
+
     private func proc() {
             let now = Nat64.fromNat(Int.abs(Time.now()));
             label vloop for ((vid, vec) in nodes.entries()) {
@@ -60,6 +65,7 @@ actor class () = this {
                 if (bal <= fee * 100) continue vloop;
 
                 switch (vec.custom) {
+       
                     case (?#throttle(th)) {
                         if (now > th.internals.wait_until_ts) {
                             switch (th.variables.interval_sec) {

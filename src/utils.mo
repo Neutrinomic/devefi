@@ -94,4 +94,12 @@ module {
         #ok(Vector.toArray(res));
     };
 
+    public func onlyICLedgerArr(ledgers : [ICRC55.SupportedLedger]) : [Principal] {
+        var res = Vector.new<Principal>();
+        for (l in ledgers.vals()) {
+            Vector.add(res, onlyICLedger(l));
+        };
+        Vector.toArray(res);
+    };
+
 };
