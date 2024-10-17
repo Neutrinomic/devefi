@@ -2,9 +2,7 @@ import ICRC55 "../src/ICRC55";
 import Node "../src/node";
 import Result "mo:base/Result";
 
-import Debug "mo:base/Debug";
-import U "../src/utils";
-import Option "mo:base/Option";
+
 import Billing "./billing_all";
 
 module {
@@ -107,11 +105,11 @@ module {
 
 
 
-    public func sources(t : Mem) : Node.PortsDescription {
+    public func sources(_t : Mem) : Node.PortsDescription {
         [(1, "")];
     };
 
-    public func destinations(t : Mem) : Node.PortsDescription {
+    public func destinations(_t : Mem) : Node.PortsDescription {
         [(0, "Mint"), (1, "")];
     };
 
