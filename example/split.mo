@@ -2,11 +2,8 @@ import ICRC55 "../src/ICRC55";
 import Node "../src/node";
 import Result "mo:base/Result";
 import Array "mo:base/Array";
-import Nat8 "mo:base/Nat8";
-import Debug "mo:base/Debug";
-import U "../src/utils";
+
 import Nat "mo:base/Nat";
-import Option "mo:base/Option";
 import Billing "./billing_all";
 
 module {
@@ -112,7 +109,7 @@ module {
     };
 
 
-    public func sources(t : Mem) : Node.PortsDescription {
+    public func sources(_t : Mem) : Node.PortsDescription {
         [(0, "")];
     };
 

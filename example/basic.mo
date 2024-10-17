@@ -3,14 +3,12 @@ import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Time "mo:base/Time";
 import T "./types";
-import Timer "mo:base/Timer";
 import Prng "mo:prng";
 import DeVeFi "../src/";
 import Nat "mo:base/Nat";
 import ICRC55 "../src/ICRC55";
 import Node "../src/node";
-import Nat8 "mo:base/Nat8";
-import Array "mo:base/Array";
+
 
 actor class () = this {
 
