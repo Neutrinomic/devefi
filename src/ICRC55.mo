@@ -51,8 +51,13 @@ module {
     public type SourceEndpointResp = {
         endpoint : Endpoint;
         balance : Nat;
+        name : Text;
     };
 
+    public type DestinationEndpointResp = {
+        endpoint : EndpointOpt;
+        name : Text;
+    };
 
     public module Endpoint {
         public module IC {
@@ -61,9 +66,6 @@ module {
             };
             public type WithAccount = {
                 account : Account;
-            };
-            public type Name = {
-                name : Text;
             };
             public type OptAccount = {
                 account : ?Account;
@@ -80,9 +82,6 @@ module {
             public type OptAccount = {
                 account : ?Blob;
             };
-            public type Name = {
-                name : Text;
-            };
         }
     };
 
@@ -92,18 +91,10 @@ module {
         #remote : EndpointOptRemote;
     };
 
-    public type EndpointOptIC = Endpoint.IC.Ledger and Endpoint.IC.OptAccount and Endpoint.IC.Name;
-    public type EndpointOptRemote = Endpoint.Remote.Ledger and Endpoint.Remote.OptAccount and Endpoint.Remote.Name;
+    public type EndpointOptIC = Endpoint.IC.Ledger and Endpoint.IC.OptAccount;
+    public type EndpointOptRemote = Endpoint.Remote.Ledger and Endpoint.Remote.OptAccount;
     
-    //--
-    public type EndpointOptNameless = {
-        #ic : EndpointOptNamelessIC;
-        #remote : EndpointOptNamelessRemote;
-    };
 
-    public type EndpointOptNamelessIC = Endpoint.IC.Ledger and Endpoint.IC.WithAccount;
-    public type EndpointOptNamelessRemote = Endpoint.Remote.Ledger and Endpoint.Remote.WithAccount;
-    
 
     //--
     public type Endpoint = {
@@ -111,22 +102,10 @@ module {
         #remote : EndpointRemote;
     };
 
-    public type EndpointIC = Endpoint.IC.Ledger and Endpoint.IC.WithAccount and Endpoint.IC.Name;
+    public type EndpointIC = Endpoint.IC.Ledger and Endpoint.IC.WithAccount;
  
-    public type EndpointRemote = Endpoint.Remote.Ledger and Endpoint.Remote.WithAccount and Endpoint.Remote.Name;
+    public type EndpointRemote = Endpoint.Remote.Ledger and Endpoint.Remote.WithAccount;
   
-
-
-    //--
-    public type EndpointNameless = {
-        #ic : EndpointNamelessIC;
-        #remote : EndpointNamelessRemote;
-    };
-
-    public type EndpointNamelessIC = Endpoint.IC.Ledger and Endpoint.IC.WithAccount;
-    
-    public type EndpointNamelessRemote = Endpoint.Remote.Ledger and Endpoint.Remote.WithAccount;
-
 
 
 
@@ -170,7 +149,7 @@ module {
     public type GetNodeResponse<A> = {
         id : LocalNodeId;
         sources : [SourceEndpointResp];
-        destinations : [EndpointOpt];
+        destinations : [DestinationEndpointResp];
         extractors: [LocalNodeId];
         refund: Account;
         controllers : [Controller];
@@ -232,7 +211,7 @@ module {
     public type SourceTransferRequest = {
         id : LocalNodeId;
         source_port : Port;
-        to: EndpointNameless;
+        to: Endpoint;
         amount: Nat;
     };
     public type SourceTransferResponse = {
@@ -242,7 +221,7 @@ module {
 
     public type VirtualTransferRequest = {
         account : Account;
-        to: EndpointNameless;
+        to: Endpoint;
         amount: Nat;
     };
 
@@ -283,7 +262,7 @@ module {
         expire_at : ?Nat64;
         request_id : ?Nat32;
         controller: Controller;
-        signature : ?Blob; // Optional signature
+        signature : ?Blob;
         commands: [Command<C,M>]
     };
 
