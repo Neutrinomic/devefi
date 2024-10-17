@@ -323,8 +323,8 @@ export function createNodeUtils({
         },
         async setDestination(nodeId: NodeId, port: number, account: Account): Promise<BatchCommandResponse> {
             let node = await this.getNode(nodeId);
-            let destinations = node.destinations;
-            destinations[port] = { ic: { name: '', ledger: ledgerCanisterId, account: [account] } };
+            let destinations = node.destinations.map(x => x.endpoint);
+            destinations[port] = { ic: { ledger: ledgerCanisterId, account: [account] } };
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
@@ -344,7 +344,7 @@ export function createNodeUtils({
         async setSource(nodeId: NodeId, port: number, account: Account): Promise<BatchCommandResponse> {
             let node = await this.getNode(nodeId);
             let sources = node.sources.map(x=> x.endpoint);
-            sources[port] = { ic: { name: '', ledger: ledgerCanisterId, account: account } };
+            sources[port] = { ic: { ledger: ledgerCanisterId, account: account } };
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],

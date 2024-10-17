@@ -38,10 +38,19 @@ module {
 
     public type ModifyNodeResp<A> = ICRC55.ModifyNodeResponse<A>;
 
+    public type EndpointStored = {
+        endpoint: Endpoint;
+        name: Text;
+    };
+    public type EndpointOptStored = {
+        endpoint: EndpointOpt;
+        name: Text;
+    };
+
     public type NodeMem<A> = {
-        var sources : [Endpoint];
+        var sources : [EndpointStored];
         var extractors : [NodeId];
-        var destinations : [EndpointOpt];
+        var destinations : [EndpointOptStored];
         var refund : Account;
         var controllers : [Account];
         var affiliate : ?Account;
@@ -201,23 +210,23 @@ module {
                 
                 let to : Account = switch (location) {
                     case (#destination({ port })) {
-                        let ?acc = U.onlyICDest(cls.vec.destinations[port]).account else return #err(#AccountNotSet);
+                        let ?acc = U.onlyICDest(cls.vec.destinations[port].endpoint).account else return #err(#AccountNotSet);
                         acc;
                     };
 
                     case (#remote_destination({ node; port })) {
                         let ?to_vec = Map.get(mem.nodes, Map.n32hash, node) else return #err(#AccountNotSet);
-                        let ?acc = U.onlyICDest(to_vec.destinations[port]).account else return #err(#AccountNotSet);
+                        let ?acc = U.onlyICDest(to_vec.destinations[port].endpoint).account else return #err(#AccountNotSet);
                         acc;
                     };
 
                     case (#remote_source({ node; port })) {
                         let ?to_vec = Map.get(mem.nodes, Map.n32hash, node) else return #err(#AccountNotSet);
-                        U.onlyIC(to_vec.sources[port]).account;
+                        U.onlyIC(to_vec.sources[port].endpoint).account;
                     };
 
                     case (#source({ port })) {
-                        U.onlyIC(cls.vec.sources[port]).account;
+                        U.onlyIC(cls.vec.sources[port].endpoint).account;
                     };
 
                     case (#external_account(account)) {
@@ -271,7 +280,7 @@ module {
         };
 
         public func hasDestination(vec : NodeMem<XMem>, port_idx : Nat) : Bool {
-            port_idx < vec.destinations.size() and not Option.isNull(U.onlyICDest(vec.destinations[port_idx]).account);
+            port_idx < vec.destinations.size() and not Option.isNull(U.onlyICDest(vec.destinations[port_idx].endpoint).account);
         };
 
         private func sourceInfo(vid : NodeId, subaccount : ?Blob) : R<{ allowed : Bool; mine : Bool }, ()> {
@@ -292,11 +301,11 @@ module {
         public func getSource(vid : NodeId, vec : NodeMem<XMem>, port_idx : Nat) : ?Source {
             if (port_idx >= vec.sources.size()) return null;
 
-            let #ok(sinfo) = sourceInfo(vid, U.onlyIC(vec.sources[port_idx]).account.subaccount) else return null;
+            let #ok(sinfo) = sourceInfo(vid, U.onlyIC(vec.sources[port_idx].endpoint).account.subaccount) else return null;
             if (not sinfo.allowed) return null;
 
             let source = Source({
-                endpoint = vec.sources[port_idx];
+                endpoint = vec.sources[port_idx].endpoint;
                 vec;
                 vid;
             });
@@ -360,7 +369,7 @@ module {
             };
 
             label source_refund for (xsource in vec.sources.vals()) {
-                let source = U.onlyIC(xsource);
+                let source = U.onlyIC(xsource.endpoint);
 
                 let #ok(sinfo) = sourceInfo(vid, source.account.subaccount) else continue source_refund;
                 if (not sinfo.mine) return continue source_refund;
@@ -500,7 +509,7 @@ module {
             if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
 
             let ?source = getSource(vid, vec, Nat8.toNat(req.source_port)) else return #err("Source not found");
-            let acc = U.onlyICNameless(req.to).account;
+            let acc = U.onlyIC(req.to).account;
             let bal = source.balance();
             if (req.amount > bal) return #err("Insufficient balance");
             ignore source.send(#external_account(acc), req.amount);
@@ -558,7 +567,7 @@ module {
             dvf.registerSubaccount(?port2subaccount({ vid = id; flow = #payment; id = 0 }));
 
             label source_reg for (xsource in node.sources.vals()) {
-                let source = U.onlyIC(xsource);
+                let source = U.onlyIC(xsource.endpoint);
                 dvf.registerSubaccount(source.account.subaccount);
             };
             mem.next_node_id += 1;
@@ -631,13 +640,14 @@ module {
                 extractors = vec.extractors;
                 modified = vec.modified;
                 controllers = vec.controllers;
-                sources = Array.map<ICRC55.Endpoint, ICRC55.SourceEndpointResp>(
+                sources = Array.map<EndpointStored, ICRC55.SourceEndpointResp>(
                     vec.sources,
                     func(x) {
-                        let s = U.onlyIC(x);
+                        let s = U.onlyIC(x.endpoint);
                         {
                             balance = dvf.balance(s.ledger, s.account.subaccount);
-                            endpoint = x;
+                            endpoint = x.endpoint;
+                            name = x.name;
                         };
                     },
                 );
@@ -806,7 +816,7 @@ module {
             }
         };
 
-        private func sourceMap(ledgers:[Principal], id : NodeId, thiscan : Principal, sources:[ICRC55.Endpoint], portdesc:PortsDescription) : Result.Result<[ICRC55.Endpoint], Text> {
+        private func sourceMap(ledgers:[Principal], id : NodeId, thiscan : Principal, sources:[ICRC55.Endpoint], portdesc:PortsDescription) : Result.Result<[EndpointStored], Text> {
 
             let accounts = switch(U.all_or_error<(Nat, Text), ?Account, ()>(
                     portdesc, 
@@ -817,9 +827,9 @@ module {
                 };
             
 
-            #ok(Array.mapEntries<(Nat, Text),ICRC55.Endpoint>(
+            #ok(Array.mapEntries<(Nat, Text),EndpointStored>(
                 portdesc, func (port, idx) {
-                    #ic({
+                    {endpoint = #ic({
                     ledger = ledgers[port.0];
                     account = Option.get(accounts[idx], {
                         owner = thiscan;
@@ -828,14 +838,15 @@ module {
                             flow = #input;
                             id = Nat8.fromNat(idx);
                         });
+                        });
                     });
                     name = port.1;
-                    })
+                    }
             }));
             
         };
 
-        private func destinationMap(ledgers: [Principal], destinations:[ICRC55.EndpointOpt], portdesc: PortsDescription) : Result.Result<[ICRC55.EndpointOpt], Text> {
+        private func destinationMap(ledgers: [Principal], destinations:[ICRC55.EndpointOpt], portdesc: PortsDescription) : Result.Result<[EndpointOptStored], Text> {
             let accounts = switch(U.all_or_error<(Nat, Text), ?Account, ()>(
                     portdesc, 
                     func (port, idx) = U.expectDestinationAccount(ledgers[port.0], destinations, idx)
@@ -844,13 +855,14 @@ module {
                     case (#ok(x)) x;
                 };
 
-            #ok(Array.mapEntries<(Nat, Text),ICRC55.EndpointOpt>(
+            #ok(Array.mapEntries<(Nat, Text),EndpointOptStored>(
                 portdesc, func (port, idx) {
-                    #ic({
+                    {endpoint=#ic({
                     ledger = ledgers[port.0];
                     account = accounts[idx];
+                    });
                     name = port.1;
-                    })
+                    }
             }));
         };
     
@@ -915,12 +927,12 @@ module {
             ignore do ? {vec.active := nreq!.active!};
 
             label source_unregister for (xsource in old_sources.vals()) {
-                let source = U.onlyIC(xsource);
+                let source = U.onlyIC(xsource.endpoint);
                 dvf.unregisterSubaccount(source.account.subaccount);
             };
 
             label source_register for (xsource in vec.sources.vals()) {
-                let source = U.onlyIC(xsource);
+                let source = U.onlyIC(xsource.endpoint);
                 dvf.registerSubaccount(source.account.subaccount);
             };
 
@@ -928,7 +940,7 @@ module {
 
         };
 
-        private func portMapSources(ledgers:[Principal], id : NodeId, custom : XMem, thiscan : Principal, sourcesProvided : [ICRC55.Endpoint]) : Result.Result<[ICRC55.Endpoint], Text> {
+        private func portMapSources(ledgers:[Principal], id : NodeId, custom : XMem, thiscan : Principal, sourcesProvided : [ICRC55.Endpoint]) : Result.Result<[EndpointStored], Text> {
 
             // Sources
             let s_res = sourceMap(ledgers, id, thiscan, sourcesProvided, nodeSources(custom));
@@ -941,7 +953,7 @@ module {
             #ok(sources)
         };
 
-        private func portMapDestinations(ledgers:[Principal], _id : NodeId, custom : XMem,  destinationsProvided : [ICRC55.EndpointOpt]) : Result.Result<[ICRC55.EndpointOpt], Text> {
+        private func portMapDestinations(ledgers:[Principal], _id : NodeId, custom : XMem,  destinationsProvided : [ICRC55.EndpointOpt]) : Result.Result<[EndpointOptStored], Text> {
 
             // Destinations
             let d_res = destinationMap(ledgers, destinationsProvided, nodeDestinations(custom));
