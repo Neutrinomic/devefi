@@ -21,6 +21,7 @@ module {
         id : Text;
         name : Text;
         description : Text;
+        author : Text;
         supported_ledgers : [SupportedLedger]; // SPEC: If it's empty, this means it supports all pylon ledgers
         billing : Billing;
         version: Version;
@@ -268,13 +269,14 @@ module {
 
     public type BatchCommandResponse<A> = {
         #err : {
-            #duplicate: Nat64;
+            #duplicate: Nat;
             #expired;
             #invalid_signature;
             #access_denied;
             #other: Text;
         };
         #ok : {
+            id: Nat;
             commands: [CommandResponse<A>]
         };
     };

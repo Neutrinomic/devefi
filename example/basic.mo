@@ -8,16 +8,33 @@ import DeVeFi "../src/";
 import Nat "mo:base/Nat";
 import ICRC55 "../src/ICRC55";
 import Node "../src/node";
-
-
+import Rechain "mo:rechain";
+import RT "./rechain";
+import Timer "mo:base/Timer";
+import U "../src/utils";
 actor class () = this {
 
+
+    stable let chain_mem  = Rechain.Mem();
+
+    var chain = Rechain.Chain<RT.DispatchAction, RT.DispatchActionError>({
+        settings = ?{Rechain.DEFAULT_SETTINGS with supportedBlocks = [{block_type = "55vec"; url = "https://github.com/dfinity/ICRC/issues/55"}];};
+        mem = chain_mem;
+        encodeBlock = RT.encodeBlock;
+        reducers = [];
+    });
+    
+    ignore Timer.setTimer<system>(#seconds 0, func () : async () {
+        await chain.start_timers<system>();
+    });
+    
+    ignore Timer.setTimer<system>(#seconds 1, func () : async () {
+        await chain.upgrade_archives();
+    });
 
     stable let dvf_mem = DeVeFi.Mem();
     let rng = Prng.SFC64a();
     rng.init(123456);
-
-
 
     let dvf = DeVeFi.DeVeFi<system>({ mem = dvf_mem });
 
@@ -26,7 +43,6 @@ actor class () = this {
     let nodes = Node.Node<system, T.CreateRequest, T.Mem, T.Shared, T.ModifyRequest>({
         mem = node_mem;
         dvf;
-        
         settings = {
             Node.DEFAULT_SETTINGS with
             PYLON_NAME = "Transcendence";
@@ -165,13 +181,20 @@ actor class () = this {
         nodes.heartbeat(proc);
     };
 
+    // ICRC-55
+
     public query func icrc55_get_pylon_meta() : async ICRC55.PylonMetaResp {
         nodes.icrc55_get_pylon_meta();
     };
 
-
     public shared ({ caller }) func icrc55_command(req : ICRC55.BatchCommandRequest<T.CreateRequest, T.ModifyRequest>) : async ICRC55.BatchCommandResponse<T.Shared> {
-        nodes.icrc55_command(caller, req);
+        nodes.icrc55_command<RT.DispatchActionError>(caller, req, func (r) {
+            chain.dispatch({
+                caller;
+                payload = #vector(r);
+                ts = U.now();
+            });
+        });
     };
 
     public query func icrc55_get_nodes(req : [ICRC55.GetNode]) : async [?Node.NodeShared<T.Shared>] {
@@ -190,6 +213,24 @@ actor class () = this {
         nodes.icrc55_virtual_balances(caller, req);
     };
 
+    // ICRC-3 
+
+
+    public query func icrc3_get_blocks(args: Rechain.GetBlocksArgs): async Rechain.GetBlocksResult {
+        return chain.icrc3_get_blocks(args);
+    };
+
+    public query func icrc3_get_archives(args: Rechain.GetArchivesArgs): async Rechain.GetArchivesResult {
+        return chain.icrc3_get_archives(args);
+    };
+
+    public query func icrc3_supported_block_types(): async [Rechain.BlockType] {
+        return chain.icrc3_supported_block_types();
+    };
+    public query func icrc3_get_tip_certificate() : async ?Rechain.DataCertificate {
+        return chain.icrc3_get_tip_certificate();
+    };
+
     // We need to start the vector manually once when canister is installed, because we can't init dvf from the body
     // https://github.com/dfinity/motoko/issues/4384
     // Sending tokens before starting the canister for the first time wont get processed
@@ -197,6 +238,8 @@ actor class () = this {
         assert (Principal.isController(caller));
         dvf.start<system>(Principal.fromActor(this));
         nodes.start<system>(Principal.fromActor(this));
+        chain_mem.canister := ?Principal.fromActor(this);
+
     };
 
     // ---------- Debug functions -----------
