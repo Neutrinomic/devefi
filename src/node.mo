@@ -118,8 +118,6 @@ module {
         dvf : DeVeFi.DeVeFi;
 
         toShared : (XMem) -> XShared;
-        // sourceMap : (NodeId, XMem, Principal, [Endpoint]) -> R<[Endpoint], Text>;
-        // destinationMap : (XMem, [EndpointOpt]) -> R<[EndpointOpt], Text>;
         nodeSources : (XMem) -> PortsDescription;
         nodeDestinations : (XMem) -> PortsDescription;    
 
@@ -417,11 +415,11 @@ module {
                     case (#modify_node(vid, nreq, custom)) {
                         #modify_node(icrc55_modify_node(req.controller, vid, nreq, custom));
                     };
-                    case (#withdraw_node(nreq)) {
-                        #withdraw_node(icrc55_withdraw_node(req.controller, nreq));
+                    case (#source_transfer(nreq)) {
+                        #source_transfer(icrc55_source_transfer(req.controller, nreq));
                     };
-                    case (#withdraw_virtual(nreq)) {
-                        #withdraw_virtual(icrc55_withdraw_virtual(req.controller, nreq));
+                    case (#virtual_transfer(nreq)) {
+                        #virtual_transfer(icrc55_virtual_transfer(req.controller, nreq));
                     };
                     case (#top_up_node(nreq)) {
                         #top_up_node(icrc55_top_up_node(req.controller, nreq));
@@ -465,7 +463,7 @@ module {
             #ok();
         };  
 
-        public func icrc55_withdraw_virtual(caller:Account, req: ICRC55.WithdrawVirtualRequest) : ICRC55.WithdrawVirtualResponse {
+        public func icrc55_virtual_transfer(caller:Account, req: ICRC55.VirtualTransferRequest) : ICRC55.VirtualTransferResponse {
             if (caller != req.account) return #err("Not owner");
             let acc = get_virtual_account(req.account);
             let to = switch(req.to) {
@@ -497,12 +495,12 @@ module {
         };
       
 
-        public func icrc55_withdraw_node(caller : Account, req : ICRC55.WithdrawNodeRequest) : ICRC55.WithdrawNodeResponse {
+        public func icrc55_source_transfer(caller : Account, req : ICRC55.SourceTransferRequest) : ICRC55.SourceTransferResponse {
             let ?(vid, vec) = getNode(#id(req.id)) else return #err("Node not found");
             if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
 
             let ?source = getSource(vid, vec, Nat8.toNat(req.source_port)) else return #err("Source not found");
-            let acc = U.onlyIC(req.to).account;
+            let acc = U.onlyICNameless(req.to).account;
             let bal = source.balance();
             if (req.amount > bal) return #err("Insufficient balance");
             ignore source.send(#external_account(acc), req.amount);

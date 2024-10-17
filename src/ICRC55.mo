@@ -229,24 +229,24 @@ module {
     public type Port = Nat8;
 
 
-    public type WithdrawNodeRequest = {
+    public type SourceTransferRequest = {
         id : LocalNodeId;
         source_port : Port;
-        to: Endpoint;
+        to: EndpointNameless;
         amount: Nat;
     };
-    public type WithdrawNodeResponse = {
+    public type SourceTransferResponse = {
         #ok : ();
         #err : Text;
     };
 
-    public type WithdrawVirtualRequest = {
+    public type VirtualTransferRequest = {
         account : Account;
         to: EndpointNameless;
         amount: Nat;
     };
 
-    public type WithdrawVirtualResponse = {
+    public type VirtualTransferResponse = {
         #ok : Nat64;
         #err : Text;
     };
@@ -265,8 +265,8 @@ module {
         #create_node : CreateNodeRequest<C>;
         #delete_node : LocalNodeId;
         #modify_node : ModifyNodeRequest<M>;
-        #withdraw_node: WithdrawNodeRequest;
-        #withdraw_virtual: WithdrawVirtualRequest;
+        #source_transfer: SourceTransferRequest;
+        #virtual_transfer: VirtualTransferRequest;
         #top_up_node : TopUpNodeRequest;
     };
 
@@ -274,8 +274,8 @@ module {
         #create_node : CreateNodeResponse<A>;
         #delete_node : DeleteNodeResp;
         #modify_node : ModifyNodeResponse<A>;
-        #withdraw_node: WithdrawNodeResponse;
-        #withdraw_virtual: WithdrawVirtualResponse;
+        #source_transfer: SourceTransferResponse;
+        #virtual_transfer: VirtualTransferResponse;
         #top_up_node : TopUpNodeResponse;
     };
 

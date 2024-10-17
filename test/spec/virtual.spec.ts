@@ -18,7 +18,7 @@ describe('Virtual', () => {
 
     expect(bal).toBe(0n);
 
-    // await d.u.withdrawVirtual(refund_account, d.u.mainAccount(), refund_bal);
+    // await d.u.virtualTransfer(refund_account, d.u.mainAccount(), refund_bal);
 
   });
 
@@ -45,10 +45,10 @@ describe('Virtual', () => {
 
   it(`Withdraw from virtual account` , async () => {
 
-    let resp = await d.u.withdrawVirtual(d.u.mainAccount(), d.u.mainAccount(), 5000_0000n);
+    let resp = await d.u.virtualTransfer(d.u.mainAccount(), d.u.mainAccount(), 5000_0000n);
 
     //@ts-ignore
-    expect(resp.ok.commands[0].withdraw_virtual.ok).toBeDefined();
+    expect(resp.ok.commands[0].virtual_transfer.ok).toBeDefined();
     await d.passTime(5);
 
     let virtual = await d.u.virtualBalances( d.u.mainAccount() );
