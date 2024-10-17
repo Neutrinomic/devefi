@@ -14,6 +14,10 @@ module {
         let #ic(x) = ep else Debug.trap("Not supported");
         x;
     };
+      public func onlyICNameless(ep : ICRC55.EndpointNameless) : ICRC55.EndpointNamelessIC {
+        let #ic(x) = ep else Debug.trap("Not supported");
+        x;
+    };
     public func onlyICDest(ep : ICRC55.EndpointOpt) : ICRC55.EndpointOptIC {
         let #ic(x) = ep else Debug.trap("Not supported");
         x;

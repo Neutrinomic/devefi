@@ -218,14 +218,14 @@ export function createNodeUtils({
         getAffiliateAccount() : Account {
             return {owner: user, subaccount: [this.subaccountFromId(100000)]};
         },
-        async withdrawVirtual(from: Account, to:Account, amount: bigint): Promise<BatchCommandResponse> {
+        async virtualTransfer(from: Account, to:Account, amount: bigint): Promise<BatchCommandResponse> {
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
                 controller: from,
                 signature : [],
                 commands :[{
-                withdraw_virtual: {
+                virtual_transfer: {
                     account: from,
                     to: { ic: { ledger: ledgerCanisterId, account: to } },
                     amount
@@ -311,14 +311,14 @@ export function createNodeUtils({
                 commands:[{delete_node: nodeId}]
             });
         },
-        async withdrawNode(nodeId : NodeId, source_port: number, amount: bigint, to: Account): Promise<BatchCommandResponse> {
+        async sourceTransfer(nodeId : NodeId, source_port: number, amount: bigint, to: Account): Promise<BatchCommandResponse> {
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
                 controller : {owner:user, subaccount:[]},
                 signature : [],
                 commands:[{
-                withdraw_node: {id:nodeId, source_port, amount, to:{ic:{name:'', ledger:ledgerCanisterId, account:to}}}
+                source_transfer: {id:nodeId, source_port, amount, to:{ic:{ ledger:ledgerCanisterId, account:to}}}
             }]});
         },
         async setDestination(nodeId: NodeId, port: number, account: Account): Promise<BatchCommandResponse> {
