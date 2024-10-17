@@ -19,6 +19,7 @@ import Vector "mo:vector";
 import Debug "mo:base/Debug";
 import Nat32 "mo:base/Nat32";
 import ICRCLedger "mo:devefi-icrc-ledger";
+import Rechain "mo:rechain";
 import Prim "mo:⛔";
 
 module {
@@ -125,13 +126,13 @@ module {
         settings : SETTINGS;
         mem : Mem<XMem>;
         dvf : DeVeFi.DeVeFi;
-
+        
         toShared : (XMem) -> XShared;
         nodeSources : (XMem) -> PortsDescription;
         nodeDestinations : (XMem) -> PortsDescription;    
 
         nodeModify : (XMem, XModifyRequest) -> R<(), Text>;
-        nodeCreate : (XCreateRequest) -> XMem;
+        nodeCreate : (XCreateRequest) -> R<XMem, Text>;
         meta : () -> [ICRC55.NodeMeta];
         nodeMeta : (XMem) -> ICRC55.NodeMeta;
         getDefaults : (Text) -> XCreateRequest;
@@ -409,7 +410,7 @@ module {
             getDefaults(id);
         };
 
-        public func icrc55_command(caller : Principal, req : ICRC55.BatchCommandRequest<XCreateRequest, XModifyRequest>) : ICRC55.BatchCommandResponse<XShared> {
+        public func icrc55_command<DispatchErr>(caller : Principal, req : ICRC55.BatchCommandRequest<XCreateRequest, XModifyRequest>, dispatch: (ICRC55.BatchCommandRequest<XCreateRequest, XModifyRequest>) -> {#Ok:Nat; #Err:DispatchErr}) : ICRC55.BatchCommandResponse<XShared> {
             ignore do ? { if (req.expire_at! < U.now()) return #err(#expired) };
             if (caller != req.controller.owner) return #err(#access_denied);
             let res = Vector.new<ICRC55.CommandResponse<XShared>>();
@@ -436,7 +437,17 @@ module {
                 };
                 Vector.add(res, r);
             };
-            #ok({commands=Vector.toArray(res)});
+            
+            let res_command_only_ok = Vector.new<ICRC55.Command<XCreateRequest, XModifyRequest>>();
+            for (r in Vector.keys(res)) {
+                Vector.add(res_command_only_ok, req.commands[r]);
+            };  
+
+            // For now we won't use other reducers so that is fine
+            let #Ok(id) = dispatch({req with commands = Vector.toArray(res_command_only_ok)}) else return #err(#other("Dispatch failed"));
+            
+
+            #ok({id; commands=Vector.toArray(res)});
 
         };
 
@@ -868,7 +879,10 @@ module {
     
         private func node_nodeCreate(req : ICRC55.NodeRequest, creq : XCreateRequest, id : NodeId, thiscan : Principal) : Result.Result<NodeMem<XMem>, Text> {
 
-            let custom = nodeCreate(creq);
+            let custom = switch(nodeCreate(creq)) {
+                case (#ok(x)) x;
+                case (#err(e)) return #err(e);
+            };
             let ic_ledgers = U.onlyICLedgerArr(req.ledgers);
 
             let meta = nodeMeta(custom);

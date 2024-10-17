@@ -79,6 +79,17 @@ module {
         #ok(x.account);
     };
 
+    public func ok_or_trap<X,A>(x : Result.Result<X,A>) : X {
+        switch(x) {
+            case (#err(e)) {
+                Debug.trap("Expected ok, got err");
+            };
+            case (#ok(x)) {
+                x;
+            };
+        };
+    };
+
     public func all_or_error<X,A,B>(arr : [X], f:(X, Nat) -> Result.Result<A,B>) : Result.Result<[A], B> {
         var res = Vector.new<A>();
         

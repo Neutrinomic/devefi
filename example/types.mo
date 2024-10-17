@@ -121,8 +121,8 @@ module {
         };
     };
 
-    public func create(req : CreateRequest) : Mem {
-        switch (req) {
+    public func create(req : CreateRequest) : Result.Result<Mem, Text> {
+        let re = switch (req) {
             case (#throttle(t)) #throttle(ThrottleVector.create(t));
             case (#lend(t)) #lend(Lend.create(t));
             case (#borrow(t)) #borrow(Borrow.create(t));
@@ -132,6 +132,24 @@ module {
             case (#mint(t)) #mint(Mint.create(t));
             //...
         };
+        switch (re) {
+            // Ok
+            case (#throttle(#ok(t))) #ok(#throttle(t));
+            case (#lend(#ok(t))) #ok(#lend(t));
+            case (#borrow(#ok(t))) #ok(#borrow(t));
+            case (#exchange(#ok(t))) #ok(#exchange(t));
+            case (#escrow(#ok(t))) #ok(#escrow(t));
+            case (#split(#ok(t))) #ok(#split(t));
+            case (#mint(#ok(t))) #ok(#mint(t));
+            // Err
+            case (#throttle(#err(e))) #err(e);
+            case (#lend(#err(e))) #err(e);
+            case (#borrow(#err(e))) #err(e);
+            case (#exchange(#err(e))) #err(e);
+            case (#escrow(#err(e))) #err(e);
+            case (#split(#err(e))) #err(e);
+            case (#mint(#err(e))) #err(e);
+        }
     };
 
     public func modify(custom : Mem, creq : ModifyRequest) : Result.Result<(), Text> {

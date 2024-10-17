@@ -1,6 +1,7 @@
 import ICRC55 "../src/ICRC55";
 import Node "../src/node";
 import Result "mo:base/Result";
+import U "../src/utils";
 
 import Billing "./billing_all";
 
@@ -10,6 +11,7 @@ module {
         {
             id = "escrow"; // This has to be same as the variant in vec.custom
             name = "Escrow";
+            author = "Neutrinite";
             description = "Escrow X tokens";
             supported_ledgers = [];
             version = #alpha([0,0,1]);
@@ -19,8 +21,8 @@ module {
                 "Lend"
             ];
             billing = billing();
-            sources = sources(create(defaults()));
-            destinations = destinations(create(defaults()));
+            sources = sources(U.ok_or_trap(create(defaults())));
+            destinations = destinations(U.ok_or_trap(create(defaults())));
         };
     };
 
@@ -54,8 +56,8 @@ module {
     };
 
     // Create state from request
-    public func create(t : CreateRequest) : Mem {
-        {
+    public func create(t : CreateRequest) : Result.Result<Mem, Text> {
+        #ok {
             init = t.init;
             variables = {
             };
