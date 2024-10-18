@@ -15,7 +15,7 @@ describe('Chained vectors', () => {
 
     let node = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': { },
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 10000000n }
@@ -25,7 +25,7 @@ describe('Chained vectors', () => {
 
     let node2 = await d.u.createNode({
       'split' : {
-          'init' : {'ledger' : d.ledgerCanisterId},
+          'init' : {},
           'variables' : {
               'split' : [50n,50n], 
             },
@@ -53,7 +53,7 @@ describe('Chained vectors', () => {
 
     let node = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': { d },
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 10000000n }
@@ -64,7 +64,7 @@ describe('Chained vectors', () => {
 
     let node2 = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': {  },
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 10000000n }
@@ -75,7 +75,7 @@ describe('Chained vectors', () => {
 
     let node3 = await d.u.createNode({
       'split' : {
-          'init' : {'ledger' : d.ledgerCanisterId},
+          'init' : {},
           'variables' : {
               'split' : [50n,50n], 
             },

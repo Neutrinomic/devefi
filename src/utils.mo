@@ -90,6 +90,11 @@ module {
         };
     };
 
+    public func not_opt<X>(x : ?X) : X {
+        let ?a = x else Debug.trap("Expected not opt");
+        a;
+    };
+
     public func all_or_error<X,A,B>(arr : [X], f:(X, Nat) -> Result.Result<A,B>) : Result.Result<[A], B> {
         var res = Vector.new<A>();
         

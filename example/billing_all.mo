@@ -3,6 +3,7 @@ import Principal "mo:base/Principal";
 
 module {
 
+    // These should be defined in each vector module, these are for example
 
     public func get() : ICRC55.Billing {
            {

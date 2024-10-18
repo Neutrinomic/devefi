@@ -26,14 +26,14 @@ module {
         billing : Billing;
         version: Version;
         create_allowed: Bool;
-        ledgers_required : [Text];
+        ledger_slots : [Text];
         sources: PortsDescription;
         destinations: PortsDescription;
     };
 
     public type SupportedLedger = {
         #ic : Principal;
-        #remote : {
+        #other : {
             platform : Nat64;
             ledger : Blob;
         };
@@ -89,7 +89,7 @@ module {
     //--
     public type EndpointOpt = {
         #ic : EndpointOptIC;
-        #remote : EndpointOptOther;
+        #other : EndpointOptOther;
     };
 
     public type EndpointOptIC = Endpoint.IC.Ledger and Endpoint.IC.OptAccount;
@@ -100,7 +100,7 @@ module {
     //--
     public type Endpoint = {
         #ic : EndpointIC;
-        #remote : EndpointOther;
+        #other : EndpointOther;
     };
 
     public type EndpointIC = Endpoint.IC.Ledger and Endpoint.IC.WithAccount;

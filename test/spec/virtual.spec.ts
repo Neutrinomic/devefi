@@ -18,13 +18,12 @@ describe('Virtual', () => {
 
     expect(bal).toBe(0n);
 
-    // await d.u.virtualTransfer(refund_account, d.u.mainAccount(), refund_bal);
 
   });
 
   it(`Can't open a new virtual account unless amount is 100 * fee` , async () => {
     
-    await d.u.sendToAccount(d.u.virtual(d.u.mainAccount()), d.ledger_fee*20n);
+    await d.u.sendToAccount(d.u.virtual(d.u.mainAccount()), d.ledgers[0].fee*20n);
     await d.passTime(5);
 
     let virtual = await d.u.virtualBalances( d.u.mainAccount() );
@@ -39,7 +38,7 @@ describe('Virtual', () => {
 
     let virtual = await d.u.virtualBalances( d.u.mainAccount() );
     let bal = virtual[0][1];
-    expect(bal).toBe(1_0000_0000n - d.ledger_fee);
+    expect(bal).toBe(1_0000_0000n - d.ledgers[0].fee);
 
   });
 
@@ -53,7 +52,7 @@ describe('Virtual', () => {
 
     let virtual = await d.u.virtualBalances( d.u.mainAccount() );
     let bal = virtual[0][1];
-    expect(bal).toBe(5000_0000n - d.ledger_fee);
+    expect(bal).toBe(5000_0000n - d.ledgers[0].fee);
 
   });
 

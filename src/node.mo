@@ -122,6 +122,18 @@ module {
 
     public type SourceSendErr = ICRCLedger.SendError or { #AccountNotSet };
 
+    public type VectorClass<Mem, CreateRequest, ModifyRequest, Shared> = {
+        meta : () -> ICRC55.NodeMeta;
+        billing : () -> ICRC55.Billing;
+        authorAccount : () -> ICRC55.Account;
+        create : (CreateRequest) -> Result.Result<Mem, Text>;
+        defaults : () -> CreateRequest;
+        toShared : (Mem) -> Shared;
+        modify : (Mem, ModifyRequest) -> Result.Result<(), Text>;
+        sources : (Mem) -> PortsDescription;
+        destinations : (Mem) -> PortsDescription;
+    };
+
     public class Node<system, XCreateRequest, XMem, XShared, XModifyRequest>({
         settings : SETTINGS;
         mem : Mem<XMem>;
@@ -180,6 +192,7 @@ module {
                 dvf.fee(endpoint.ledger);
 
             };
+
             public func send(
                 location : {
                     #destination : { port : Nat };
@@ -280,6 +293,67 @@ module {
             };
         };
 
+
+        public class Pool(
+            poolacc: Account,
+            ledger_i55: ICRC55.SupportedLedger
+        ) {
+
+            let ledger = U.onlyICLedger(ledger_i55);
+
+            public func balance() : Nat {
+                dvf.balance(ledger, poolacc.subaccount);
+            };
+
+            public func fee() : Nat {
+                dvf.fee(ledger);
+            };
+            
+            public func send(
+                location : {
+                    #remote_destination : { node : NodeId; port : Nat };
+                    #remote_source : { node : NodeId; port : Nat };
+                    #external_account : Account;
+                },
+                amount : Nat,
+            ) : R<Nat64, SourceSendErr> {
+
+                let ledger_fee = dvf.fee(ledger);
+                
+                let to : Account = switch (location) {
+                    case (#remote_destination({ node; port })) {
+                        let ?to_vec = Map.get(mem.nodes, Map.n32hash, node) else return #err(#AccountNotSet);
+                        let ?acc = U.onlyICDest(to_vec.destinations[port].endpoint).account else return #err(#AccountNotSet);
+                        acc;
+                    };
+
+                    case (#remote_source({ node; port })) {
+                        let ?to_vec = Map.get(mem.nodes, Map.n32hash, node) else return #err(#AccountNotSet);
+                        U.onlyIC(to_vec.sources[port].endpoint).account;
+                    };
+                   
+                    case (#external_account(account)) {
+                        account;
+                    };
+                };
+
+                mem.ops += 1;
+                if (ledger_fee >= amount) return #err(#InsufficientFunds);
+
+                dvf.send({
+                    ledger = ledger;
+                    to;
+                    amount = amount;
+                    memo = null;
+                    from_subaccount = poolacc.subaccount;
+                });
+            };
+        };
+
+        public func get_pool(poolacc: Account, ledger_i55: ICRC55.SupportedLedger) : Pool {
+            Pool(poolacc, ledger_i55);
+        };
+
         public func hasDestination(vec : NodeMem<XMem>, port_idx : Nat) : Bool {
             port_idx < vec.destinations.size() and not Option.isNull(U.onlyICDest(vec.destinations[port_idx].endpoint).account);
         };
@@ -337,6 +411,17 @@ module {
             };
         };
 
+        public func get_virtual_pool_account(la:ICRC55.SupportedLedger, lb:ICRC55.SupportedLedger, pool_idx:Nat8) : Account {
+            let a = U.onlyICLedger(la);
+            let b = U.onlyICLedger(lb);
+
+            let ledger_idx = Array.sort<Nat>([U.not_opt(dvf.get_ledger_idx(a)), U.not_opt(dvf.get_ledger_idx(b))], Nat.compare);
+            let ?thiscanister = mem.thiscan else Debug.trap("Canister not set");
+            {
+                owner = thiscanister;
+                subaccount = ?Blob.fromArray(Iter.toArray(I.pad(I.flattenArray<Nat8>([[100, pool_idx], U.ENat32(Nat32.fromNat(ledger_idx[0])), U.ENat32(Nat32.fromNat(ledger_idx[1]))]), 32, 0 : Nat8)));
+            }
+            };
 
         public func delete(vid : NodeId) : () {
             let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return;
@@ -886,7 +971,7 @@ module {
             let ic_ledgers = U.onlyICLedgerArr(req.ledgers);
 
             let meta = nodeMeta(custom);
-            if (meta.ledgers_required.size() != ic_ledgers.size()) return #err("Ledgers required mismatch");
+            if (meta.ledger_slots.size() != ic_ledgers.size()) return #err("Ledgers required mismatch");
 
             let sources = switch (portMapSources(ic_ledgers, id, custom, thiscan, req.sources)) { case (#err(e)) return #err(e); case (#ok(x)) x; };
             let destinations = switch (portMapDestinations(ic_ledgers, id, custom, req.destinations)) { case (#err(e)) return #err(e); case (#ok(x)) x; };

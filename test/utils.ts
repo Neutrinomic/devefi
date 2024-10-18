@@ -37,18 +37,20 @@ export async function PylonCan(pic: PocketIc) {
     return fixture;
 };
 
+export type Ledger = {can:Actor<ICRCLedgerService>, id:Principal, fee:bigint };
+
 export function DF() {
 
     return {
         pic: undefined as PocketIc,
-        ledger: undefined as Actor<ICRCLedgerService>,
+        // ledger: undefined as Actor<ICRCLedgerService>,
         pylon: undefined as Actor<PylonService>,
         userCanisterId: undefined as Principal,
-        ledgerCanisterId: undefined as Principal,
+        // ledgerCanisterId: undefined as Principal,
+        ledgers : [] as Ledger[],
         pylonCanisterId: undefined as Principal,
         u: undefined as ReturnType<typeof createNodeUtils>,
         jo : undefined as ReturnType<typeof createIdentity>,
-        ledger_fee: undefined as bigint,
 
         toState : toState,
 
@@ -76,31 +78,40 @@ export function DF() {
             this.pic = await PocketIc.create(process.env.PIC_URL);
 
             // Ledger initialization
-            const ledgerFixture = await ICRCLedger(this.pic, this.jo.getPrincipal(), undefined); // , this.pic.getSnsSubnet()?.id
-            this.ledger = ledgerFixture.actor;
-            this.ledgerCanisterId = ledgerFixture.canisterId;
-            // console.log("Ledger Canister Id: ", this.ledgerCanisterId.toText());
-            this.ledger_fee = await this.ledger.icrc1_fee();
+            let TOTAL_LEDGERS = 3;
+            let LEDGER_NAMES = ['tAAA', 'tBBB', 'tCCC', 'tDDD', 'tEEE'];
+            for (let i=0 ; i < TOTAL_LEDGERS; i++) {
+                const ledgerFixture = await ICRCLedger(this.pic, this.jo.getPrincipal(), undefined, LEDGER_NAMES[i]); // , this.pic.getSnsSubnet()?.id
+                
+                this.ledgers.push({
+                    can: ledgerFixture.actor, 
+                    id: ledgerFixture.canisterId, 
+                    fee: await ledgerFixture.actor.icrc1_fee()
+                });
+            }
 
-            await this.pic.addCycles(this.ledgerCanisterId, 100_000_000_000_000);
             // Pylon canister initialization
             const pylonFixture = await PylonCan(this.pic);
             this.pylon = pylonFixture.actor;
             this.pylonCanisterId = pylonFixture.canisterId;
             await this.pic.addCycles(this.pylonCanisterId, 100_000_000_000_000);
             // Setup interactions between ledger and pylon
-            await this.pylon.add_supported_ledger(this.ledgerCanisterId, { icrc: null });
+
+            for (let lg of this.ledgers) {
+                await this.pylon.add_supported_ledger(lg.id, { icrc: null });
+                lg.can.setIdentity(this.jo);
+            };
+
             await this.pylon.start();
 
             // Set the identity for ledger and pylon
-            this.ledger.setIdentity(this.jo);
+            
             this.pylon.setIdentity(this.jo);
 
             // Initialize node utilities
             this.u = createNodeUtils({
-                ledger: this.ledger,
+                ledgers: this.ledgers,
                 pylon: this.pylon,
-                ledgerCanisterId: this.ledgerCanisterId,
                 pylonCanisterId: this.pylonCanisterId,
                 user: this.jo.getPrincipal()
             });
@@ -120,15 +131,13 @@ export function DF() {
 
 
 export function createNodeUtils({
-    ledger,
+    ledgers,
     pylon,
-    ledgerCanisterId,
     pylonCanisterId,
     user
 }: {
-    ledger: Actor<ICRCLedgerService>,
+    ledgers: Ledger[],
     pylon: Actor<PylonService>,
-    ledgerCanisterId: Principal,
     pylonCanisterId: Principal,
     user: Principal
 }) {
@@ -159,7 +168,8 @@ export function createNodeUtils({
             let sa = aid.toUint8Array();
             return { owner: pylonCanisterId, subaccount: [sa]};
         },
-        async sendToAccount(account: Account, amount: bigint, from_subaccount:Subaccount | undefined = undefined): Promise<void> {
+        async sendToAccount(account: Account, amount: bigint, from_subaccount:Subaccount | undefined = undefined, from_ledger:number = 0): Promise<void> {
+            let ledger = ledgers[from_ledger].can;
             ledger.setPrincipal(user);
             let txresp = await ledger.icrc1_transfer({
                 from_subaccount: from_subaccount?[from_subaccount]:[],
@@ -175,7 +185,9 @@ export function createNodeUtils({
             }
         },
 
-        async sendToNode(nodeId: NodeId, port: number, amount: bigint): Promise<void> {
+        async sendToNode(nodeId: NodeId, port: number, amount: bigint, from_ledger:number = 0): Promise<void> {
+            let ledger = ledgers[from_ledger].can;
+
             ledger.setPrincipal(user);
             let node = await this.getNode(nodeId);
             if (node === undefined) return;
@@ -195,7 +207,8 @@ export function createNodeUtils({
             }
         },
 
-        async getLedgerBalance(account: Account): Promise<bigint> {
+        async getLedgerBalance(account: Account, from_ledger:number = 0): Promise<bigint> {
+            let ledger = ledgers[from_ledger].can;
             return await ledger.icrc1_balance_of(account);
         },
 
@@ -218,7 +231,8 @@ export function createNodeUtils({
         getAffiliateAccount() : Account {
             return {owner: user, subaccount: [this.subaccountFromId(100000)]};
         },
-        async virtualTransfer(from: Account, to:Account, amount: bigint): Promise<BatchCommandResponse> {
+        async virtualTransfer(from: Account, to:Account, amount: bigint, from_ledger:number = 0): Promise<BatchCommandResponse> {
+            let ledgerCanisterId = ledgers[from_ledger].id
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
@@ -235,12 +249,13 @@ export function createNodeUtils({
         async virtualBalances(acc: Account) : Promise<VirtualBalancesResponse> {
             return await pylon.icrc55_virtual_balances(acc);
         },
-        async createNode(creq: CreateRequest): Promise<GetNodeResponse> {
+        async createNode(creq: CreateRequest, ledgers_idx:number[] = [0]): Promise<GetNodeResponse> {
+            
             let req: NodeRequest = {
                 controllers: [{owner:user, subaccount:[]}],
                 destinations: [],
                 refund: this.getRefundAccount(),
-                ledgers: [{ic: ledgerCanisterId}],
+                ledgers: ledgers_idx.map(idx => ({ic : ledgers[idx].id})),
                 sources: [],
                 extractors: [],
                 affiliate: [this.getAffiliateAccount()]
@@ -252,6 +267,12 @@ export function createNodeUtils({
                 controller: {owner:user, subaccount:[]},
                 signature : [],
                 commands:[{create_node:[req, creq]}]});
+
+            //@ts-ignore
+            if (resp.ok.commands[0].create_node.err) {
+                //@ts-ignore
+                throw new Error(resp.ok.commands[0].create_node.err);
+            };
             //@ts-ignore
             return resp.ok.commands[0].create_node.ok;
         },
@@ -311,7 +332,8 @@ export function createNodeUtils({
                 commands:[{delete_node: nodeId}]
             });
         },
-        async sourceTransfer(nodeId : NodeId, source_port: number, amount: bigint, to: Account): Promise<BatchCommandResponse> {
+        async sourceTransfer(nodeId : NodeId, source_port: number, amount: bigint, to: Account, to_ledger: number = 0): Promise<BatchCommandResponse> {
+            let ledgerCanisterId = ledgers[to_ledger].id;
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
@@ -321,7 +343,8 @@ export function createNodeUtils({
                 source_transfer: {id:nodeId, source_port, amount, to:{ic:{ ledger:ledgerCanisterId, account:to}}}
             }]});
         },
-        async setDestination(nodeId: NodeId, port: number, account: Account): Promise<BatchCommandResponse> {
+        async setDestination(nodeId: NodeId, port: number, account: Account, ledger_idx : number = 0): Promise<BatchCommandResponse> {
+            let ledgerCanisterId = ledgers[ledger_idx].id;
             let node = await this.getNode(nodeId);
             let destinations = node.destinations.map(x => x.endpoint);
             destinations[port] = { ic: { ledger: ledgerCanisterId, account: [account] } };
@@ -341,7 +364,8 @@ export function createNodeUtils({
                 }], []]
             }]});
         },
-        async setSource(nodeId: NodeId, port: number, account: Account): Promise<BatchCommandResponse> {
+        async setSource(nodeId: NodeId, port: number, account: Account, ledger_idx : number = 0): Promise<BatchCommandResponse> {
+            let ledgerCanisterId = ledgers[ledger_idx].id;
             let node = await this.getNode(nodeId);
             let sources = node.sources.map(x=> x.endpoint);
             sources[port] = { ic: { ledger: ledgerCanisterId, account: account } };

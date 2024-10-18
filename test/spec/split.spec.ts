@@ -14,7 +14,7 @@ describe('Split', () => {
 
     let node = await d.u.createNode({
       'split' : {
-          'init' : {'ledger' : d.ledgerCanisterId},
+          'init' : { },
           'variables' : {
               'split' : [50n,50n], 
             },
@@ -48,7 +48,7 @@ describe('Split', () => {
 
     let node = await d.u.createNode({
       'split' : {
-          'init' : {'ledger' : d.ledgerCanisterId},
+          'init' : {},
           'variables' : {
               'split' : [4n,3n,2n], 
             },

@@ -14,7 +14,7 @@ describe('Withdraw', () => {
 
     let node = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': {  },
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 10000000n }
@@ -33,13 +33,13 @@ describe('Withdraw', () => {
     await d.passTime(5);
     let bal = await d.u.getLedgerBalance(d.u.userSubaccount(10));
 
-    expect(bal).toBe(100_0000n - d.ledger_fee);
+    expect(bal).toBe(100_0000n - d.ledgers[0].fee);
 
     await d.u.sourceTransfer(node.id, 0, 100_0000n, d.u.userSubaccount(10));
     await d.passTime(5);
     let bal2 = await d.u.getLedgerBalance(d.u.userSubaccount(10));
 
-    expect(bal2).toBe(200_0000n - d.ledger_fee*2n);
+    expect(bal2).toBe(200_0000n - d.ledgers[0].fee*2n);
 
   }, 600 * 1000);
 
@@ -49,7 +49,7 @@ describe('Withdraw', () => {
     // make sure the pylon has enough in other nodes
     let node_another = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': {},
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 10000000n }
@@ -95,7 +95,7 @@ describe('Withdraw', () => {
 
     let node = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': { },
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 1_0000_0000n }
@@ -105,7 +105,7 @@ describe('Withdraw', () => {
 
     let node2 = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': { },
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 1_0000_0000n }

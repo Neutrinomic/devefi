@@ -15,7 +15,7 @@ describe('Extractors', () => {
 
     let node = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': { },
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 1000_0000n }
@@ -25,7 +25,7 @@ describe('Extractors', () => {
 
     let node2 = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': { },
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 1000_0000n }
@@ -54,7 +54,7 @@ describe('Extractors', () => {
 
     let node = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': { },
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 1_0000_0000n }
@@ -64,7 +64,7 @@ describe('Extractors', () => {
 
     let node2 = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': { },
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 1_0000_0000n }
