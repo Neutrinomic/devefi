@@ -72,7 +72,7 @@ module {
                 account : ?Account;
             }
         };
-        public module Remote {
+        public module Other {
             public type Ledger = {
                 platform : Nat64;
                 ledger : Blob;
@@ -89,23 +89,23 @@ module {
     //--
     public type EndpointOpt = {
         #ic : EndpointOptIC;
-        #remote : EndpointOptRemote;
+        #remote : EndpointOptOther;
     };
 
     public type EndpointOptIC = Endpoint.IC.Ledger and Endpoint.IC.OptAccount;
-    public type EndpointOptRemote = Endpoint.Remote.Ledger and Endpoint.Remote.OptAccount;
+    public type EndpointOptOther = Endpoint.Other.Ledger and Endpoint.Other.OptAccount;
     
 
 
     //--
     public type Endpoint = {
         #ic : EndpointIC;
-        #remote : EndpointRemote;
+        #remote : EndpointOther;
     };
 
     public type EndpointIC = Endpoint.IC.Ledger and Endpoint.IC.WithAccount;
  
-    public type EndpointRemote = Endpoint.Remote.Ledger and Endpoint.Remote.WithAccount;
+    public type EndpointOther = Endpoint.Other.Ledger and Endpoint.Other.WithAccount;
   
 
 
