@@ -98,6 +98,15 @@ module {
 
         var emitFunc : ?(Event -> ()) = null;
 
+        public func get_ledger_idx(p: Principal) : ?Nat {
+            for ((ledger, idx) in Vector.items(ledgercls)) {
+                if (ledger.id == p) {
+                    return ?idx;
+                };
+            };
+            return null;
+        };
+
         public func get_ledger_ids() : [Principal] {
             let rez = Vector.new<Principal>();
             for (ledger in Vector.vals(ledgercls)) {

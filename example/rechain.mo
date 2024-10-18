@@ -1,5 +1,5 @@
 import ICRC55 "../src/ICRC55";
-import T "./types";
+import T "./vector_modules";
 import Rechain "mo:rechain";
 import Nat64 "mo:base/Nat64";
 import Principal "mo:base/Principal";

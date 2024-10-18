@@ -2,7 +2,6 @@ import Principal "mo:base/Principal";
 import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Time "mo:base/Time";
-import T "./types";
 import Prng "mo:prng";
 import DeVeFi "../src/";
 import Nat "mo:base/Nat";
@@ -12,6 +11,13 @@ import Rechain "mo:rechain";
 import RT "./rechain";
 import Timer "mo:base/Timer";
 import U "../src/utils";
+import Array "mo:base/Array";
+import Nat32 "mo:base/Nat32";
+import I "mo:itertools/Iter";
+import Iter "mo:base/Iter";
+import Blob "mo:base/Blob";
+import T "./vector_modules";
+
 actor class () = this {
 
 
@@ -38,6 +44,8 @@ actor class () = this {
 
     let dvf = DeVeFi.DeVeFi<system>({ mem = dvf_mem });
 
+    stable let vmod_mem = T.VMem();
+    let vmod = T.VectorModules(vmod_mem);
 
     stable let node_mem = Node.Mem<T.Mem>();
     let nodes = Node.Node<system, T.CreateRequest, T.Mem, T.Shared, T.ModifyRequest>({
@@ -49,22 +57,19 @@ actor class () = this {
             PYLON_GOVERNED_BY = "Neutrinite DAO";
             PYLON_FEE_ACCOUNT = ?{ owner = Principal.fromText("eqsml-lyaaa-aaaaq-aacdq-cai"); subaccount = null };
         };
-        toShared = T.toShared;
-        nodeSources = T.sources;
-        nodeDestinations = T.destinations;
-        nodeCreate = T.create;
-        nodeModify = T.modify;
-        getDefaults = T.getDefaults;
-        meta = T.meta;
-        nodeMeta = T.nodeMeta;
-        authorAccount = T.authorAccount;
-        nodeBilling = T.nodeBilling;
+        toShared = vmod.toShared;
+        nodeSources = vmod.sources;
+        nodeDestinations = vmod.destinations;
+        nodeCreate = vmod.create;
+        nodeModify = vmod.modify;
+        getDefaults = vmod.getDefaults;
+        meta = vmod.meta;
+        nodeMeta = vmod.nodeMeta;
+        authorAccount = vmod.authorAccount;
+        nodeBilling = vmod.nodeBilling;
     });
 
-    private func getPoolAccount(a:[Principal]) : Node.Account {
-        // let sorted = Array.sort(a, Principal.compare);
-        return { owner = Principal.fromText("aaaaa-aa"); subaccount = null };
-    };
+
 
     private func proc() {
             let now = Nat64.fromNat(Int.abs(Time.now()));
@@ -80,24 +85,22 @@ actor class () = this {
 
                 switch (vec.custom) {
                     case (?#exchange(ex)) {
+    
+                        let pool_account = nodes.get_virtual_pool_account(vec.ledgers[0], vec.ledgers[1], 0);
+                        let pool_a = nodes.get_pool(pool_account, vec.ledgers[0]);
+                        let pool_b = nodes.get_pool(pool_account, vec.ledgers[1]);
+                        let reserve_one = pool_a.balance();
+                        let reserve_two = pool_b.balance();
+                        let request_amount = bal;
 
-                        // let pool_acc = nodes.get_virtual_account(getPoolAccount([ex.init.ledger_from, ex.init.ledger_to]));
-                        // let reserve_one = dvf.balance(ex.init.ledger_from, pool_acc.subaccount);
-                        // let reserve_two = dvf.balance(ex.init.ledger_to, pool_acc.subaccount);
-                        // let request_amount = bal;
+                        let rate_fwd = (reserve_one + request_amount) / reserve_two;
 
-                        // let rate_fwd = (reserve_one + request_amount) / reserve_two;
-                        // // let rate_backward = reserve_one  / (reserve_two - amount_required);
+                        let afterfee_fwd = request_amount - fee:Nat;
 
-                        // let amount_fwd = request_amount;
-                        // let fee_fwd = 10000;
-                        // let afterfee_fwd = amount_fwd - fee_fwd:Nat;
-
-                        // // let give_bwd = amount_required * rate_backward;
-                        // // if (give_bwd > request_amount) return #err("Your requirements aren't satisfied during backward swap");
-
-                        // let recieve_fwd = afterfee_fwd / rate_fwd;
-                        
+                        let recieve_fwd = afterfee_fwd / rate_fwd;
+                        ignore source.send(#external_account(pool_account), request_amount);
+                        ignore pool_b.send(#remote_destination({node = vid; port = 0;}), recieve_fwd);
+                 
 
                     };
                     case (?#throttle(th)) {

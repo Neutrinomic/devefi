@@ -15,7 +15,7 @@ describe('Delete', () => {
 
     let node = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': { },
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 10000000n }
@@ -35,7 +35,7 @@ describe('Delete', () => {
 
     let node = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': { },
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 10000000n }
@@ -55,7 +55,7 @@ describe('Delete', () => {
     let refund_virtual = await d.u.virtualBalances(refund_account);
     let refund_bal = refund_virtual[0][1];
 
-    expect(refund_bal).toBe(1_0000_0000n - d.ledger_fee*2n);
+    expect(refund_bal).toBe(1_0000_0000n - d.ledgers[0].fee*2n);
 
   
   }, 600 * 1000);
@@ -80,7 +80,7 @@ describe('Delete', () => {
 
     let node = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': {  },
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 10000000n }
@@ -98,7 +98,7 @@ describe('Delete', () => {
     await d.passTime(10);
     let refund_virtual = await d.u.virtualBalances( d.u.getRefundAccount());
     let refund_bal = refund_virtual[0][1];
-    expect(refund_bal).toBe(1_0000_0000n - d.ledger_fee*4n + node.billing.min_create_balance);
+    expect(refund_bal).toBe(1_0000_0000n - d.ledgers[0].fee*4n + node.billing.min_create_balance);
 
   }, 600 * 1000);
 

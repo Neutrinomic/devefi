@@ -14,7 +14,7 @@ describe('Billing', () => {
 
     let node = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': {  },
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 10000000n }
@@ -41,7 +41,7 @@ describe('Billing', () => {
 
     let node = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': {},
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 10000000n }
@@ -85,7 +85,7 @@ describe('Billing', () => {
 
     let node = await d.u.createNode({
       'throttle': {
-        'init': { 'ledger': d.ledgerCanisterId },
+        'init': {},
         'variables': {
           'interval_sec': { 'fixed': 1n },
           'max_amount': { 'fixed': 10000000n }
@@ -95,7 +95,7 @@ describe('Billing', () => {
 
     
     expect(node.billing.expires[0]).not.toBeDefined();
-    expect(node.billing.current_balance).toBe(node.billing.min_create_balance - d.ledger_fee);
+    expect(node.billing.current_balance).toBe(node.billing.min_create_balance - d.ledgers[0].fee);
     expect(node.id).toBe(2);
   });
 
