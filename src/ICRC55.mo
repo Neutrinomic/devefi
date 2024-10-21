@@ -182,7 +182,7 @@ module {
         ledgers: [SupportedLedger];
         refund: Account;
         controllers : [Controller];
-        affiliate: ?Account
+        affiliate: ?Account;
     };
 
     public type CommonModRequest = {
