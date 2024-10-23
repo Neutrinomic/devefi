@@ -16,7 +16,7 @@ import Iter "mo:base/Iter";
 import Blob "mo:base/Blob";
 import T "./vector_modules";
 import MU "mo:mosup";
-import MU_dvf_nodes "../src/node";
+import MU_sys "../src/sys";
 
 import VecThrottle "./modules/throttle/throttle";
 import VecBorrow "./modules/borrow/borrow";
@@ -72,11 +72,11 @@ actor class () = this {
     });
 
     
-    let nodes = MU_dvf_nodes.Mod<system, T.CreateRequest, T.Shared, T.ModifyRequest>({
+    let nodes = MU_sys.Mod<system, T.CreateRequest, T.Shared, T.ModifyRequest>({
         xmem = MU.persistent("dvf_nodes");
         dvf;
         settings = {
-            MU_dvf_nodes.DEFAULT_SETTINGS with
+            MU_sys.DEFAULT_SETTINGS with
             PYLON_NAME = "Transcendence";
             PYLON_GOVERNED_BY = "Neutrinite DAO";
             PYLON_FEE_ACCOUNT = ?{ owner = Principal.fromText("eqsml-lyaaa-aaaaq-aacdq-cai"); subaccount = null };
@@ -160,11 +160,11 @@ actor class () = this {
         });
     };
 
-    public query func icrc55_get_nodes(req : [ICRC55.GetNode]) : async [?MU_dvf_nodes.NodeShared<T.Shared>] {
+    public query func icrc55_get_nodes(req : [ICRC55.GetNode]) : async [?MU_sys.NodeShared<T.Shared>] {
         nodes.icrc55_get_nodes(req);
     };
 
-    public query ({ caller }) func icrc55_get_controller_nodes(req : ICRC55.GetControllerNodesRequest) : async [MU_dvf_nodes.NodeShared<T.Shared>] {
+    public query ({ caller }) func icrc55_get_controller_nodes(req : ICRC55.GetControllerNodesRequest) : async [MU_sys.NodeShared<T.Shared>] {
         nodes.icrc55_get_controller_nodes(caller, req);
     };
 

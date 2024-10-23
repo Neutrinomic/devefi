@@ -1,5 +1,5 @@
 import ICRC55 "../../../src/ICRC55";
-import Node "../../../src/node";
+import Sys "../../../src/sys";
 import Result "mo:base/Result";
 import U "../../../src/utils";
 import Billing "../../billing_all";
@@ -13,7 +13,7 @@ module {
     public type ModifyRequest = VM.ModifyRequest;
     public type Shared = VM.Shared;
 
-    public class Mod(xmem : MU.MemShell<VM.Mem>) : Node.VectorClass<VM.VMem, VM.CreateRequest, VM.ModifyRequest, VM.Shared> {
+    public class Mod(xmem : MU.MemShell<VM.Mem>) : Sys.VectorClass<VM.VMem, VM.CreateRequest, VM.ModifyRequest, VM.Shared> {
 
         let mem = MU.access(xmem, VM.DefaultMem);
 
@@ -44,7 +44,7 @@ module {
         };
 
         // Create state from request
-        public func create(id: Node.NodeId, t : VM.CreateRequest) : Result.Result<Node.ModuleId, Text> {
+        public func create(id: Sys.NodeId, t : VM.CreateRequest) : Result.Result<Sys.ModuleId, Text> {
             
             let obj:VM.VMem = {
                 init = t.init;
@@ -70,7 +70,7 @@ module {
         };
 
         // How does the modify request change memory
-        public func modify(id: Node.NodeId, m : VM.ModifyRequest) : Result.Result<(), Text> {
+        public func modify(id: Sys.NodeId, m : VM.ModifyRequest) : Result.Result<(), Text> {
             let ?t = Map.get(mem.main, Map.n32hash, id) else return #err("Not found");
 
             t.variables.interest := m.interest;
@@ -78,7 +78,7 @@ module {
         };
 
         // Convert memory to shared
-        public func toShared(id: Node.NodeId) : Result.Result<VM.Shared, Text> {
+        public func toShared(id: Sys.NodeId) : Result.Result<VM.Shared, Text> {
             let ?t = Map.get(mem.main, Map.n32hash, id) else return #err("Not found");
 
             #ok {
@@ -90,11 +90,11 @@ module {
             };
         };
 
-        public func sources(_id: Node.NodeId) : Node.PortsDescription {
+        public func sources(_id: Sys.NodeId) : Sys.PortsDescription {
             [(0, "")];
         };
 
-        public func destinations(_id: Node.NodeId) : Node.PortsDescription {
+        public func destinations(_id: Sys.NodeId) : Sys.PortsDescription {
             [(0, "Success"), (0, "Fail")];
         };
 
