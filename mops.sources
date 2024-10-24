@@ -20,4 +20,4 @@
 --package ic-certification .mops/ic-certification@0.1.3/src
 --package cbor .mops/cbor@0.1.3/src
 --package xtended-numbers .mops/_github/xtended-numbers#v1.0.2/src
---package mosup .mops/mosup@0.1.0/src
+--package mosup .mops/mosup@0.1.1/src

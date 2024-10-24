@@ -19,7 +19,7 @@ module {
 
     public func encodeBlock(b : DispatchAction) : ?[Rechain.ValueMap] {
         switch(b.payload) {
-            case (#vector(v)) {
+            case (#vector(_v)) {
                 ?[
                     ("btype", #Text("55vec")),
                     ("b",#Blob(to_candid(b))),

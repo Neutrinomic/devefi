@@ -4,20 +4,32 @@ import Result "mo:base/Result";
 import U "../../../src/utils";
 import Billing "../../billing_all";
 import MU "mo:mosup";
-import VM "./memory/v1";
+import Ver1 "./memory/v1";
 import Map "mo:map/Map";
 import Array "mo:base/Array";
 import Nat "mo:base/Nat";
+import Core "../../../src/core";
 
 module {
+
+    public module Mem {
+        public module Vector {
+            public let V1 = Ver1;
+        }
+    };
+    let VM = Mem.Vector.V1;
+
     public let ID = "split";
     public type CreateRequest = VM.CreateRequest;
     public type ModifyRequest = VM.ModifyRequest;
     public type Shared = VM.Shared;
 
-    public class Mod(xmem : MU.MemShell<VM.Mem>) : Sys.VectorClass<VM.VMem, VM.CreateRequest, VM.ModifyRequest, VM.Shared> {
+    public class Mod({
+        xmem : MU.MemShell<VM.Mem>;
+        core : Core.Mod
+        }) : Core.VectorClass<VM.VMem, VM.CreateRequest, VM.ModifyRequest, VM.Shared> {
 
-        let mem = MU.access(xmem, VM.DefaultMem);
+        let mem = MU.access(xmem);
 
         public func meta() : ICRC55.NodeMeta {
             {
@@ -31,18 +43,11 @@ module {
                 ledger_slots = [
                     "Split",
                 ];
-                billing = billing();
+                billing = Billing.get();
                 sources = sources(0);
                 destinations = destinations(0);
+                author_account = Billing.authorAccount();
             };
-        };
-
-        public func billing() : ICRC55.Billing {
-            Billing.get();
-        };
-
-        public func authorAccount() : ICRC55.Account {
-            Billing.authorAccount();
         };
 
         // Create state from request
@@ -70,9 +75,10 @@ module {
             };
         };
 
-        public func run(id:Sys.NodeId, getSource : (port_idx : Nat) -> ?Sys.Source, hasDestination : (port_idx : Nat) -> Bool) {
+        public func run(id:Core.NodeId, vec:Core.NodeMem) {
             let ?n = Map.get(mem.main, Map.n32hash, id) else return;
-            let ?source = getSource(0) else return;
+
+            let ?source = core.getSource(id, vec, 0) else return;
             let now = U.now();
             let bal = source.balance();
             let fee = source.fee();
@@ -83,7 +89,7 @@ module {
             var largestAmount = 0;
 
             label iniloop for (port_id in n.variables.split.keys()) {
-                if (not hasDestination(port_id)) continue iniloop;
+                if (not core.hasDestination(vec, port_id)) continue iniloop;
 
                 let splitShare = n.variables.split[port_id];
                 totalSplit += splitShare;
@@ -101,7 +107,7 @@ module {
 
             // Second loop: Send to each valid destination
             label port_send for (port_id in n.variables.split.keys()) {
-                if (not hasDestination(port_id)) continue port_send;
+                if (not core.hasDestination(vec, port_id)) continue port_send;
 
                 let splitShare = n.variables.split[port_id];
 

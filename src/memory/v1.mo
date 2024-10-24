@@ -6,9 +6,29 @@ import Nat8 "mo:base/Nat8";
 import Nat "mo:base/Nat";
 import Nat64 "mo:base/Nat64";
 import Nat32 "mo:base/Nat32";
-
+import MU "mo:mosup";
 
 module {
+
+    public module Core {
+
+    public func new() : MU.MemShell<Mem> = MU.new<Mem>(
+        {
+            nodes = Map.new<NodeId, NodeMem>();
+            var next_node_id : NodeId = 0;
+            var thiscan = null;
+            var ops = 0;
+            var pylon_fee_account = null;
+        }
+    );
+
+    public type Mem = {
+        nodes : Map.Map<NodeId, NodeMem>;
+        var next_node_id : NodeId;
+        var thiscan : ?Principal;
+        var ops : Nat; // Each transaction is one op
+        var pylon_fee_account : ?Account;
+    };
 
     public type Endpoint = ICRC55.Endpoint;
     public type EndpointOpt = ICRC55.EndpointOpt;
@@ -34,21 +54,6 @@ module {
     public type LedgerIdx = Nat;
     public type PortsDescription = ICRC55.PortsDescription;
 
-    public func DefaultMem() : Mem {
-        {
-            nodes = Map.new<NodeId, NodeMem>();
-            var next_node_id : NodeId = 0;
-            var thiscan = null;
-            var ops = 0;
-        };
-    };
-
-    public type Mem = {
-        nodes : Map.Map<NodeId, NodeMem>;
-        var next_node_id : NodeId;
-        var thiscan : ?Principal;
-        var ops : Nat; // Each transaction is one op
-    };
 
     public type EndpointStored = {
         endpoint: Endpoint;
@@ -78,5 +83,15 @@ module {
             var last_billed : Nat64;
         };
         module_id : ModuleId;
+        var meta : MetaSlice;
     };
+
+    public type MetaSlice = {
+        billing : ICRC55.Billing;
+        create_allowed: Bool;
+        ledger_slots : [Text];
+        author_account: Account;
+    }
+
+    }
 }

@@ -29,6 +29,7 @@ module {
         ledger_slots : [Text];
         sources: PortsDescription;
         destinations: PortsDescription;
+        author_account: Account;
     };
 
     public type SupportedLedger = {

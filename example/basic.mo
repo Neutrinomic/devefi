@@ -25,10 +25,10 @@ import VecExchange "./modules/exchange/exchange";
 import VecEscrow "./modules/escrow/escrow";
 import VecSplit "./modules/split/split";
 
+import Core "../src/core";
 
 actor class () = this {
 
-    MU.placeholder();
 
     stable let chain_mem  = Rechain.Mem();
 
@@ -52,14 +52,38 @@ actor class () = this {
 
     let dvf = DeVeFi.DeVeFi<system>({ mem = dvf_mem });
 
-    // Components
+    stable let mem_core_1 = Core.Mem.Core.V1.new();
 
-    let vec_throttle = VecThrottle.Mod(MU.persistent("throttle"));
-    let vec_lend = VecLend.Mod(MU.persistent("lend"));
-    let vec_borrow = VecBorrow.Mod(MU.persistent("borrow"));
-    let vec_exchange = VecExchange.Mod(MU.persistent("exchange"));
-    let vec_escrow = VecEscrow.Mod(MU.persistent("escrow"));
-    let vec_split = VecSplit.Mod(MU.persistent("split"));
+    let core = Core.Mod<system>({
+        xmem = mem_core_1;
+        settings = {
+            Core.DEFAULT_SETTINGS with
+            PYLON_NAME = "Transcendence";
+            PYLON_GOVERNED_BY = "Neutrinite DAO";
+            PYLON_FEE_ACCOUNT = ?{ owner = Principal.fromText("eqsml-lyaaa-aaaaq-aacdq-cai"); subaccount = null };
+        };
+        dvf;
+        chain;
+    });
+
+    // Components
+    let mem_vec_throttle_1 = VecThrottle.Mem.Vector.V1.new();
+    let vec_throttle = VecThrottle.Mod({xmem=mem_vec_throttle_1; core});
+
+    let mem_vec_lend_1 = VecLend.Mem.Vector.V1.new();
+    let vec_lend = VecLend.Mod({xmem=mem_vec_lend_1; core});
+
+    let mem_vec_borrow_1 = VecBorrow.Mem.Vector.V1.new();
+    let vec_borrow = VecBorrow.Mod({xmem=mem_vec_borrow_1; core});
+
+    let mem_vec_exchange_1 = VecExchange.Mem.Vector.V1.new();
+    let vec_exchange = VecExchange.Mod({xmem=mem_vec_exchange_1; core});
+
+    let mem_vec_escrow_1 = VecEscrow.Mem.Vector.V1.new();
+    let vec_escrow = VecEscrow.Mod({xmem=mem_vec_escrow_1; core});
+
+    let mem_vec_split_1 = VecSplit.Mem.Vector.V1.new();
+    let vec_split = VecSplit.Mod({xmem=mem_vec_split_1; core});
 
 
     let vmod = T.VectorModules({
@@ -72,36 +96,22 @@ actor class () = this {
     });
 
     
-    let nodes = MU_sys.Mod<system, T.CreateRequest, T.Shared, T.ModifyRequest>({
-        xmem = MU.persistent("dvf_nodes");
+    let sys = MU_sys.Mod<system, T.CreateRequest, T.Shared, T.ModifyRequest>({
+        xmem = mem_core_1;
         dvf;
-        settings = {
-            MU_sys.DEFAULT_SETTINGS with
-            PYLON_NAME = "Transcendence";
-            PYLON_GOVERNED_BY = "Neutrinite DAO";
-            PYLON_FEE_ACCOUNT = ?{ owner = Principal.fromText("eqsml-lyaaa-aaaaq-aacdq-cai"); subaccount = null };
-        };
-        toShared = vmod.toShared;
-        nodeSources = vmod.sources;
-        nodeDestinations = vmod.destinations;
-        nodeCreate = vmod.create;
-        nodeModify = vmod.modify;
-        getDefaults = vmod.getDefaults;
-        meta = vmod.meta;
-        nodeMeta = vmod.nodeMeta;
-        authorAccount = vmod.authorAccount;
-        nodeBilling = vmod.nodeBilling;
+        core;
+        vmod;
     });
 
 
 
     private func proc() {
             let now = Nat64.fromNat(Int.abs(Time.now()));
-            label vloop for ((vid, vec) in nodes.entries()) {
+            label vloop for ((vid, vec) in core.entries()) {
                 if (not vec.active) continue vloop;
-                if (not nodes.hasDestination(vec, 0)) continue vloop;
+                if (not core.hasDestination(vec, 0)) continue vloop;
 
-                let ?source = nodes.getSource(vid, vec, 0) else continue vloop;
+                let ?source = core.getSource(vid, vec, 0) else continue vloop;
                 let bal = source.balance();
 
                 let fee = source.fee();
@@ -110,9 +120,9 @@ actor class () = this {
                 switch (vec.module_id) {
                 //     case (?#exchange(ex)) {
     
-                //         let pool_account = nodes.get_virtual_pool_account(vec.ledgers[0], vec.ledgers[1], 0);
-                //         let pool_a = nodes.get_pool(pool_account, vec.ledgers[0]);
-                //         let pool_b = nodes.get_pool(pool_account, vec.ledgers[1]);
+                //         let pool_account = sys.get_virtual_pool_account(vec.ledgers[0], vec.ledgers[1], 0);
+                //         let pool_a = sys.get_pool(pool_account, vec.ledgers[0]);
+                //         let pool_b = sys.get_pool(pool_account, vec.ledgers[1]);
                 //         let reserve_one = pool_a.balance();
                 //         let reserve_two = pool_b.balance();
                 //         let request_amount = bal;
@@ -128,11 +138,11 @@ actor class () = this {
 
                 //     };
                     case ("throttle") {
-                        vec_throttle.run(vid, func(port_idx) = nodes.getSource(vid, vec, port_idx));
+                        vec_throttle.run(vid, vec);
 
                     };
                     case ("split") {
-                        vec_split.run(vid, func(port_idx) = nodes.getSource(vid, vec, port_idx), func(port_idx) = nodes.hasDestination(vec, port_idx));
+                        vec_split.run(vid, vec);
                     };
                     case (_) ();
                 };
@@ -141,17 +151,17 @@ actor class () = this {
         };
 
     system func heartbeat() : async () {
-        nodes.heartbeat(proc);
+        core.heartbeat(proc);
     };
 
     // ICRC-55
 
     public query func icrc55_get_pylon_meta() : async ICRC55.PylonMetaResp {
-        nodes.icrc55_get_pylon_meta();
+        sys.icrc55_get_pylon_meta();
     };
 
     public shared ({ caller }) func icrc55_command(req : ICRC55.BatchCommandRequest<T.CreateRequest, T.ModifyRequest>) : async ICRC55.BatchCommandResponse<T.Shared> {
-        nodes.icrc55_command<RT.DispatchActionError>(caller, req, func (r) {
+        sys.icrc55_command<RT.DispatchActionError>(caller, req, func (r) {
             chain.dispatch({
                 caller;
                 payload = #vector(r);
@@ -161,19 +171,19 @@ actor class () = this {
     };
 
     public query func icrc55_get_nodes(req : [ICRC55.GetNode]) : async [?MU_sys.NodeShared<T.Shared>] {
-        nodes.icrc55_get_nodes(req);
+        sys.icrc55_get_nodes(req);
     };
 
     public query ({ caller }) func icrc55_get_controller_nodes(req : ICRC55.GetControllerNodesRequest) : async [MU_sys.NodeShared<T.Shared>] {
-        nodes.icrc55_get_controller_nodes(caller, req);
+        sys.icrc55_get_controller_nodes(caller, req);
     };
 
     public query func icrc55_get_defaults(id : Text) : async T.CreateRequest {
-        nodes.icrc55_get_defaults(id);
+        sys.icrc55_get_defaults(id);
     };
 
     public query ({caller}) func icrc55_virtual_balances(req : ICRC55.VirtualBalancesRequest) : async ICRC55.VirtualBalancesResponse {
-        nodes.icrc55_virtual_balances(caller, req);
+        sys.icrc55_virtual_balances(caller, req);
     };
 
     // ICRC-3 
@@ -200,7 +210,7 @@ actor class () = this {
     public shared ({ caller }) func start() {
         assert (Principal.isController(caller));
         dvf.start<system>(Principal.fromActor(this));
-        nodes.start<system>(Principal.fromActor(this));
+        core.start<system>(Principal.fromActor(this));
         chain_mem.canister := ?Principal.fromActor(this);
 
     };
