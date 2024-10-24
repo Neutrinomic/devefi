@@ -1,5 +1,5 @@
 import ICRC55 "../src/ICRC55";
-import Sys "../src/sys";
+import Core "../src/core";
 import ThrottleVector "./modules/throttle/throttle";
 import Result "mo:base/Result";
 import Debug "mo:base/Debug";
@@ -53,7 +53,7 @@ module {
         vec_split : Split.Mod;
     }) {
     
-        public func toShared(mid :Sys.ModuleId, id : Sys.NodeId) : Result.Result<Shared, Text> {
+        public func toShared(mid :Core.ModuleId, id : Core.NodeId) : Result.Result<Shared, Text> {
             
             if (mid == ThrottleVector.ID) {
                 switch(m.vec_throttle.toShared(id)) {
@@ -95,7 +95,7 @@ module {
             #err("Unknown variant");
         };
 
-        public func getDefaults(mid:Sys.ModuleId) : CreateRequest {
+        public func getDefaults(mid:Core.ModuleId) : CreateRequest {
             if (mid == ThrottleVector.ID) return #throttle(m.vec_throttle.defaults());
             if (mid == Lend.ID) return #lend(m.vec_lend.defaults());
             if (mid == Borrow.ID) return #borrow(m.vec_borrow.defaults());
@@ -106,17 +106,8 @@ module {
 
         };
 
-        public func authorAccount(mid: Sys.ModuleId) : ICRC55.Account {
-            if (mid == ThrottleVector.ID) return m.vec_throttle.authorAccount();
-            if (mid == Lend.ID) return m.vec_lend.authorAccount();
-            if (mid == Borrow.ID) return m.vec_borrow.authorAccount();
-            if (mid == Exchange.ID) return m.vec_exchange.authorAccount();
-            if (mid == Escrow.ID) return m.vec_escrow.authorAccount();
-            if (mid == Split.ID) return m.vec_split.authorAccount();
-            Debug.trap("Unknown variant");
-        };
 
-        public func sources(mid :Sys.ModuleId, id : Sys.NodeId) : Sys.PortsDescription {
+        public func sources(mid :Core.ModuleId, id : Core.NodeId) : Core.PortsDescription {
             if (mid == ThrottleVector.ID) return m.vec_throttle.sources(id);
             if (mid == Lend.ID) return m.vec_lend.sources(id);
             if (mid == Borrow.ID) return m.vec_borrow.sources(id);
@@ -127,7 +118,7 @@ module {
             
         };
 
-        public func destinations(mid :Sys.ModuleId, id : Sys.NodeId) : Sys.PortsDescription {
+        public func destinations(mid :Core.ModuleId, id : Core.NodeId) : Core.PortsDescription {
             if (mid == ThrottleVector.ID) return m.vec_throttle.destinations(id);
             if (mid == Lend.ID) return m.vec_lend.destinations(id);
             if (mid == Borrow.ID) return m.vec_borrow.destinations(id);
@@ -139,7 +130,7 @@ module {
 
 
 
-        public func create(id:Sys.NodeId, req : CreateRequest) : Result.Result<Sys.ModuleId, Text> {
+        public func create(id:Core.NodeId, req : CreateRequest) : Result.Result<Core.ModuleId, Text> {
             
             switch (req) {
                 case (#throttle(t)) return m.vec_throttle.create(id, t);
@@ -153,7 +144,7 @@ module {
             #err("Unknown variant or mismatch");
         };
 
-        public func modify(mid :Sys.ModuleId, id:Sys.NodeId, creq : ModifyRequest) : Result.Result<(), Text> {
+        public func modify(mid :Core.ModuleId, id:Core.NodeId, creq : ModifyRequest) : Result.Result<(), Text> {
             switch (creq) {
                 case (#throttle(r)) if (mid == ThrottleVector.ID) return m.vec_throttle.modify(id, r);
                 case (#lend(r)) if (mid == Lend.ID) return m.vec_lend.modify(id, r);
@@ -166,7 +157,7 @@ module {
             #err("Unknown variant or mismatch");
         };
 
-        public func nodeMeta(mid :Sys.ModuleId) : ICRC55.NodeMeta {
+        public func nodeMeta(mid :Core.ModuleId) : ICRC55.NodeMeta {
             if (mid == ThrottleVector.ID) return m.vec_throttle.meta();
             if (mid == Lend.ID) return m.vec_lend.meta();
             if (mid == Borrow.ID) return m.vec_borrow.meta();
@@ -176,15 +167,6 @@ module {
             Debug.trap("Unknown variant");
         };
 
-        public func nodeBilling(mid :Sys.ModuleId) : ICRC55.Billing {
-            if (mid == ThrottleVector.ID) return m.vec_throttle.billing();
-            if (mid == Lend.ID) return m.vec_lend.billing();
-            if (mid == Borrow.ID) return m.vec_borrow.billing();
-            if (mid == Exchange.ID) return m.vec_exchange.billing();
-            if (mid == Escrow.ID) return m.vec_escrow.billing();
-            if (mid == Split.ID) return m.vec_split.billing();
-            Debug.trap("Unknown variant");
-        };
 
         public func meta() : [ICRC55.NodeMeta] {
             [

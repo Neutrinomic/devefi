@@ -4,18 +4,30 @@ import Result "mo:base/Result";
 import U "../../../src/utils";
 import Billing "../../billing_all";
 import MU "mo:mosup";
-import VM "./memory/v1";
+import Ver1 "./memory/v1";
 import Map "mo:map/Map";
+import Core "../../../src/core";
 
 module {
+
+    public module Mem {
+        public module Vector {
+            public let V1 = Ver1;
+        }
+    };
+    let VM = Mem.Vector.V1;
+
     public let ID = "escrow";
     public type CreateRequest = VM.CreateRequest;
     public type ModifyRequest = VM.ModifyRequest;
     public type Shared = VM.Shared;
 
-    public class Mod(xmem : MU.MemShell<VM.Mem>) : Sys.VectorClass<VM.VMem, VM.CreateRequest, VM.ModifyRequest, VM.Shared> {
+    public class Mod({
+        xmem : MU.MemShell<VM.Mem>;
+        core : Core.Mod
+        }) : Core.VectorClass<VM.VMem, VM.CreateRequest, VM.ModifyRequest, VM.Shared> {
 
-        let mem = MU.access(xmem, VM.DefaultMem);
+        let mem = MU.access(xmem);
 
         public func meta() : ICRC55.NodeMeta {
             {
@@ -29,19 +41,13 @@ module {
                 ledger_slots = [
                     "Token",
                 ];
-                billing = billing();
+                billing = Billing.get();
                 sources = sources(0);
                 destinations = destinations(0);
+                author_account = Billing.authorAccount();
             };
         };
 
-        public func billing() : ICRC55.Billing {
-            Billing.get();
-        };
-
-        public func authorAccount() : ICRC55.Account {
-            Billing.authorAccount();
-        };
 
         // Create state from request
         public func create(id: Sys.NodeId, t : VM.CreateRequest) : Result.Result<Sys.ModuleId, Text> {

@@ -7,8 +7,16 @@ import ICRC55 "./ICRC55";
 import Result "mo:base/Result";
 import Debug "mo:base/Debug";
 import Vector "mo:vector";
+import Ver1 "./memory/v1";
+import Blob "mo:base/Blob";
+import Iter "mo:base/Iter";
+import I "mo:itertools/Iter";
+import Array "mo:base/Array";
 
 module {
+
+    let VM = Ver1.Core;
+    type Port = VM.Port;
 
     public func onlyIC(ep : ICRC55.Endpoint) : ICRC55.EndpointIC {
         let #ic(x) = ep else Debug.trap("Not supported");
@@ -129,6 +137,29 @@ module {
                 or (a.subaccount == ?null_account and b.subaccount == null)
             );
         };
-    }
+    };
+
+    public func port2subaccount(p : Port) : Blob {
+        let whobit : Nat8 = switch (p.flow) {
+            case (#input) 1;
+            case (#payment) 2;
+        };
+        Blob.fromArray(Iter.toArray(I.pad(I.flattenArray<Nat8>([[whobit], [p.id], ENat32(p.vid)]), 32, 0 : Nat8)));
+    };
+
+    public func subaccount2port(subaccount : ?Blob) : ?Port {
+        let ?sa = subaccount else return null;
+        let array = Blob.toArray(sa);
+        let whobit = array[0];
+        let id = array[1];
+        let ?vid = DNat32(Iter.toArray(Array.slice(array, 2, 6))) else return null;
+        let flow = if (whobit == 1) #input else if (whobit == 2) #payment else return null;
+        ?{
+            vid = vid;
+            flow = flow;
+            id = id;
+        };
+
+    };
 
 };
