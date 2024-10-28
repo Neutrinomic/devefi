@@ -96,11 +96,11 @@ module {
             };
         };
 
-        public func sources(_id: Sys.NodeId) : Sys.PortsDescription {
+        public func sources(_id: Sys.NodeId) : Sys.EndpointsDescription {
             [(0, "")];
         };
 
-        public func destinations(_id: Sys.NodeId) : Sys.PortsDescription {
+        public func destinations(_id: Sys.NodeId) : Sys.EndpointsDescription {
             [(0, "Success"), (0, "Fail")];
         };
 

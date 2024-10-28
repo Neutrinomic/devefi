@@ -106,49 +106,49 @@ actor class () = this {
 
 
     private func proc() {
-            let now = Nat64.fromNat(Int.abs(Time.now()));
-            label vloop for ((vid, vec) in core.entries()) {
-                if (not vec.active) continue vloop;
-                if (not core.hasDestination(vec, 0)) continue vloop;
+        let now = Nat64.fromNat(Int.abs(Time.now()));
+        label vloop for ((vid, vec) in core.entries()) {
+            if (not vec.active) continue vloop;
+            if (not core.hasDestination(vec, 0)) continue vloop;
 
-                let ?source = core.getSource(vid, vec, 0) else continue vloop;
-                let bal = source.balance();
+            let ?source = core.getSource(vid, vec, 0) else continue vloop;
+            let bal = source.balance();
 
-                let fee = source.fee();
-                if (bal <= fee * 100) continue vloop;
+            let fee = source.fee();
+            if (bal <= fee * 100) continue vloop;
 
-                switch (vec.module_id) {
-                //     case (?#exchange(ex)) {
-    
-                //         let pool_account = sys.get_virtual_pool_account(vec.ledgers[0], vec.ledgers[1], 0);
-                //         let pool_a = sys.get_pool(pool_account, vec.ledgers[0]);
-                //         let pool_b = sys.get_pool(pool_account, vec.ledgers[1]);
-                //         let reserve_one = pool_a.balance();
-                //         let reserve_two = pool_b.balance();
-                //         let request_amount = bal;
+            switch (vec.module_id) {
+            //     case (?#exchange(ex)) {
 
-                //         let rate_fwd = (reserve_one + request_amount) / reserve_two;
+            //         let pool_account = sys.get_virtual_pool_account(vec.ledgers[0], vec.ledgers[1], 0);
+            //         let pool_a = sys.get_pool(pool_account, vec.ledgers[0]);
+            //         let pool_b = sys.get_pool(pool_account, vec.ledgers[1]);
+            //         let reserve_one = pool_a.balance();
+            //         let reserve_two = pool_b.balance();
+            //         let request_amount = bal;
 
-                //         let afterfee_fwd = request_amount - fee:Nat;
+            //         let rate_fwd = (reserve_one + request_amount) / reserve_two;
 
-                //         let recieve_fwd = afterfee_fwd / rate_fwd;
-                //         ignore source.send(#external_account(pool_account), request_amount);
-                //         ignore pool_b.send(#remote_destination({node = vid; port = 0;}), recieve_fwd);
-                 
+            //         let afterfee_fwd = request_amount - fee:Nat;
 
-                //     };
-                    case ("throttle") {
-                        vec_throttle.run(vid, vec);
+            //         let recieve_fwd = afterfee_fwd / rate_fwd;
+            //         ignore source.send(#external_account(pool_account), request_amount);
+            //         ignore pool_b.send(#remote_destination({node = vid; port = 0;}), recieve_fwd);
+                
 
-                    };
-                    case ("split") {
-                        vec_split.run(vid, vec);
-                    };
-                    case (_) ();
+            //     };
+                case ("throttle") {
+                    vec_throttle.run(vid, vec);
+
                 };
-
+                case ("split") {
+                    vec_split.run(vid, vec);
+                };
+                case (_) ();
             };
+
         };
+    };
 
     system func heartbeat() : async () {
         core.heartbeat(proc);

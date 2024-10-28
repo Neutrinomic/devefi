@@ -28,7 +28,7 @@ module {
     public type Port = VM.Port;
     public type PortInfo = VM.PortInfo;
     public type LedgerIdx = VM.LedgerIdx;
-    public type PortsDescription = VM.PortsDescription;
+    public type EndpointsDescription = VM.EndpointsDescription;
     public type Endpoint = VM.Endpoint;
     public type EndpointOpt = VM.EndpointOpt;
     public type NodeId = VM.NodeId;
@@ -49,8 +49,8 @@ module {
         core : Core.Mod;
         vmod : {
             toShared : (ModuleId, NodeId) -> R<XShared, Text>;
-            sources : (ModuleId, NodeId) -> PortsDescription;
-            destinations : (ModuleId, NodeId) -> PortsDescription;    
+            sources : (ModuleId, NodeId) -> EndpointsDescription;
+            destinations : (ModuleId, NodeId) -> EndpointsDescription;    
             modify : (ModuleId, NodeId, XModifyRequest) -> R<(), Text>;
             create : (NodeId, XCreateRequest) -> R<ModuleId, Text>;
             meta : () -> [ICRC55.NodeMeta];
@@ -186,7 +186,7 @@ module {
             let ?(vid, vec) = core.getNode(#id(req.id)) else return #err("Node not found");
             if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
 
-            let ?source = core.getSource(vid, vec, Nat8.toNat(req.source_port)) else return #err("Source not found");
+            let ?source = core.getSource(vid, vec, Nat8.toNat(req.source_idx)) else return #err("Source not found");
             let acc = U.onlyIC(req.to).account;
             let bal = source.balance();
             if (req.amount > bal) return #err("Insufficient balance");
@@ -195,7 +195,7 @@ module {
             #ok();
         };
 
-        public func icrc55_create_node(caller : Account, req : ICRC55.NodeRequest, custom : XCreateRequest) : CreateNodeResp<XShared> {
+        public func icrc55_create_node(caller : Account, req : ICRC55.CommonCreateRequest, custom : XCreateRequest) : CreateNodeResp<XShared> {
             let ?thiscanister = mem.thiscan else return #err("This canister not set");
             // TODO: Limit tempory node creation per hour (against DoS)
 
@@ -351,7 +351,7 @@ module {
 
 
     
-        private func node_create(req : ICRC55.NodeRequest, creq : XCreateRequest, id : NodeId, thiscan : Principal) : Result.Result<NodeMem, Text> {
+        private func node_create(req : ICRC55.CommonCreateRequest, creq : XCreateRequest, id : NodeId, thiscan : Principal) : Result.Result<NodeMem, Text> {
 
             let module_id = switch(vmod.create(id, creq)) {
                 case (#ok(x)) x;
@@ -388,7 +388,7 @@ module {
             #ok(node);
         };
 
-        private func portMapSources(ledgers : [Principal], id : NodeId, v_m : ModuleId, thiscan : Principal, sourcesProvided : [ICRC55.Endpoint]) : Result.Result<[EndpointStored], Text> {
+        private func portMapSources(ledgers : [Principal], id : NodeId, v_m : ModuleId, thiscan : Principal, sourcesProvided : [?ICRC55.Address]) : Result.Result<[EndpointStored], Text> {
 
             // Sources
             let s_res = core.sourceMap(ledgers, id, thiscan, sourcesProvided, vmod.sources(v_m, id));
@@ -402,7 +402,7 @@ module {
         };
 
 
-        private func portMapDestinations(ledgers : [Principal], id : NodeId, v_m : ModuleId, destinationsProvided : [ICRC55.EndpointOpt]) : Result.Result<[EndpointOptStored], Text> {
+        private func portMapDestinations(ledgers : [Principal], id : NodeId, v_m : ModuleId, destinationsProvided : [?ICRC55.Address]) : Result.Result<[EndpointOptStored], Text> {
 
             // Destinations
             let d_res = core.destinationMap(ledgers, destinationsProvided, vmod.destinations(v_m, id));

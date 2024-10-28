@@ -6,14 +6,15 @@ import { IDL } from '@dfinity/candid';
 import {
     _SERVICE as PylonService, idlFactory as PylonIdlFactory, init as PylonInit,
     LocalNodeId as NodeId,
-    NodeRequest,
+    CommonCreateRequest,
     CreateRequest,
     GetNodeResponse,
     CommandResponse,
     NodeShared,
     PylonMetaResp,
     VirtualBalancesResponse,
-    BatchCommandResponse
+    BatchCommandResponse,
+    Address
 } from './build/basic.idl.js';
 
 import { ICRCLedgerService, ICRCLedger } from "./icrc_ledger/ledgerCanister";
@@ -251,14 +252,16 @@ export function createNodeUtils({
         },
         async createNode(creq: CreateRequest, ledgers_idx:number[] = [0]): Promise<GetNodeResponse> {
             
-            let req: NodeRequest = {
+            let req: CommonCreateRequest = {
                 controllers: [{owner:user, subaccount:[]}],
                 destinations: [],
                 refund: this.getRefundAccount(),
                 ledgers: ledgers_idx.map(idx => ({ic : ledgers[idx].id})),
                 sources: [],
                 extractors: [],
-                affiliate: [this.getAffiliateAccount()]
+                affiliate: [this.getAffiliateAccount()],
+                temporary: true,
+                temp_id: 0
             };
 
             let resp = await pylon.icrc55_command({
@@ -332,7 +335,7 @@ export function createNodeUtils({
                 commands:[{delete_node: nodeId}]
             });
         },
-        async sourceTransfer(nodeId : NodeId, source_port: number, amount: bigint, to: Account, to_ledger: number = 0): Promise<BatchCommandResponse> {
+        async sourceTransfer(nodeId : NodeId, source_idx: number, amount: bigint, to: Account, to_ledger: number = 0): Promise<BatchCommandResponse> {
             let ledgerCanisterId = ledgers[to_ledger].id;
             return await pylon.icrc55_command({
                 expire_at : [],
@@ -340,14 +343,27 @@ export function createNodeUtils({
                 controller : {owner:user, subaccount:[]},
                 signature : [],
                 commands:[{
-                source_transfer: {id:nodeId, source_port, amount, to:{ic:{ ledger:ledgerCanisterId, account:to}}}
+                source_transfer: {id:nodeId, source_idx, amount, to:{ic:{ ledger:ledgerCanisterId, account:to}}}
             }]});
         },
         async setDestination(nodeId: NodeId, port: number, account: Account, ledger_idx : number = 0): Promise<BatchCommandResponse> {
             let ledgerCanisterId = ledgers[ledger_idx].id;
             let node = await this.getNode(nodeId);
-            let destinations = node.destinations.map(x => x.endpoint);
-            destinations[port] = { ic: { ledger: ledgerCanisterId, account: [account] } };
+            
+            let destinations: ([Address] | [])[] = node.destinations.map(x => {
+                if ('ic' in x.endpoint) {
+                  const account = x.endpoint.ic.account[0];
+                  if (account === undefined) {
+                    return []; 
+                  }
+                  return [{ ic: account }];
+                } else {
+                  throw new Error("Endpoint not supported");
+                }
+              });
+   
+              
+            destinations[port] = [{ ic: account }];
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
@@ -367,15 +383,27 @@ export function createNodeUtils({
         async setSource(nodeId: NodeId, port: number, account: Account, ledger_idx : number = 0): Promise<BatchCommandResponse> {
             let ledgerCanisterId = ledgers[ledger_idx].id;
             let node = await this.getNode(nodeId);
-            let sources = node.sources.map(x=> x.endpoint);
-            sources[port] = { ic: { ledger: ledgerCanisterId, account: account } };
+            
+            
+            let sources : [Address][] = node.sources.map(x => {
+                if ('ic' in x.endpoint) {
+                  // Now TypeScript knows that x.endpoint has the type { ic: { account: string } }
+                  return [{ ic: x.endpoint.ic.account }];
+                } else {
+                  // TypeScript knows that x.endpoint has the type { other: EndpointOther }
+                  // You can handle the 'other' case here if needed
+                  throw new Error("Endpoint not supported");
+                }
+              });
+
+              sources[port] = [{ ic: account }];
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
                 controller : {owner:user, subaccount:[]},
                 signature : [],
                 commands:[{
-                modify_node: [nodeId, [{ 
+                modify_node: [nodeId, [{
                     destinations : [],
                     refund: [],
                     sources: [sources],
