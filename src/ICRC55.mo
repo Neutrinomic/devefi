@@ -15,7 +15,7 @@ module {
     };
     public type LedgerIdx = Nat;
     public type LedgerLabel = Text;
-    public type PortsDescription = [(LedgerIdx, LedgerLabel)];
+    public type EndpointsDescription = [(LedgerIdx, LedgerLabel)];
     public type Version = {#release:[Nat16]; #beta:[Nat16]; #alpha:[Nat16]}; // Always 3 items. Ex: [0,1,23]
     public type NodeMeta = {
         id : Text;
@@ -27,8 +27,8 @@ module {
         version: Version;
         create_allowed: Bool;
         ledger_slots : [Text];
-        sources: PortsDescription;
-        destinations: PortsDescription;
+        sources: EndpointsDescription;
+        destinations: EndpointsDescription;
         author_account: Account;
     };
 
@@ -109,6 +109,13 @@ module {
     public type EndpointOther = Endpoint.Other.Ledger and Endpoint.Other.WithAccount;
   
 
+    //-- 
+
+    public type Address = {
+        #ic : Account;
+        #other : Blob;
+        #temp : {id: Nat32; source_idx: EndpointIdx}
+    };
 
 
     public type Billing = { // The billing parameters need to make sure author, pylon and affiliate get paid.
@@ -176,19 +183,21 @@ module {
     };
 
 
-    public type NodeRequest = {
-        sources:[Endpoint];
+    public type CommonCreateRequest = {
+        sources:[?Address];
         extractors: [LocalNodeId];
-        destinations: [EndpointOpt];
+        destinations: [?Address];
         ledgers: [SupportedLedger];
         refund: Account;
         controllers : [Controller];
         affiliate: ?Account;
+        temporary: Bool;
+        temp_id: Nat32;
     };
 
     public type CommonModRequest = {
-        sources: ?[Endpoint];
-        destinations : ?[EndpointOpt];
+        sources: ?[?Address];
+        destinations : ?[?Address];
         extractors : ?[LocalNodeId];
         refund: ?Account;
         controllers : ?[Controller];
@@ -200,19 +209,19 @@ module {
         #err : Text;
     };
 
-    public type CreateNodeRequest<A> = (NodeRequest, A);
+    public type CreateNodeRequest<A> = (CommonCreateRequest, A);
     public type ModifyNodeRequest<A> = (LocalNodeId, ?CommonModRequest, ?A);
     public type ModifyNodeResponse<A> = {
         #ok : GetNodeResponse<A>;
         #err : Text;
     };
 
-    public type Port = Nat8;
+    public type EndpointIdx = Nat8;
 
 
     public type SourceTransferRequest = {
         id : LocalNodeId;
-        source_port : Port;
+        source_idx : EndpointIdx;
         to: Endpoint;
         amount: Nat;
     };

@@ -56,7 +56,8 @@
       "strictPropertyInitialization": false,
       // Some stricter flags
       "useUnknownInCatchVariables": true,
-      "noPropertyAccessFromIndexSignature": true
+      "noPropertyAccessFromIndexSignature": true,
+
     },
     "include": [
       "**/*.spec.ts", //ILDE

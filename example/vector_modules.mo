@@ -107,7 +107,7 @@ module {
         };
 
 
-        public func sources(mid :Core.ModuleId, id : Core.NodeId) : Core.PortsDescription {
+        public func sources(mid :Core.ModuleId, id : Core.NodeId) : Core.EndpointsDescription {
             if (mid == ThrottleVector.ID) return m.vec_throttle.sources(id);
             if (mid == Lend.ID) return m.vec_lend.sources(id);
             if (mid == Borrow.ID) return m.vec_borrow.sources(id);
@@ -118,7 +118,7 @@ module {
             
         };
 
-        public func destinations(mid :Core.ModuleId, id : Core.NodeId) : Core.PortsDescription {
+        public func destinations(mid :Core.ModuleId, id : Core.NodeId) : Core.EndpointsDescription {
             if (mid == ThrottleVector.ID) return m.vec_throttle.destinations(id);
             if (mid == Lend.ID) return m.vec_lend.destinations(id);
             if (mid == Borrow.ID) return m.vec_borrow.destinations(id);

@@ -151,11 +151,11 @@ module {
         };
     };
 
-    public func sources(_id : Sys.NodeId) : Sys.PortsDescription {
+    public func sources(_id : Sys.NodeId) : Sys.EndpointsDescription {
         [(0, "")];
     };
 
-    public func destinations(id : Sys.NodeId) : Sys.PortsDescription {
+    public func destinations(id : Sys.NodeId) : Sys.EndpointsDescription {
         let ?t = Map.get(mem.main, Map.n32hash, id) else return [];
 
         Array.tabulate<(Nat, Text)>(

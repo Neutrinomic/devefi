@@ -70,7 +70,7 @@ describe('Withdraw', () => {
     let resp = await d.u.sourceTransfer(3, 0, 100_0000n, d.u.userSubaccount(10));
 
     //@ts-ignore
-    expect(resp.ok.commands[0].source_transfer.err).toBe('Node not found');
+    expect(resp.ok.commands[0].source_transfer?.err).toBe('Node not found');
   });
 
   it(`Withdraw non existing source port`, async () => {

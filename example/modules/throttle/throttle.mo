@@ -54,8 +54,6 @@ module {
             };
         };
 
-  
-
         public func run(id:Sys.NodeId, vec:Core.NodeMem) {
             let ?th = Map.get(mem.main, Map.n32hash, id) else return;
             let ?source = core.getSource(id, vec, 0) else return;
@@ -113,7 +111,6 @@ module {
             };
         };
 
-        // How does the modify request change memory
         public func modify(id : Sys.NodeId, m : VM.ModifyRequest) : Result.Result<(), Text> {
             let ?t = Map.get(mem.main, Map.n32hash, id) else return #err("Not found");
 
@@ -123,7 +120,6 @@ module {
             #ok();
         };
 
-        // Convert memory to shared
         public func toShared(id : Sys.NodeId) : Result.Result<VM.Shared, Text> {
             let ?t = Map.get(mem.main, Map.n32hash, id) else return #err("Not found");
 
@@ -139,11 +135,11 @@ module {
             };
         };
 
-        public func sources(_id : Sys.NodeId) : Sys.PortsDescription {
+        public func sources(_id : Sys.NodeId) : Sys.EndpointsDescription {
             [(0, "")];
         };
 
-        public func destinations(_id : Sys.NodeId) : Sys.PortsDescription {
+        public func destinations(_id : Sys.NodeId) : Sys.EndpointsDescription {
             [(0, "")];
         };
 

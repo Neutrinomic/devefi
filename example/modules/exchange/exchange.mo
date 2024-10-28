@@ -99,11 +99,11 @@ module {
             };
         };
 
-        public func sources(_id: Sys.NodeId) : Sys.PortsDescription {
+        public func sources(_id: Sys.NodeId) : Sys.EndpointsDescription {
             [(0, "From")];
         };
 
-        public func destinations(_id: Sys.NodeId) : Sys.PortsDescription {
+        public func destinations(_id: Sys.NodeId) : Sys.EndpointsDescription {
             [(1, "To")];
         };
 

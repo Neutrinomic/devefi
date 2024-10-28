@@ -52,7 +52,7 @@ module {
     };
 
     public type LedgerIdx = Nat;
-    public type PortsDescription = ICRC55.PortsDescription;
+    public type EndpointsDescription = ICRC55.EndpointsDescription;
 
 
     public type EndpointStored = {

@@ -12,6 +12,7 @@ import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
 import I "mo:itertools/Iter";
 import Array "mo:base/Array";
+import Option "mo:base/Option";
 
 module {
 
@@ -70,21 +71,24 @@ module {
         Nat64.fromNat(Int.abs(Time.now()));
     };
 
-    public func expectSourceAccount(expected_ledger : Principal, can : Principal, req : [ICRC55.Endpoint], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
+    public func expectSourceAccount(can : Principal, req : [?ICRC55.Address], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
         if (req.size() <= idx) return #ok(null);
-
-        let #ic(x) = req[idx] else return #err;
-        if (x.ledger != expected_ledger) return #err;
-        if (x.account.owner != can) return #err;
-        #ok(?x.account);
+        if (Option.isNull(req[idx])) return #ok(null);
+        ignore do ? {
+            let #ic(x) = req[idx]! else return #err;
+            ignore do ? {if (x.owner != can) return #err;};
+            return #ok(?x);    
+        };
+        #ok(null);
     };
 
-    public func expectDestinationAccount(expected_ledger : Principal, req : [ICRC55.EndpointOpt], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
+    public func expectDestinationAccount(req : [?ICRC55.Address], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
         if (req.size() <= idx) return #ok(null);
-
-        let #ic(x) = req[idx] else return #err;
-        if (x.ledger != expected_ledger) return #err;
-        #ok(x.account);
+        ignore do ? {
+        let #ic(x) = req[idx]! else return #err;
+        return #ok(?x);
+        };
+        return #ok(null);
     };
 
     public func ok_or_trap<X,A>(x : Result.Result<X,A>) : X {

@@ -41,7 +41,7 @@ module {
     public type Port = VM.Port;
     public type PortInfo = VM.PortInfo;
     public type LedgerIdx = VM.LedgerIdx;
-    public type PortsDescription = VM.PortsDescription;
+    public type EndpointsDescription = VM.EndpointsDescription;
     public type Endpoint = VM.Endpoint;
     public type EndpointOpt = VM.EndpointOpt;
     public type NodeId = VM.NodeId;
@@ -60,8 +60,8 @@ module {
         defaults : () -> CreateRequest;
         toShared : (NodeId) -> R<Shared, Text>;
         modify : (NodeId, ModifyRequest) -> Result.Result<(), Text>;
-        sources : (NodeId) -> PortsDescription;
-        destinations : (NodeId) -> PortsDescription;
+        sources : (NodeId) -> EndpointsDescription;
+        destinations : (NodeId) -> EndpointsDescription;
     };
 
     public type SETTINGS = {
@@ -322,12 +322,12 @@ module {
             return #ok({ mine = true; allowed = true });
         };
 
-        public func sourceMap(ledgers : [Principal], id : NodeId, thiscan : Principal, sources : [ICRC55.Endpoint], portdesc : PortsDescription) : Result.Result<[EndpointStored], Text> {
+        public func sourceMap(ledgers : [Principal], id : NodeId, thiscan : Principal, sources : [?ICRC55.Address], portdesc : EndpointsDescription) : Result.Result<[EndpointStored], Text> {
 
             let accounts = switch (
                 U.all_or_error<(Nat, Text), ?Account, ()>(
                     portdesc,
-                    func(port, idx) = U.expectSourceAccount(ledgers[port.0], thiscan, sources, idx),
+                    func(port, idx) = U.expectSourceAccount(thiscan, sources, idx),
                 )
             ) {
                 case (#err) return #err("Invalid account");
@@ -361,11 +361,11 @@ module {
 
         };
 
-        public func destinationMap(ledgers : [Principal], destinations : [ICRC55.EndpointOpt], portdesc : PortsDescription) : Result.Result<[EndpointOptStored], Text> {
+        public func destinationMap(ledgers : [Principal], destinations : [?ICRC55.Address], portdesc : EndpointsDescription) : Result.Result<[EndpointOptStored], Text> {
             let accounts = switch (
                 U.all_or_error<(Nat, Text), ?Account, ()>(
                     portdesc,
-                    func(port, idx) = U.expectDestinationAccount(ledgers[port.0], destinations, idx),
+                    func(port, idx) = U.expectDestinationAccount(destinations, idx),
                 )
             ) {
                 case (#err) return #err("Invalid account");
