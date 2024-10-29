@@ -12,6 +12,7 @@ module {
             expire_sec: Nat64;
         };
         supported_ledgers : [SupportedLedger];
+        billing: BillingPylon;
     };
     public type LedgerIdx = Nat;
     public type LedgerLabel = Text;
@@ -117,22 +118,21 @@ module {
         #temp : {id: Nat32; source_idx: EndpointIdx}
     };
 
-
-    public type Billing = { // The billing parameters need to make sure author, pylon and affiliate get paid.
+    public type BillingPylon = {
         ledger : Principal;
         min_create_balance : Nat; // Min balance required to create a node
         freezing_threshold_days: Nat; // Min days left to freeze the node if it has insufficient balance. Frozen nodes can't do transactions, but can be modified or deleted
-
-        cost_per_day: Nat; // Split to all
         exempt_daily_cost_balance: ?Nat; // Balance threshold that exempts from cost per day deduction
-
         operation_cost: Nat; // Cost incurred per operation (Ex: modify, withdraw). Has to be at least 4 * ledger fee. Paid to the pylon only since the costs are incurred by the pylon
+        split: BillingFeeSplit;
+    };
+
+    public type Billing = { // The billing parameters need to make sure author, pylon and affiliate get paid.
+        cost_per_day: Nat; // Split to all
 
         // Transaction fees apply only to transactions sent to destination addresses
         // These are split to all
         transaction_fee: BillingTransactionFee;
-
-        split: BillingFeeSplit;
     };
 
     public type BillingTransactionFee = { 
@@ -142,6 +142,7 @@ module {
         };
 
     public type BillingFeeSplit = { /// Ratios, their sum has to be 1000
+        platform : Nat;
         pylon : Nat; 
         author : Nat; 
         affiliate: Nat; 

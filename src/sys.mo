@@ -125,7 +125,7 @@ module {
             let billing = vec.meta.billing;
 
             let caller_subaccount = ?Principal.toLedgerAccount(caller.owner, caller.subaccount);
-            let caller_balance = dvf.balance(billing.ledger, caller_subaccount);
+            let caller_balance = dvf.balance(core.pylon_billing.ledger, caller_subaccount);
 
             let payment_account = U.port2subaccount({
                 vid;
@@ -137,7 +137,7 @@ module {
             let ?thiscanister = mem.thiscan else return #err("This canister not set");
 
             ignore dvf.send({
-                ledger = billing.ledger;
+                ledger = core.pylon_billing.ledger;
                 to = {
                     owner = thiscanister;
                     subaccount = ?payment_account;
@@ -213,9 +213,9 @@ module {
             let billing = node.meta.billing;
 
             let caller_subaccount = ?Principal.toLedgerAccount(caller.owner, caller.subaccount);
-            let caller_balance = dvf.balance(billing.ledger, caller_subaccount);
+            let caller_balance = dvf.balance(core.pylon_billing.ledger, caller_subaccount);
             var paid = false;
-            let payment_amount = billing.min_create_balance;
+            let payment_amount = core.pylon_billing.min_create_balance;
             if (caller_balance >= payment_amount) {
                 let node_payment_account = U.port2subaccount({
                     vid = id;
@@ -223,7 +223,7 @@ module {
                     id = 0;
                 });
                 ignore dvf.send({
-                    ledger = billing.ledger;
+                    ledger = core.pylon_billing.ledger;
                     to = {
                         owner = thiscanister;
                         subaccount = ?node_payment_account;
@@ -274,6 +274,7 @@ module {
                 };
                 create_allowed = true;
                 supported_ledgers = core.get_supported_ledgers();
+                billing = core.pylon_billing;
             };
         };
     
@@ -298,7 +299,7 @@ module {
                             flow = #payment;
                             id = 0;
                         });
-            let current_billing_balance = dvf.balance(billing.ledger, billing_subaccount);
+            let current_billing_balance = dvf.balance(core.pylon_billing.ledger, billing_subaccount);
             {
                 id = vid;
                 custom = ?U.ok_or_trap(vmod.toShared(vec.module_id, vid));
