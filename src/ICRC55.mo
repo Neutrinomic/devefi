@@ -225,7 +225,7 @@ module {
     public type SourceTransferRequest = {
         id : LocalNodeId;
         source_idx : EndpointIdx;
-        to: Endpoint;
+        to: Address;
         amount: Nat;
     };
     public type SourceTransferResponse = {

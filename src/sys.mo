@@ -187,7 +187,7 @@ module {
             if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
 
             let ?source = core.getSource(vid, vec, Nat8.toNat(req.source_idx)) else return #err("Source not found");
-            let acc = U.onlyIC(req.to).account;
+            let #ic(acc) = req.to else return #err("Ledger not supported");
             let bal = source.balance();
             if (req.amount > bal) return #err("Insufficient balance");
             ignore source.send(#external_account(acc), req.amount);

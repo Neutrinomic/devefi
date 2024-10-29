@@ -343,7 +343,7 @@ export function createNodeUtils({
                 controller : {owner:user, subaccount:[]},
                 signature : [],
                 commands:[{
-                source_transfer: {id:nodeId, source_idx, amount, to:{ic:{ ledger:ledgerCanisterId, account:to}}}
+                source_transfer: {id:nodeId, source_idx, amount, to:{ic:to}}
             }]});
         },
         async setDestination(nodeId: NodeId, port: number, account: Account, ledger_idx : number = 0): Promise<BatchCommandResponse> {
