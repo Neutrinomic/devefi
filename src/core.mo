@@ -435,10 +435,6 @@ module {
 
                 let current_billing_balance = dvf.balance(pylon_billing.ledger, billing_subaccount);
 
-                ignore do ? {
-                    if (pylon_billing.exempt_daily_cost_balance! < current_billing_balance) continue vloop;
-                };
-
                 var fee_to_charge = ((billing.cost_per_day * (now - Nat64.toNat(vec.billing.last_billed) : Nat)) / (60 * 60 * 24)) / 1_000_000_000;
 
                 if (current_billing_balance < fee_to_charge) {
