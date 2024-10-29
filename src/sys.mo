@@ -264,6 +264,7 @@ module {
         };
 
         public func icrc55_get_pylon_meta() : ICRC55.PylonMetaResp {
+            let ?pylon_account = core._settings.PYLON_FEE_ACCOUNT else Debug.trap("Pylon account not set");
             {
                 name = core._settings.PYLON_NAME;
                 governed_by = core._settings.PYLON_GOVERNED_BY;
@@ -275,6 +276,8 @@ module {
                 create_allowed = true;
                 supported_ledgers = core.get_supported_ledgers();
                 billing = core.pylon_billing;
+                pylon_account;
+                platform_account = core.platform_account;
             };
         };
     
