@@ -93,9 +93,9 @@ describe('Billing', () => {
       },
     });
 
-    
+    let pmeta = await d.u.getPylonMeta();
     expect(node.billing.expires[0]).not.toBeDefined();
-    expect(node.billing.current_balance).toBe(node.billing.min_create_balance - d.ledgers[0].fee);
+    expect(node.billing.current_balance).toBe(pmeta.billing.min_create_balance - d.ledgers[0].fee);
     expect(node.id).toBe(2);
   });
 
@@ -104,7 +104,10 @@ describe('Billing', () => {
 
     let days_to_exp = node.billing.current_balance / node.billing.cost_per_day ;
 
-    let days_to_freeze = days_to_exp - node.billing.freezing_threshold_days + 0n;
+    let pmeta = await d.u.getPylonMeta();
+
+
+    let days_to_freeze = days_to_exp - pmeta.billing.freezing_threshold_days + 0n;
 
     expect(node.billing.frozen).toBe(false);
     expect(node.billing.expires[0]).not.toBeDefined();

@@ -70,7 +70,9 @@ module {
         PYLON_GOVERNED_BY : Text;
         PYLON_NAME : Text;
         PYLON_FEE_ACCOUNT : ?Account;
-        MAX_INSTRUCTIONS_PER_HEARTBEAT : Nat64; // 2 billion is max on the IC, double check
+        MAX_INSTRUCTIONS_PER_HEARTBEAT : Nat64; // 2 billion is max on the IC, double check;
+        BILLING : ?ICRC55.BillingPylon;
+        PLATFORM_ACCOUNT : ?Account;
     };
 
     public let DEFAULT_SETTINGS : SETTINGS = {
@@ -80,6 +82,8 @@ module {
         PYLON_NAME = "Testing Pylon";
         MAX_INSTRUCTIONS_PER_HEARTBEAT = 300_000_000;
         PYLON_FEE_ACCOUNT = null;
+        BILLING = null;
+        PLATFORM_ACCOUNT = null;
     };
 
     public class Mod<system>({
@@ -87,6 +91,31 @@ module {
         dvf : DeVeFi.DeVeFi;
         xmem : MU.MemShell<Mem>;
     }) {
+
+        public let pylon_billing : ICRC55.BillingPylon = switch(settings.BILLING) {
+            case (null) {
+                {
+                ledger = Principal.fromText("lxzze-o7777-77777-aaaaa-cai"); //f54if-eqaaa-aaaaq-aacea-cai
+                min_create_balance = 3000000;
+                operation_cost = 1000;
+                freezing_threshold_days = 10;
+                exempt_daily_cost_balance = null;
+                split = {
+                    platform = 200;
+                    pylon = 200; 
+                    author = 400;
+                    affiliate = 200;
+                }}};
+            case (?x) x;
+        };
+
+        public let platformAccount : Account = switch(settings.PLATFORM_ACCOUNT) {
+            case (null) {{
+                owner = Principal.fromText("eqsml-lyaaa-aaaaq-aacdq-cai");
+                subaccount = null;
+            }};
+            case (?x) x;
+        };
 
         public let _settings = settings;
         let mem = MU.access(xmem);
@@ -135,8 +164,8 @@ module {
         public func chargeOpCost(vid : NodeId, vec : NodeMem, number_of_fees : Nat) : () {
             let ?pylonAccount = mem.pylon_fee_account else Debug.trap("Pylon account not set");
             let billing = vec.meta.billing;
-            let fee_to_charge = billing.operation_cost * number_of_fees;
-            let ?virtual = dvf.get_virtual(billing.ledger) else Debug.trap("Virtual ledger not found");
+            let fee_to_charge = pylon_billing.operation_cost * number_of_fees;
+            let ?virtual = dvf.get_virtual(pylon_billing.ledger) else Debug.trap("Virtual ledger not found");
             let billing_subaccount = ?U.port2subaccount({
                 vid;
                 flow = #payment;
@@ -200,12 +229,12 @@ module {
                     id = 0;
                 });
 
-                let bal = dvf.balance(billing.ledger, ?from_subaccount);
+                let bal = dvf.balance(pylon_billing.ledger, ?from_subaccount);
                 if (bal > 0) {
                     label refund_payment do {
 
                         ignore dvf.send({
-                            ledger = billing.ledger;
+                            ledger = pylon_billing.ledger;
                             to = refund_acc;
                             amount = bal;
                             memo = null;
@@ -403,10 +432,10 @@ module {
                     id = 0;
                 });
 
-                let current_billing_balance = dvf.balance(billing.ledger, billing_subaccount);
+                let current_billing_balance = dvf.balance(pylon_billing.ledger, billing_subaccount);
 
                 ignore do ? {
-                    if (billing.exempt_daily_cost_balance! < current_billing_balance) continue vloop;
+                    if (pylon_billing.exempt_daily_cost_balance! < current_billing_balance) continue vloop;
                 };
 
                 var fee_to_charge = ((billing.cost_per_day * (now - Nat64.toNat(vec.billing.last_billed) : Nat)) / (60 * 60 * 24)) / 1_000_000_000;
@@ -418,29 +447,34 @@ module {
 
                 // Freeze nodes if bellow threshold
                 let days_left = (current_billing_balance - fee_to_charge : Nat) / billing.cost_per_day;
-                if (days_left <= billing.freezing_threshold_days) {
+                if (days_left <= pylon_billing.freezing_threshold_days) {
                     vec.billing.frozen := true;
                 };
 
                 if (fee_to_charge > 0) {
-                    let ?virtual = dvf.get_virtual(billing.ledger) else Debug.trap("Virtual account not found");
-
+                    let ?virtual = dvf.get_virtual(pylon_billing.ledger) else Debug.trap("Virtual account not found");
+                    ignore virtual.send({
+                        to = platformAccount;
+                        amount = fee_to_charge * pylon_billing.split.platform / 1000;
+                        memo = null;
+                        from_subaccount = billing_subaccount;
+                    });
                     ignore virtual.send({
                         to = vec.meta.author_account;
-                        amount = fee_to_charge * billing.split.author / 1000;
+                        amount = fee_to_charge * pylon_billing.split.author / 1000;
                         memo = null;
                         from_subaccount = billing_subaccount;
                     });
                     ignore virtual.send({
                         to = pylonAccount;
-                        amount = fee_to_charge * billing.split.pylon / 1000;
+                        amount = fee_to_charge * pylon_billing.split.pylon / 1000;
                         memo = null;
                         from_subaccount = billing_subaccount;
                     });
                     ignore do ? {
                         ignore virtual.send({
                             to = get_virtual_account(vec.affiliate!);
-                            amount = fee_to_charge * billing.split.affiliate / 1000;
+                            amount = fee_to_charge * pylon_billing.split.affiliate / 1000;
                             memo = null;
                             from_subaccount = billing_subaccount;
                         });
@@ -536,7 +570,7 @@ module {
                 if (tx_fee + ledger_fee >= amount) return #err(#InsufficientFunds);
                 let amount_to_send = amount - tx_fee : Nat;
 
-                let ?virtual = dvf.get_virtual(billing.ledger) else Debug.trap("Virtual account not found");
+                let ?virtual = dvf.get_virtual(pylon_billing.ledger) else Debug.trap("Virtual account not found");
 
                 if (tx_fee > 0) {
                     let billing_subaccount = ?U.port2subaccount({
@@ -546,21 +580,27 @@ module {
                     });
 
                     ignore virtual.send({
+                        to = platformAccount;
+                        amount = tx_fee * pylon_billing.split.platform / 1000;
+                        memo = null;
+                        from_subaccount = billing_subaccount;
+                    });
+                    ignore virtual.send({
                         to = cls.vec.meta.author_account;
-                        amount = tx_fee * billing.split.author / 1000;
+                        amount = tx_fee * pylon_billing.split.author / 1000;
                         memo = null;
                         from_subaccount = billing_subaccount;
                     });
                     ignore virtual.send({
                         to = pylonAccount;
-                        amount = tx_fee * billing.split.pylon / 1000;
+                        amount = tx_fee * pylon_billing.split.pylon / 1000;
                         memo = null;
                         from_subaccount = billing_subaccount;
                     });
                     ignore do ? {
                         ignore virtual.send({
                             to = get_virtual_account(cls.vec.affiliate!);
-                            amount = tx_fee * billing.split.affiliate / 1000;
+                            amount = tx_fee * pylon_billing.split.affiliate / 1000;
                             memo = null;
                             from_subaccount = billing_subaccount;
                         });
@@ -616,7 +656,7 @@ module {
                         });
 
                         let bal = dvf.balance(r.ledger, ?from_subaccount);
-                        if (bal >= billing.min_create_balance) {
+                        if (bal >= pylon_billing.min_create_balance) {
                             rvec.billing.expires := null;
                         };
 
