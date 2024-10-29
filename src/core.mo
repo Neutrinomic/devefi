@@ -109,7 +109,7 @@ module {
             case (?x) x;
         };
 
-        public let platformAccount : Account = switch(settings.PLATFORM_ACCOUNT) {
+        public let platform_account : Account = switch(settings.PLATFORM_ACCOUNT) {
             case (null) {{
                 owner = Principal.fromText("eqsml-lyaaa-aaaaq-aacdq-cai");
                 subaccount = null;
@@ -130,8 +130,9 @@ module {
                     let ?v = Map.get(mem.nodes, Map.n32hash, id) else return null;
                     (v, id);
                 };
-                case (#subaccount(subaccount)) {
-                    let ?port = U.subaccount2port(subaccount) else return null;
+                case (#endpoint(ep)) {
+                    let ic_ep = U.onlyIC(ep);
+                    let ?port = U.subaccount2port(ic_ep.account.subaccount) else return null;
                     let ?v = Map.get(mem.nodes, Map.n32hash, port.vid) else return null;
                     (v, port.vid);
                 };
@@ -454,7 +455,7 @@ module {
                 if (fee_to_charge > 0) {
                     let ?virtual = dvf.get_virtual(pylon_billing.ledger) else Debug.trap("Virtual account not found");
                     ignore virtual.send({
-                        to = platformAccount;
+                        to = platform_account;
                         amount = fee_to_charge * pylon_billing.split.platform / 1000;
                         memo = null;
                         from_subaccount = billing_subaccount;
@@ -580,7 +581,7 @@ module {
                     });
 
                     ignore virtual.send({
-                        to = platformAccount;
+                        to = platform_account;
                         amount = tx_fee * pylon_billing.split.platform / 1000;
                         memo = null;
                         from_subaccount = billing_subaccount;

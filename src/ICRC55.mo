@@ -13,6 +13,8 @@ module {
         };
         supported_ledgers : [SupportedLedger];
         billing: BillingPylon;
+        platform_account : Account;
+        pylon_account: Account;
     };
     public type LedgerIdx = Nat;
     public type LedgerLabel = Text;
@@ -43,7 +45,7 @@ module {
 
     public type GetNode = {
         #id : LocalNodeId;
-        #subaccount : ?Blob;
+        #endpoint : Endpoint;
     };
 
     public type Account = {
@@ -127,6 +129,13 @@ module {
         split: BillingFeeSplit;
     };
 
+    public type BillingFeeSplit = { /// Ratios, their sum has to be 1000
+        platform : Nat;
+        pylon : Nat; 
+        author : Nat; 
+        affiliate: Nat; 
+    };
+
     public type Billing = { // The billing parameters need to make sure author, pylon and affiliate get paid.
         cost_per_day: Nat; // Split to all
 
@@ -136,16 +145,9 @@ module {
     };
 
     public type BillingTransactionFee = { 
-            #none;
-            #flat_fee_multiplier: Nat; // On top of that the pylon always gets 1 fee for virtual transfers and 4 fees for external transfers to cover its costs
-            #transaction_percentage_fee: Nat // 8 decimal places
-        };
-
-    public type BillingFeeSplit = { /// Ratios, their sum has to be 1000
-        platform : Nat;
-        pylon : Nat; 
-        author : Nat; 
-        affiliate: Nat; 
+        #none;
+        #flat_fee_multiplier: Nat; // On top of that the pylon always gets 1 fee for virtual transfers and 4 fees for external transfers to cover its costs
+        #transaction_percentage_fee: Nat // 8 decimal places
     };
 
     public type BillingInternal = {
