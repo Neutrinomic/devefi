@@ -55,7 +55,7 @@ module {
     public type SourceSendErr = ICRCLedger.SendError or { #AccountNotSet };
 
     public type VectorClass<Mem, CreateRequest, ModifyRequest, Shared> = {
-        meta : () -> ICRC55.NodeMeta;
+        meta : () -> ICRC55.ModuleMeta;
         create : (NodeId, CreateRequest) -> Result.Result<ModuleId, Text>;
         defaults : () -> CreateRequest;
         toShared : (NodeId) -> R<Shared, Text>;
@@ -73,6 +73,7 @@ module {
         MAX_INSTRUCTIONS_PER_HEARTBEAT : Nat64; // 2 billion is max on the IC, double check;
         BILLING : ?ICRC55.BillingPylon;
         PLATFORM_ACCOUNT : ?Account;
+        REQUEST_MAX_EXPIRE_SEC : Nat64;
     };
 
     public let DEFAULT_SETTINGS : SETTINGS = {
@@ -84,6 +85,7 @@ module {
         PYLON_FEE_ACCOUNT = null;
         BILLING = null;
         PLATFORM_ACCOUNT = null;
+        REQUEST_MAX_EXPIRE_SEC = 3600;
     };
 
     public class Mod<system>({
@@ -352,7 +354,7 @@ module {
             return #ok({ mine = true; allowed = true });
         };
 
-        public func sourceMap(ledgers : [Principal], id : NodeId, thiscan : Principal, sources : [?ICRC55.Address], portdesc : EndpointsDescription) : Result.Result<[EndpointStored], Text> {
+        public func sourceMap(ledgers : [Principal], id : NodeId, thiscan : Principal, sources : [?ICRC55.InputAddress], portdesc : EndpointsDescription) : Result.Result<[EndpointStored], Text> {
 
             let accounts = switch (
                 U.all_or_error<(Nat, Text), ?Account, ()>(
@@ -391,7 +393,7 @@ module {
 
         };
 
-        public func destinationMap(ledgers : [Principal], destinations : [?ICRC55.Address], portdesc : EndpointsDescription) : Result.Result<[EndpointOptStored], Text> {
+        public func destinationMap(ledgers : [Principal], destinations : [?ICRC55.InputAddress], portdesc : EndpointsDescription) : Result.Result<[EndpointOptStored], Text> {
             let accounts = switch (
                 U.all_or_error<(Nat, Text), ?Account, ()>(
                     portdesc,

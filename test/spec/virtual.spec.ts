@@ -47,7 +47,7 @@ describe('Virtual', () => {
     let resp = await d.u.virtualTransfer(d.u.mainAccount(), d.u.mainAccount(), 5000_0000n);
 
     //@ts-ignore
-    expect(resp.ok.commands[0].virtual_transfer.ok).toBeDefined();
+    expect(resp.ok.commands[0].transfer.ok).toBeDefined();
     await d.passTime(5);
 
     let virtual = await d.u.virtualBalances( d.u.mainAccount() );

@@ -68,7 +68,7 @@ describe('Delete', () => {
     let resp = await d.u.virtualTransfer(refund_account, d.u.mainAccount(), refund_bal);
 
     //@ts-ignore
-    expect(resp.ok.commands[0].virtual_transfer.ok).toBeDefined();
+    expect(resp.ok.commands[0].transfer.ok).toBeDefined();
   });
 
   it(`Check refunding of node billing account after deletion`, async () => {

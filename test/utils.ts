@@ -14,7 +14,7 @@ import {
     PylonMetaResp,
     VirtualBalancesResponse,
     BatchCommandResponse,
-    Address
+    InputAddress
 } from './build/basic.idl.js';
 
 import { ICRCLedgerService, ICRCLedger } from "./icrc_ledger/ledgerCanister";
@@ -144,7 +144,7 @@ export function createNodeUtils({
 }) {
     return {
         async listNodes(): Promise<NodeShared[]> {
-            return await pylon.icrc55_get_controller_nodes({ id: {owner:user, subaccount:[]}, start:0n, length: 500n });
+            return await pylon.icrc55_get_controller_nodes({ id: {owner:user, subaccount:[]}, start:0, length: 500 });
         },
         mainAccount(): Account {
             return { owner: user, subaccount: [] };
@@ -237,15 +237,20 @@ export function createNodeUtils({
             return await pylon.icrc55_command({
                 expire_at : [],
                 request_id : [],
-                controller: from,
+                controller : from,
                 signature : [],
-                commands :[{
-                virtual_transfer: {
-                    account: from,
-                    to: { ic: { ledger: ledgerCanisterId, account: to } },
+                commands:[{transfer: {
+                    ledger: {ic:ledgers[0].id},
+                    from : {
+                        account : from,
+                    },
+                    to : {
+                        external_account : {
+                            ic: to
+                        }
+                    },
                     amount
-                }
-            }]});
+                }}]});
             },
         async virtualBalances(acc: Account) : Promise<VirtualBalancesResponse> {
             return await pylon.icrc55_virtual_balances(acc);
@@ -291,7 +296,16 @@ export function createNodeUtils({
                 request_id : [],
                 controller : {owner:user, subaccount:[]},
                 signature : [],
-                commands:[{top_up_node: {id:nodeId, amount}}]});
+                commands:[{transfer: {
+                    ledger: {ic:ledgers[0].id},
+                    from : {
+                        account : {owner:user, subaccount:[]},
+                    },
+                    to : {
+                        node_billing : nodeId
+                    },
+                    amount
+                }}]});
         },
         async setControllers(nodeId: NodeId, controllers: Account[]): Promise<BatchCommandResponse> {
             return await pylon.icrc55_command({
@@ -342,15 +356,22 @@ export function createNodeUtils({
                 request_id : [],
                 controller : {owner:user, subaccount:[]},
                 signature : [],
-                commands:[{
-                source_transfer: {id:nodeId, source_idx, amount, to:{ic:to}}
-            }]});
+                commands:[{transfer: {
+                    ledger: {ic:ledgerCanisterId},
+                    from : {
+                        node : {node_id:nodeId, endpoint_idx:source_idx},
+                    },
+                    to : {
+                        external_account : {ic:to}
+                    },
+                    amount
+                }}]});
         },
         async setDestination(nodeId: NodeId, port: number, account: Account, ledger_idx : number = 0): Promise<BatchCommandResponse> {
             let ledgerCanisterId = ledgers[ledger_idx].id;
             let node = await this.getNode(nodeId);
             
-            let destinations: ([Address] | [])[] = node.destinations.map(x => {
+            let destinations: ([InputAddress] | [])[] = node.destinations.map(x => {
                 if ('ic' in x.endpoint) {
                   const account = x.endpoint.ic.account[0];
                   if (account === undefined) {
@@ -385,7 +406,7 @@ export function createNodeUtils({
             let node = await this.getNode(nodeId);
             
             
-            let sources : [Address][] = node.sources.map(x => {
+            let sources : [InputAddress][] = node.sources.map(x => {
                 if ('ic' in x.endpoint) {
                   // Now TypeScript knows that x.endpoint has the type { ic: { account: string } }
                   return [{ ic: x.endpoint.ic.account }];
