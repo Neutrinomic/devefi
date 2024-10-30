@@ -22,7 +22,7 @@ module {
             case (#vector(_v)) {
                 ?[
                     ("btype", #Text("55vec")),
-                    ("b",#Blob(to_candid(b))),
+                    ("c",#Blob(to_candid(b))),
                 ];
             };
         }

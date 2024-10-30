@@ -7,7 +7,6 @@ import U "./utils";
 
 import Array "mo:base/Array";
 import ICRC55 "./ICRC55";
-import Nat8 "mo:base/Nat8";
 import Nat "mo:base/Nat";
 
 import Vector "mo:vector";
@@ -16,6 +15,8 @@ import Debug "mo:base/Debug";
 import Ver1 "./memory/v1";
 import MU "mo:mosup";
 import Core "./core";
+import Nat32 "mo:base/Nat32";
+import Nat8 "mo:base/Nat8";
 
 module {
 
@@ -53,8 +54,8 @@ module {
             destinations : (ModuleId, NodeId) -> EndpointsDescription;    
             modify : (ModuleId, NodeId, XModifyRequest) -> R<(), Text>;
             create : (NodeId, XCreateRequest) -> R<ModuleId, Text>;
-            meta : () -> [ICRC55.NodeMeta];
-            nodeMeta : (ModuleId) -> ICRC55.NodeMeta;
+            meta : () -> [ICRC55.ModuleMeta];
+            nodeMeta : (ModuleId) -> ICRC55.ModuleMeta;
             getDefaults : (ModuleId) -> XCreateRequest;
         }
         
@@ -79,7 +80,7 @@ module {
 
         public func icrc55_command<DispatchErr>(caller : Principal, req : ICRC55.BatchCommandRequest<XCreateRequest, XModifyRequest>, dispatch: (ICRC55.BatchCommandRequest<XCreateRequest, XModifyRequest>) -> {#Ok:Nat; #Err:DispatchErr}) : ICRC55.BatchCommandResponse<XShared> {
             ignore do ? { if (req.expire_at! < U.now()) return #err(#expired) };
-            if (caller != req.controller.owner) return #err(#access_denied);
+            if (caller != req.controller.owner) return #err(#caller_not_controller);
             let res = Vector.new<ICRC55.CommandResponse<XShared>>();
             for (cmd in req.commands.vals()) {
                 let r : ICRC55.CommandResponse<XShared> = switch (cmd) {
@@ -92,15 +93,15 @@ module {
                     case (#modify_node(vid, nreq, custom)) {
                         #modify_node(icrc55_modify_node(req.controller, vid, nreq, custom));
                     };
-                    case (#source_transfer(nreq)) {
-                        #source_transfer(icrc55_source_transfer(req.controller, nreq));
+                    // case (#source_transfer(nreq)) {
+                    //     #source_transfer(icrc55_source_transfer(req.controller, nreq));
+                    // };
+                    case (#transfer(nreq)) {
+                        #transfer(icrc55_transfer(req.controller, nreq));
                     };
-                    case (#virtual_transfer(nreq)) {
-                        #virtual_transfer(icrc55_virtual_transfer(req.controller, nreq));
-                    };
-                    case (#top_up_node(nreq)) {
-                        #top_up_node(icrc55_top_up_node(req.controller, nreq));
-                    }
+                    // case (#top_up_node(nreq)) {
+                    //     #top_up_node(icrc55_top_up_node(req.controller, nreq));
+                    // }
                 };
                 Vector.add(res, r);
             };
@@ -118,57 +119,100 @@ module {
 
         };
 
-        public func icrc55_top_up_node(caller : Account, req : ICRC55.TopUpNodeRequest) : ICRC55.TopUpNodeResponse {
-            let ?(vid, vec) = core.getNode(#id(req.id)) else return #err("Node not found");
-            if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
+        // public func icrc55_top_up_node(caller : Account, req : ICRC55.TopUpNodeRequest) : ICRC55.TopUpNodeResponse {
+        //     let ?(vid, vec) = core.getNode(#id(req.id)) else return #err("Node not found");
+        //     if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
 
-            let billing = vec.meta.billing;
+        //     let billing = vec.meta.billing;
 
-            let caller_subaccount = ?Principal.toLedgerAccount(caller.owner, caller.subaccount);
-            let caller_balance = dvf.balance(core.pylon_billing.ledger, caller_subaccount);
+        //     let caller_subaccount = ?Principal.toLedgerAccount(caller.owner, caller.subaccount);
+        //     let caller_balance = dvf.balance(core.pylon_billing.ledger, caller_subaccount);
 
-            let payment_account = U.port2subaccount({
-                vid;
-                flow = #payment;
-                id = 0;
-            });
+        //     let payment_account = U.port2subaccount({
+        //         vid;
+        //         flow = #payment;
+        //         id = 0;
+        //     });
 
-            if (caller_balance < req.amount) return #err("Insufficient balance");
-            let ?thiscanister = mem.thiscan else return #err("This canister not set");
+        //     if (caller_balance < req.amount) return #err("Insufficient balance");
+        //     let ?thiscanister = mem.thiscan else return #err("This canister not set");
 
-            ignore dvf.send({
-                ledger = core.pylon_billing.ledger;
-                to = {
-                    owner = thiscanister;
-                    subaccount = ?payment_account;
+        //     ignore dvf.send({
+        //         ledger = core.pylon_billing.ledger;
+        //         to = {
+        //             owner = thiscanister;
+        //             subaccount = ?payment_account;
+        //         };
+        //         amount = req.amount;
+        //         memo = null;
+        //         from_subaccount = caller_subaccount;
+        //     });
+
+        //     #ok();
+        // };  
+
+        public func icrc55_transfer(caller:Account, req: ICRC55.TransferRequest) : ICRC55.TransferResponse {
+            let #ic(ic_ledger) = req.ledger else return #err("Ledger not supported");
+
+            let from_subaccount = switch(req.from) {
+                case (#node({node_id; endpoint_idx})) {
+                    let ?(vid, vec) = core.getNode(#id(node_id)) else return #err("Node not found");
+                    if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
+                    if (vec.sources.size() <= Nat8.toNat(endpoint_idx)) return #err("Source not found");
+                    if (req.ledger != vec.sources[Nat8.toNat(endpoint_idx)].endpoint) return #err("Ledger not same as source ledger");
+                    let account = U.onlyIC(vec.sources[Nat8.toNat(endpoint_idx)].endpoint).account;
+                    account.subaccount;
                 };
-                amount = req.amount;
-                memo = null;
-                from_subaccount = caller_subaccount;
-            });
-
-            #ok();
-        };  
-
-        public func icrc55_virtual_transfer(caller:Account, req: ICRC55.VirtualTransferRequest) : ICRC55.VirtualTransferResponse {
-            if (caller != req.account) return #err("Not owner");
-            let acc = core.get_virtual_account(req.account);
-            let to = switch(req.to) {
-                case (#ic(to)) to;
-                case (_) return #err("Ledger not supported");
+                case (#account(acc)) {
+                    let account = core.get_virtual_account(acc);
+                    account.subaccount;
+                };
             };
+
+            let to = switch(req.to) {
+                case (#external_account(#ic(acc))) {
+                    acc;
+                };
+                case (#external_account(#other(_))) {
+                    return #err("Ledger not supported");
+                };
+                case (#account(acc)) {
+                    acc;
+                };
+                case (#node({node_id; endpoint_idx})) {
+                    let ?(vid, vec) = core.getNode(#id(node_id)) else return #err("Node not found");
+                    if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
+                    if (vec.sources.size() <= Nat8.toNat(endpoint_idx)) return #err("Source not found");
+                    if (req.ledger != vec.destinations[Nat8.toNat(endpoint_idx)].endpoint) return #err("Ledger not same as destination ledger");
+                    let account = U.onlyIC(vec.sources[Nat8.toNat(endpoint_idx)].endpoint).account;
+                    account;
+                };
+                case (#node_billing(node_id)) {
+                    let ?(vid, vec) = core.getNode(#id(node_id)) else return #err("Node not found");
+                    if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
+                    let billing_subaccount = U.port2subaccount({
+                        vid = vid;
+                        flow = #payment;
+                        id = 0;
+                    });
+                    let ?thiscanister = mem.thiscan else return #err("This canister not set");
+                    let account = {owner = thiscanister; subaccount = ?billing_subaccount};
+                    account;
+                };
+            };
+            
 
             switch(dvf.send({
-                ledger = to.ledger;
-                to = to.account;
+                ledger = ic_ledger;
+                to = to;
                 amount = req.amount;
                 memo = null;
-                from_subaccount = acc.subaccount;
+                from_subaccount = from_subaccount;
             })) {
                 case (#ok(id)) #ok(id);
-                case (#err(e)) #err(debug_show(e));
+                case (#err(_e)) #err("Insufficient balance");
             };
-
+            
         };
 
         public func icrc55_virtual_balances(_caller: Principal, req: ICRC55.VirtualBalancesRequest) : ICRC55.VirtualBalancesResponse {
@@ -182,18 +226,18 @@ module {
         };
       
 
-        public func icrc55_source_transfer(caller : Account, req : ICRC55.SourceTransferRequest) : ICRC55.SourceTransferResponse {
-            let ?(vid, vec) = core.getNode(#id(req.id)) else return #err("Node not found");
-            if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
+        // public func icrc55_source_transfer(caller : Account, req : ICRC55.SourceTransferRequest) : ICRC55.SourceTransferResponse {
+        //     let ?(vid, vec) = core.getNode(#id(req.id)) else return #err("Node not found");
+        //     if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
 
-            let ?source = core.getSource(vid, vec, Nat8.toNat(req.source_idx)) else return #err("Source not found");
-            let #ic(acc) = req.to else return #err("Ledger not supported");
-            let bal = source.balance();
-            if (req.amount > bal) return #err("Insufficient balance");
-            ignore source.send(#external_account(acc), req.amount);
-            core.chargeOpCost(vid, vec, 1);
-            #ok();
-        };
+        //     let ?source = core.getSource(vid, vec, Nat8.toNat(req.source_idx)) else return #err("Source not found");
+        //     let #ic(acc) = req.to else return #err("Ledger not supported");
+        //     let bal = source.balance();
+        //     if (req.amount > bal) return #err("Insufficient balance");
+        //     ignore source.send(#external_account(acc), req.amount);
+        //     core.chargeOpCost(vid, vec, 1);
+        //     #ok();
+        // };
 
         public func icrc55_create_node(caller : Account, req : ICRC55.CommonCreateRequest, custom : XCreateRequest) : CreateNodeResp<XShared> {
             let ?thiscanister = mem.thiscan else return #err("This canister not set");
@@ -254,7 +298,7 @@ module {
             #ok(node_shared);
         };
 
-        public func icrc55_modify_node(caller : Account, vid : NodeId, nreq : ?ICRC55.CommonModRequest, custom : ?XModifyRequest) : ModifyNodeResp<XShared> {
+        public func icrc55_modify_node(caller : Account, vid : NodeId, nreq : ?ICRC55.CommonModifyRequest, custom : ?XModifyRequest) : ModifyNodeResp<XShared> {
             let ?thiscanister = mem.thiscan else return #err("This canister not set");
             let ?(_, vec) = core.getNode(#id(vid)) else return #err("Node not found");
             if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
@@ -268,7 +312,7 @@ module {
             {
                 name = core._settings.PYLON_NAME;
                 governed_by = core._settings.PYLON_GOVERNED_BY;
-                nodes = vmod.meta();
+                modules = vmod.meta();
                 temporary_nodes = {
                     allowed = core._settings.ALLOW_TEMP_NODE_CREATION;
                     expire_sec = core._settings.TEMP_NODE_EXPIRATION_SEC;
@@ -278,6 +322,7 @@ module {
                 billing = core.pylon_billing;
                 pylon_account;
                 platform_account = core.platform_account;
+                request_max_expire_sec = core._settings.REQUEST_MAX_EXPIRE_SEC;
             };
         };
     
@@ -341,10 +386,12 @@ module {
             // Unoptimised for now, but it will get it done
             let res = Vector.new<NodeShared<XShared>>();
             var cid = 0;
+            let start = Nat32.toNat(req.start);
+            let length = Nat32.toNat(req.length);
             label search for ((vid, vec) in core.entries()) {
                 if (not Option.isNull(Array.indexOf(req.id, vec.controllers, U.Account.equal))) {
-                    if (req.start <= cid and cid < req.start + req.length) Vector.add(res, vecToShared(vec, vid));
-                    if (cid >= req.start + req.length) break search;
+                    if (start <= cid and cid < start + length) Vector.add(res, vecToShared(vec, vid));
+                    if (cid >= start + length) break search;
                     cid += 1;
                 };
             };
@@ -392,7 +439,7 @@ module {
             #ok(node);
         };
 
-        private func portMapSources(ledgers : [Principal], id : NodeId, v_m : ModuleId, thiscan : Principal, sourcesProvided : [?ICRC55.Address]) : Result.Result<[EndpointStored], Text> {
+        private func portMapSources(ledgers : [Principal], id : NodeId, v_m : ModuleId, thiscan : Principal, sourcesProvided : [?ICRC55.InputAddress]) : Result.Result<[EndpointStored], Text> {
 
             // Sources
             let s_res = core.sourceMap(ledgers, id, thiscan, sourcesProvided, vmod.sources(v_m, id));
@@ -406,7 +453,7 @@ module {
         };
 
 
-        private func portMapDestinations(ledgers : [Principal], id : NodeId, v_m : ModuleId, destinationsProvided : [?ICRC55.Address]) : Result.Result<[EndpointOptStored], Text> {
+        private func portMapDestinations(ledgers : [Principal], id : NodeId, v_m : ModuleId, destinationsProvided : [?ICRC55.InputAddress]) : Result.Result<[EndpointOptStored], Text> {
 
             // Destinations
             let d_res = core.destinationMap(ledgers, destinationsProvided, vmod.destinations(v_m, id));
@@ -419,7 +466,7 @@ module {
             #ok(destinations);
         };
 
-        private func node_modifyRequest(id : NodeId, vec : NodeMem, nreq : ?ICRC55.CommonModRequest, creq : ?XModifyRequest, thiscan : Principal) : ModifyNodeResp<XShared> {
+        private func node_modifyRequest(id : NodeId, vec : NodeMem, nreq : ?ICRC55.CommonModifyRequest, creq : ?XModifyRequest, thiscan : Principal) : ModifyNodeResp<XShared> {
             
             let old_sources = vec.sources;
 

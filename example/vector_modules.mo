@@ -157,7 +157,7 @@ module {
             #err("Unknown variant or mismatch");
         };
 
-        public func nodeMeta(mid :Core.ModuleId) : ICRC55.NodeMeta {
+        public func nodeMeta(mid :Core.ModuleId) : ICRC55.ModuleMeta {
             if (mid == ThrottleVector.ID) return m.vec_throttle.meta();
             if (mid == Lend.ID) return m.vec_lend.meta();
             if (mid == Borrow.ID) return m.vec_borrow.meta();
@@ -168,7 +168,7 @@ module {
         };
 
 
-        public func meta() : [ICRC55.NodeMeta] {
+        public func meta() : [ICRC55.ModuleMeta] {
             [
                 m.vec_throttle.meta(),
                 m.vec_lend.meta(),

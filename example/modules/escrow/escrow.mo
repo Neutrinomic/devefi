@@ -29,7 +29,7 @@ module {
 
         let mem = MU.access(xmem);
 
-        public func meta() : ICRC55.NodeMeta {
+        public func meta() : ICRC55.ModuleMeta {
             {
                 id = ID; // This has to be same as the variant in vec.custom
                 name = "Escrow";

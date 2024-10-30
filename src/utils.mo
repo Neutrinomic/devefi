@@ -71,7 +71,7 @@ module {
         Nat64.fromNat(Int.abs(Time.now()));
     };
 
-    public func expectSourceAccount(can : Principal, req : [?ICRC55.Address], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
+    public func expectSourceAccount(can : Principal, req : [?ICRC55.InputAddress], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
         if (req.size() <= idx) return #ok(null);
         if (Option.isNull(req[idx])) return #ok(null);
         ignore do ? {
@@ -82,7 +82,7 @@ module {
         #ok(null);
     };
 
-    public func expectDestinationAccount(req : [?ICRC55.Address], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
+    public func expectDestinationAccount(req : [?ICRC55.InputAddress], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
         if (req.size() <= idx) return #ok(null);
         ignore do ? {
         let #ic(x) = req[idx]! else return #err;
