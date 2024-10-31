@@ -54,15 +54,25 @@ module {
 
     public type SourceSendErr = ICRCLedger.SendError or { #AccountNotSet };
 
-    public type VectorClass<Mem, CreateRequest, ModifyRequest, Shared> = {
-        meta : () -> ICRC55.ModuleMeta;
-        create : (NodeId, CreateRequest) -> Result.Result<ModuleId, Text>;
-        defaults : () -> CreateRequest;
-        get : (NodeId) -> R<Shared, Text>;
-        modify : (NodeId, ModifyRequest) -> Result.Result<(), Text>;
-        sources : (NodeId) -> EndpointsDescription;
-        destinations : (NodeId) -> EndpointsDescription;
-        delete : (NodeId) -> ();
+    public module VectorModule {
+        public type Meta = ICRC55.ModuleMeta;
+        public type NodeId = VM.NodeId;
+        public type Create =  Result.Result<ModuleId, Text>;
+        public type Modify = Result.Result<(), Text>;
+        public type Get<Shared> = R<Shared, Text>;
+        public type Endpoints = EndpointsDescription;
+        public type NodeCoreMem = VM.NodeMem;
+        public type Class<CreateRequest, ModifyRequest, Shared> = {
+            meta : () -> ICRC55.ModuleMeta;
+            create : (NodeId, CreateRequest) -> Create;
+            defaults : () -> CreateRequest;
+            get : (NodeId) -> R<Shared, Text>;
+            modify : (NodeId, ModifyRequest) -> Modify;
+            sources : (NodeId) -> EndpointsDescription;
+            destinations : (NodeId) -> EndpointsDescription;
+            delete : (NodeId) -> ();
+        };
+        
     };
 
     public type SETTINGS = {

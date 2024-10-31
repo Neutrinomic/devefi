@@ -1,14 +1,14 @@
-import ICRC55 "../../../src/ICRC55";
-import Sys "../../../src/sys";
-import Result "mo:base/Result";
-import U "../../../src/utils";
+
 import Billing "../../billing_all";
 import MU "mo:mosup";
 import Ver1 "./memory/v1";
 import Map "mo:map/Map";
 import Core "../../../src/core";
+import I "./interface";
 
 module {
+    let T = Core.VectorModule;
+    public let Interface = I;
 
     public module Mem {
         public module Vector {
@@ -18,18 +18,15 @@ module {
     let VM = Mem.Vector.V1;
 
     public let ID = "borrow";
-    public type CreateRequest = VM.CreateRequest;
-    public type ModifyRequest = VM.ModifyRequest;
-    public type Shared = VM.Shared;
 
     public class Mod({
         xmem : MU.MemShell<VM.Mem>;
         core : Core.Mod
-        }) : Core.VectorClass<VM.VMem, VM.CreateRequest, VM.ModifyRequest, VM.Shared> {
+        }) : T.Class<I.CreateRequest, I.ModifyRequest, I.Shared> {
 
         let mem = MU.access(xmem);
 
-        public func meta() : ICRC55.ModuleMeta {
+        public func meta() : T.Meta {
             {
                 id = ID; // This has to be same as the variant in vec.custom
                 name = "Borrow";
@@ -51,9 +48,9 @@ module {
 
 
         // Create state from request
-        public func create(id: Sys.NodeId, t : VM.CreateRequest) : Result.Result<Sys.ModuleId, Text> {
+        public func create(id: T.NodeId, t : I.CreateRequest) : T.Create {
             
-            let obj:VM.VMem = {
+            let obj:VM.NodeMem = {
                 init = t.init;
                 variables = {
                     var interest = t.variables.interest;
@@ -64,7 +61,7 @@ module {
             #ok(ID)
         };
 
-        public func defaults() : VM.CreateRequest {
+        public func defaults() : I.CreateRequest {
 
             {
                 init = {
@@ -77,7 +74,7 @@ module {
         };
 
         // How does the modify request change memory
-        public func modify(id: Sys.NodeId, m : VM.ModifyRequest) : Result.Result<(), Text> {
+        public func modify(id: T.NodeId, m : I.ModifyRequest) : T.Modify {
             let ?t = Map.get(mem.main, Map.n32hash, id) else return #err("Not found");
 
             t.variables.interest := m.interest;
@@ -85,12 +82,12 @@ module {
         };
 
 
-        public func delete(id: Sys.NodeId) : () {
+        public func delete(id: T.NodeId) : () {
             ignore Map.remove(mem.main, Map.n32hash, id);
         };
 
         // Convert memory to shared
-        public func get(id: Sys.NodeId) : Result.Result<VM.Shared, Text> {
+        public func get(id: T.NodeId) : T.Get<I.Shared> {
             let ?t = Map.get(mem.main, Map.n32hash, id) else return #err("Not found");
 
             #ok {
@@ -102,11 +99,11 @@ module {
             };
         };
 
-        public func sources(_id: Sys.NodeId) : Sys.EndpointsDescription {
+        public func sources(_id: T.NodeId) : T.Endpoints {
             [(0, "Collateral"), (1, "Repayment")];
         };
 
-        public func destinations(_id: Sys.NodeId) : Sys.EndpointsDescription {
+        public func destinations(_id: T.NodeId) : T.Endpoints {
             [(1, ""), (0, "Collateral")];
         };
 

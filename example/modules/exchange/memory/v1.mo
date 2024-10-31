@@ -3,15 +3,15 @@ import MU "mo:mosup";
 
 module {
     public type Mem = {
-        main : Map.Map<Nat32, VMem>;
+        main : Map.Map<Nat32, NodeMem>;
     };
     public func new() : MU.MemShell<Mem> = MU.new<Mem>(
         {
-            main = Map.new<Nat32, VMem>();
+            main = Map.new<Nat32, NodeMem>();
         }
     );
 
-    public type VMem = {
+    public type NodeMem = {
         init : {
 
         };
@@ -21,26 +21,5 @@ module {
         internals : {};
     };
 
-    public type CreateRequest = {
-        init : {
-
-        };
-        variables : {
-            interest : Nat;
-        };
-    };
-
-    public type ModifyRequest = {
-        interest : Nat;
-    };
-
-    public type Shared = {
-        init : {
-
-        };
-        variables : {
-            interest : Nat;
-        };
-        internals : {};
-    };
+ 
 }

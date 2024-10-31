@@ -3,16 +3,16 @@ import MU "mo:mosup";
 
 module {
     public type Mem = {
-        main : Map.Map<Nat32, VMem>;
+        main : Map.Map<Nat32, NodeMem>;
     };
     public func new() : MU.MemShell<Mem> = MU.new<Mem>(
         {
-            main = Map.new<Nat32, VMem>();
+            main = Map.new<Nat32, NodeMem>();
         }
     );
 
 
-    public type VMem = {
+    public type NodeMem = {
         init : {};
         variables : {
             var split : [Nat];
@@ -20,23 +20,5 @@ module {
         internals : {};
     };
 
-    // Create request
-    public type CreateRequest = {
-        init : {};
-        variables : {
-            split : [Nat];
-        };
-    };
-    // Modify request
-    public type ModifyRequest = {
-        split : [Nat];
-    };
-    // Public shared state
-    public type Shared = {
-        init : {};
-        variables : {
-            split : [Nat];
-        };
-        internals : {};
-    };
+
 }
