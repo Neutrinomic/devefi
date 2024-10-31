@@ -75,6 +75,10 @@ module {
             };
         };
 
+        public func delete(id: Sys.NodeId) : () {
+            ignore Map.remove(mem.main, Map.n32hash, id);
+        };
+
         public func run(id:Core.NodeId, vec:Core.NodeMem) {
             let ?n = Map.get(mem.main, Map.n32hash, id) else return;
 

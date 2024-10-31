@@ -62,6 +62,7 @@ module {
         modify : (NodeId, ModifyRequest) -> Result.Result<(), Text>;
         sources : (NodeId) -> EndpointsDescription;
         destinations : (NodeId) -> EndpointsDescription;
+        delete : (NodeId) -> ();
     };
 
     public type SETTINGS = {
@@ -220,8 +221,7 @@ module {
 
         public func delete(vid : NodeId) : () {
             let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return;
-            // TODO: Don't allow deletion if there are no refund endpoints
-
+            
             let billing = vec.meta.billing;
             let refund_acc = get_virtual_account(vec.refund);
             // REFUND: Send staked tokens from the node to the first controller

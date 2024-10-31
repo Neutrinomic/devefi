@@ -150,9 +150,9 @@ actor class () = this {
         };
     };
 
-    system func heartbeat() : async () {
+    ignore Timer.recurringTimer<system>(#seconds 2, func () : async () {
         core.heartbeat(proc);
-    };
+    });
 
     // ICRC-55
 
