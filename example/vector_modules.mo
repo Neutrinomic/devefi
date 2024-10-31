@@ -14,32 +14,32 @@ import Split "./modules/split/split";
 module {
 
     public type CreateRequest = {
-        #throttle : ThrottleVector.CreateRequest;
-        #lend: Lend.CreateRequest;
-        #borrow: Borrow.CreateRequest;
-        #exchange: Exchange.CreateRequest;
-        #escrow: Escrow.CreateRequest;
-        #split: Split.CreateRequest;
+        #throttle : ThrottleVector.Interface.CreateRequest;
+        #lend: Lend.Interface.CreateRequest;
+        #borrow: Borrow.Interface.CreateRequest;
+        #exchange: Exchange.Interface.CreateRequest;
+        #escrow: Escrow.Interface.CreateRequest;
+        #split: Split.Interface.CreateRequest;
         //...
     };
 
     public type Shared = {
-        #throttle : ThrottleVector.Shared;
-        #lend: Lend.Shared;
-        #borrow: Borrow.Shared;
-        #exchange: Exchange.Shared;
-        #escrow: Escrow.Shared;
-        #split: Split.Shared;
+        #throttle : ThrottleVector.Interface.Shared;
+        #lend: Lend.Interface.Shared;
+        #borrow: Borrow.Interface.Shared;
+        #exchange: Exchange.Interface.Shared;
+        #escrow: Escrow.Interface.Shared;
+        #split: Split.Interface.Shared;
         //...
     };
     
     public type ModifyRequest = {
-        #throttle : ThrottleVector.ModifyRequest;
-        #lend: Lend.ModifyRequest;
-        #borrow: Borrow.ModifyRequest;
-        #exchange: Exchange.ModifyRequest;
-        #escrow: Escrow.ModifyRequest;
-        #split: Split.ModifyRequest;
+        #throttle : ThrottleVector.Interface.ModifyRequest;
+        #lend: Lend.Interface.ModifyRequest;
+        #borrow: Borrow.Interface.ModifyRequest;
+        #exchange: Exchange.Interface.ModifyRequest;
+        #escrow: Escrow.Interface.ModifyRequest;
+        #split: Split.Interface.ModifyRequest;
         //...
     };
 

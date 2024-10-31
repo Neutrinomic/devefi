@@ -3,17 +3,17 @@ import MU "mo:mosup";
 
 module {
     public type Mem = {
-        main : Map.Map<Nat32, VMem>;
+        main : Map.Map<Nat32, NodeMem>;
     };
     public func new() : MU.MemShell<Mem> = MU.new<Mem>(
         {
-            main = Map.new<Nat32, VMem>();
+            main = Map.new<Nat32, NodeMem>();
         }
     );
 
 
    // Internal vector state
-    public type VMem = {
+    public type NodeMem = {
         init : {
         };
         variables : {
@@ -25,36 +25,7 @@ module {
         };
     };
 
-    // Create request
-    public type CreateRequest = {
-        init : {
-        };
-        variables : {
-            interval_sec : NumVariant;
-            max_amount : NumVariant;
-        };
-    };
-
-
-    // Modify request
-    public type ModifyRequest = {
-        interval_sec : NumVariant;
-        max_amount : NumVariant;
-    };
-
-    // Public shared state
-    public type Shared = {
-        init : {
-        };
-        variables : {
-            interval_sec : NumVariant;
-            max_amount : NumVariant;
-        };
-        internals : {
-            wait_until_ts : Nat64;
-        };
-    };
-
+  
 
     // Other custom types
     public type NumVariant = {
