@@ -47,7 +47,6 @@ module {
             };
         };
 
-        // Create state from request
         public func create(id : T.NodeId, t : I.CreateRequest) : T.Create {
 
             let obj : VM.NodeMem = {
@@ -61,6 +60,29 @@ module {
             #ok(ID);
         };
 
+        public func get(id : T.NodeId) : T.Get<I.Shared> {
+            let ?t = Map.get(mem.main, Map.n32hash, id) else return #err("Not found");
+
+            #ok {
+                init = t.init;
+                variables = {
+                    split = t.variables.split;
+                };
+                internals = {};
+            };
+        };
+
+        public func modify(id : T.NodeId, m : I.ModifyRequest) : T.Modify {
+            let ?t = Map.get(mem.main, Map.n32hash, id) else return #err("Not found");
+
+            t.variables.split := m.split;
+            #ok();
+        };
+
+        public func delete(id : T.NodeId) : () {
+            ignore Map.remove(mem.main, Map.n32hash, id);
+        };
+
         public func defaults() : I.CreateRequest {
             {
                 init = {
@@ -70,10 +92,6 @@ module {
                     split = [50, 50];
                 };
             };
-        };
-
-        public func delete(id : T.NodeId) : () {
-            ignore Map.remove(mem.main, Map.n32hash, id);
         };
 
         public func run(id : T.NodeId, vec : T.NodeCoreMem) {
@@ -128,27 +146,6 @@ module {
                 };
             };
 
-        };
-
-        // How does the modify request change memory
-        public func modify(id : T.NodeId, m : I.ModifyRequest) : T.Modify {
-            let ?t = Map.get(mem.main, Map.n32hash, id) else return #err("Not found");
-
-            t.variables.split := m.split;
-            #ok();
-        };
-
-        // Convert memory to shared
-        public func get(id : T.NodeId) : T.Get<I.Shared> {
-            let ?t = Map.get(mem.main, Map.n32hash, id) else return #err("Not found");
-
-            #ok {
-                init = t.init;
-                variables = {
-                    split = t.variables.split;
-                };
-                internals = {};
-            };
         };
 
         public func sources(_id : T.NodeId) : T.Endpoints {
