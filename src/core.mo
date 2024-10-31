@@ -51,8 +51,12 @@ module {
     public type NodeMem = VM.NodeMem;
     public type ModuleId = VM.ModuleId;
 
+    public type SupportedLedger = ICRC55.SupportedLedger;
 
-    public type SourceSendErr = ICRCLedger.SendError or { #AccountNotSet };
+    public type SourceSendErr = ICRCLedger.SendError or { 
+        #AccountNotSet;
+        #RemoteNodeNotFound
+        };
 
     public module VectorModule {
         public type Meta = ICRC55.ModuleMeta;
@@ -210,16 +214,10 @@ module {
             };
         };
 
-        public func get_virtual_pool_account(la : ICRC55.SupportedLedger, lb : ICRC55.SupportedLedger, pool_idx : Nat8) : Account {
-            let a = U.onlyICLedger(la);
-            let b = U.onlyICLedger(lb);
 
-            let ledger_idx = Array.sort<Nat>([U.not_opt(dvf.get_ledger_idx(a)), U.not_opt(dvf.get_ledger_idx(b))], Nat.compare);
+        public func getThisCan() : Principal {
             let ?thiscanister = mem.thiscan else Debug.trap("Canister not set");
-            {
-                owner = thiscanister;
-                subaccount = ?Blob.fromArray(Iter.toArray(I.pad(I.flattenArray<Nat8>([[100, pool_idx], U.ENat32(Nat32.fromNat(ledger_idx[0])), U.ENat32(Nat32.fromNat(ledger_idx[1]))]), 32, 0 : Nat8)));
-            };
+            thiscanister;
         };
 
         public func start<system>(can : Principal) : () {
@@ -285,68 +283,20 @@ module {
             ignore Map.remove(mem.nodes, Map.n32hash, vid);
         };
 
-        public class Pool(
-            poolacc : Account,
-            ledger_i55 : ICRC55.SupportedLedger,
-        ) {
-
-            let ledger = U.onlyICLedger(ledger_i55);
-
-            public func balance() : Nat {
-                dvf.balance(ledger, poolacc.subaccount);
-            };
-
-            public func fee() : Nat {
-                dvf.fee(ledger);
-            };
-
-            public func send(
-                location : {
-                    #remote_destination : { node : NodeId; port : Nat };
-                    #remote_source : { node : NodeId; port : Nat };
-                    #external_account : Account;
-                },
-                amount : Nat,
-            ) : R<Nat64, SourceSendErr> {
-
-                let ledger_fee = dvf.fee(ledger);
-
-                let to : Account = switch (location) {
-                    case (#remote_destination({ node; port })) {
-                        let ?to_vec = Map.get(mem.nodes, Map.n32hash, node) else return #err(#AccountNotSet);
-                        let ?acc = U.onlyICDest(to_vec.destinations[port].endpoint).account else return #err(#AccountNotSet);
-                        acc;
-                    };
-
-                    case (#remote_source({ node; port })) {
-                        let ?to_vec = Map.get(mem.nodes, Map.n32hash, node) else return #err(#AccountNotSet);
-                        U.onlyIC(to_vec.sources[port].endpoint).account;
-                    };
-
-                    case (#external_account(account)) {
-                        account;
-                    };
-                };
-
-                mem.ops += 1;
-                if (ledger_fee >= amount) return #err(#InsufficientFunds);
-
-                dvf.send({
-                    ledger = ledger;
-                    to;
-                    amount = amount;
-                    memo = null;
-                    from_subaccount = poolacc.subaccount;
-                });
-            };
-        };
-
-        public func get_pool(poolacc : Account, ledger_i55 : ICRC55.SupportedLedger) : Pool {
-            Pool(poolacc, ledger_i55);
-        };
+        
 
         public func hasDestination(vec : NodeMem, port_idx : Nat) : Bool {
             port_idx < vec.destinations.size() and not Option.isNull(U.onlyICDest(vec.destinations[port_idx].endpoint).account);
+        };
+
+        public func getDestinationIC(vec: NodeMem, port_idx : Nat) : ?Account {
+            if (port_idx >= vec.destinations.size()) return null;
+            U.onlyICDest(vec.destinations[port_idx].endpoint).account
+        };
+
+        public func getSourceIC(vec : NodeMem, port_idx : Nat) : ?Account {
+            if (port_idx >= vec.sources.size()) return null;
+            ?U.onlyIC(vec.sources[port_idx].endpoint).account
         };
 
         private func sourceInfo(vid : NodeId, subaccount : ?Blob) : R<{ allowed : Bool; mine : Bool }, ()> {
@@ -630,7 +580,9 @@ module {
             mem.ops;
         };
 
-
+        public func incrementOps(n : Nat) : () {
+            mem.ops += n;
+        };
 
         /// Heartbeat will execute f until it uses MAX_INSTRUCTIONS_PER_HEARTBEAT or it doesn't send any transactions
         public func heartbeat(f : () -> ()) : () {

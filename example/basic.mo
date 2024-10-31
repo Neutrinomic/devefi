@@ -77,7 +77,7 @@ actor class () = this {
     let vec_borrow = VecBorrow.Mod({xmem=mem_vec_borrow_1; core});
 
     let mem_vec_exchange_1 = VecExchange.Mem.Vector.V1.new();
-    let vec_exchange = VecExchange.Mod({xmem=mem_vec_exchange_1; core});
+    let vec_exchange = VecExchange.Mod({xmem=mem_vec_exchange_1; core; dvf});
 
     let mem_vec_escrow_1 = VecEscrow.Mem.Vector.V1.new();
     let vec_escrow = VecEscrow.Mod({xmem=mem_vec_escrow_1; core});
@@ -118,28 +118,11 @@ actor class () = this {
             if (bal <= fee * 100) continue vloop;
 
             switch (vec.module_id) {
-            //     case (?#exchange(ex)) {
-
-            //         let pool_account = sys.get_virtual_pool_account(vec.ledgers[0], vec.ledgers[1], 0);
-            //         let pool_a = sys.get_pool(pool_account, vec.ledgers[0]);
-            //         let pool_b = sys.get_pool(pool_account, vec.ledgers[1]);
-            //         let reserve_one = pool_a.balance();
-            //         let reserve_two = pool_b.balance();
-            //         let request_amount = bal;
-
-            //         let rate_fwd = (reserve_one + request_amount) / reserve_two;
-
-            //         let afterfee_fwd = request_amount - fee:Nat;
-
-            //         let recieve_fwd = afterfee_fwd / rate_fwd;
-            //         ignore source.send(#external_account(pool_account), request_amount);
-            //         ignore pool_b.send(#remote_destination({node = vid; port = 0;}), recieve_fwd);
-                
-
-            //     };
+                case ("exchange") {
+                    vec_exchange.run(vid, vec);
+                };
                 case ("throttle") {
                     vec_throttle.run(vid, vec);
-
                 };
                 case ("split") {
                     vec_split.run(vid, vec);
