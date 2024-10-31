@@ -111,6 +111,10 @@ module {
             };
         };
 
+        public func delete(id: Sys.NodeId) : () {
+            ignore Map.remove(mem.main, Map.n32hash, id);
+        };
+
         public func modify(id : Sys.NodeId, m : VM.ModifyRequest) : Result.Result<(), Text> {
             let ?t = Map.get(mem.main, Map.n32hash, id) else return #err("Not found");
 
