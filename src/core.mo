@@ -58,7 +58,7 @@ module {
         meta : () -> ICRC55.ModuleMeta;
         create : (NodeId, CreateRequest) -> Result.Result<ModuleId, Text>;
         defaults : () -> CreateRequest;
-        toShared : (NodeId) -> R<Shared, Text>;
+        get : (NodeId) -> R<Shared, Text>;
         modify : (NodeId, ModifyRequest) -> Result.Result<(), Text>;
         sources : (NodeId) -> EndpointsDescription;
         destinations : (NodeId) -> EndpointsDescription;

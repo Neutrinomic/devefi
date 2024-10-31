@@ -49,7 +49,7 @@ module {
         dvf : DeVeFi.DeVeFi;
         core : Core.Mod;
         vmod : {
-            toShared : (ModuleId, NodeId) -> R<XShared, Text>;
+            get : (ModuleId, NodeId) -> R<XShared, Text>;
             sources : (ModuleId, NodeId) -> EndpointsDescription;
             destinations : (ModuleId, NodeId) -> EndpointsDescription;    
             modify : (ModuleId, NodeId, XModifyRequest) -> R<(), Text>;
@@ -350,7 +350,7 @@ module {
             let current_billing_balance = dvf.balance(core.pylon_billing.ledger, billing_subaccount);
             {
                 id = vid;
-                custom = ?U.ok_or_trap(vmod.toShared(vec.module_id, vid));
+                custom = ?U.ok_or_trap(vmod.get(vec.module_id, vid));
                 created = vec.created;
                 extractors = vec.extractors;
                 modified = vec.modified;

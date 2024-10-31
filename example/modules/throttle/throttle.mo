@@ -124,7 +124,7 @@ module {
             #ok();
         };
 
-        public func toShared(id : Sys.NodeId) : Result.Result<VM.Shared, Text> {
+        public func get(id : Sys.NodeId) : Result.Result<VM.Shared, Text> {
             let ?t = Map.get(mem.main, Map.n32hash, id) else return #err("Not found");
 
             #ok {

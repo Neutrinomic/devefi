@@ -53,40 +53,40 @@ module {
         vec_split : Split.Mod;
     }) {
     
-        public func toShared(mid :Core.ModuleId, id : Core.NodeId) : Result.Result<Shared, Text> {
+        public func get(mid :Core.ModuleId, id : Core.NodeId) : Result.Result<Shared, Text> {
             
             if (mid == ThrottleVector.ID) {
-                switch(m.vec_throttle.toShared(id)) {
+                switch(m.vec_throttle.get(id)) {
                     case (#ok(x)) return #ok(#throttle(x));
                     case (#err(x)) return #err(x);
                 }
             };
             if (mid == Lend.ID) {
-                switch(m.vec_lend.toShared(id)) {
+                switch(m.vec_lend.get(id)) {
                     case (#ok(x)) return #ok(#lend(x));
                     case (#err(x)) return #err(x);
                 }
             };
             if (mid == Borrow.ID) {
-                switch(m.vec_borrow.toShared(id)) {
+                switch(m.vec_borrow.get(id)) {
                     case (#ok(x)) return #ok(#borrow(x));
                     case (#err(x)) return #err(x);
                 }
             };
             if (mid == Exchange.ID) {
-                switch(m.vec_exchange.toShared(id)) {
+                switch(m.vec_exchange.get(id)) {
                     case (#ok(x)) return #ok(#exchange(x));
                     case (#err(x)) return #err(x);
                 }
             };
             if (mid == Escrow.ID) {
-                switch(m.vec_escrow.toShared(id)) {
+                switch(m.vec_escrow.get(id)) {
                     case (#ok(x)) return #ok(#escrow(x));
                     case (#err(x)) return #err(x);
                 }
             };
             if (mid == Split.ID) {
-                switch(m.vec_split.toShared(id)) {
+                switch(m.vec_split.get(id)) {
                     case (#ok(x)) return #ok(#split(x));
                     case (#err(x)) return #err(x);
                 }
