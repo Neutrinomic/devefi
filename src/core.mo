@@ -466,6 +466,11 @@ module {
                 dvf.fee(endpoint.ledger);
             };
 
+            public func getAccount(req: SourceReq) : ?Account {
+                if (req.endpoint_idx >= req.vec.sources.size()) return null;
+                ?U.onlyIC(req.vec.sources[req.endpoint_idx].endpoint).account
+            };
+
             public func send(
                 req: SourceReq,
                 location : {

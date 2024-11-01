@@ -117,40 +117,84 @@ module {
 
 
         public func run(vid : T.NodeId, vec : T.NodeCoreMem) : () {
-            let ?th = Map.get(mem.main, Map.n32hash, vid) else return;
+            let ?ex = Map.get(mem.main, Map.n32hash, vid) else return;
             let now = U.now();
 
-            let ?source_A = core.getSource(vid, vec, 0) else return;
-            let ?source_B = core.getSource(vid, vec, 0) else return;
 
-            let ledger_A = U.onlyICLedger(vec.ledgers[0]);
-            let ledger_B = U.onlyICLedger(vec.ledgers[1]);
-
-            let bal_a = core.Source.balance(source_A);
-            let bal_b = core.Source.balance(source_B);
-
-
-            let price = swap.Price.get(ledger_A, ledger_B);
-
-            // We will add liquidity only at the rate the pool is currently
-            // If bal_a is more valuable than bal_b, in_a will be limited to the amount of bal_b
-            // and vice versa with in_b
-            var in_a = bal_a;
-            var in_b = bal_b;
-
-            if (bal_a * price > bal_b) {
-                in_a := bal_b / price;
+            if (ex.variables.flow == #add) {
+                Run.add(vid, vec);
+            } else if (ex.variables.flow == #remove) {
+                Run.remove(vid, vec);
             } else {
-                in_b := bal_a * price;
+                return;
+            };
+        };
+
+        public module Run {
+            public func remove(vid : T.NodeId, vec : T.NodeCoreMem) : () {
+                
+                let ledger_A = U.onlyICLedger(vec.ledgers[0]);
+                let ledger_B = U.onlyICLedger(vec.ledgers[1]);
+
+                let lp_bal = 0;
+                let ?destination_A = core.getDestinationAccountIC(vec, 0) else return;
+                let ?destination_B = core.getDestinationAccountIC(vec, 1) else return;
+
+                let from_account = swap.Pool.accountFromVid(vid, 0);
+
+                let #ok(intent) = swap.LiquidityIntentRemove.get(
+                    from_account,
+                    { ledger = ledger_A; account = destination_A},
+                    { ledger = ledger_B; account = destination_B},
+                    lp_bal) else return;
+
+                let quote = swap.LiquidityIntentRemove.quote(intent);
+
+                swap.LiquidityIntentRemove.commit(intent);
             };
 
+            public func add(vid : T.NodeId, vec : T.NodeCoreMem) : () {
+                let ?source_A = core.getSource(vid, vec, 0) else return;
+                let ?source_B = core.getSource(vid, vec, 0) else return;
 
-            let intent = swap.LiquidityIntent.get(ledger_A, ledger_B, in_a, in_b);
-          
-            let quote = swap.LiquidityIntent.quote(intent);
+                let ?sourceAccount_A = core.Source.getAccount(source_A) else return;
+                let ?sourceAccount_B = core.Source.getAccount(source_B) else return;
+
+                let ledger_A = U.onlyICLedger(vec.ledgers[0]);
+                let ledger_B = U.onlyICLedger(vec.ledgers[1]);
+
+                let bal_a = core.Source.balance(source_A);
+                let bal_b = core.Source.balance(source_B);
+
+                let to_account = swap.Pool.accountFromVid(vid, 0);
+
+
+                let price = swap.Price.get(ledger_A, ledger_B);
+
+                // We will add liquidity only at the rate the pool is currently
+                // If bal_a is more valuable than bal_b, in_a will be limited to the amount of bal_b
+                // and vice versa with in_b
+                var in_a = bal_a;
+                var in_b = bal_b;
+
+                if (bal_a * price > bal_b) {
+                    in_a := bal_b / price;
+                } else {
+                    in_b := bal_a * price;
+                };
+
+
+                let #ok(intent) = swap.LiquidityIntentAdd.get(
+                    to_account,
+                    { ledger = ledger_A; account = sourceAccount_A; amount = in_a },
+                    { ledger = ledger_B; account = sourceAccount_B; amount = in_b }) else return;
             
-            swap.LiquidityIntent.commit(intent);
-        
+                let quote = swap.LiquidityIntentAdd.quote(intent);
+
+                swap.LiquidityIntentAdd.commit(intent);
+            
+            };
+
         };
 
        
