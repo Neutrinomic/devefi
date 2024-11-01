@@ -112,9 +112,9 @@ actor class () = this {
             if (not core.hasDestination(vec, 0)) continue vloop;
 
             let ?source = core.getSource(vid, vec, 0) else continue vloop;
-            let bal = source.balance();
+            let bal = core.Source.balance(source);
 
-            let fee = source.fee();
+            let fee = core.Source.fee(source);
             if (bal <= fee * 100) continue vloop;
 
             switch (vec.module_id) {

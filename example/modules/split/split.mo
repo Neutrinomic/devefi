@@ -94,12 +94,12 @@ module {
             };
         };
 
-        public func run(id : T.NodeId, vec : T.NodeCoreMem) {
-            let ?n = Map.get(mem.main, Map.n32hash, id) else return;
+        public func run(vid : T.NodeId, vec : T.NodeCoreMem) {
+            let ?n = Map.get(mem.main, Map.n32hash, vid) else return;
 
-            let ?source = core.getSource(id, vec, 0) else return;
-            let bal = source.balance();
-            let fee = source.fee();
+            let ?source = core.getSource(vid, vec, 0) else return;
+            let bal = core.Source.balance(source);
+            let fee = core.Source.fee(source);
 
             // First loop: Calculate totalSplit and find the largest share destination
             var totalSplit = 0;
@@ -135,14 +135,14 @@ module {
                 let amount = bal * splitShare / totalSplit;
                 if (amount <= fee * 100) continue port_send; // Skip if below fee threshold
 
-                ignore source.send(#destination({ port = port_id }), amount);
+                ignore core.Source.send(source, #destination({ port = port_id }), amount);
                 remainingBalance -= amount;
             };
 
             // Send the remaining balance to the largest share destination
             if (remainingBalance > 0) {
                 ignore do ? {
-                    source.send(#destination({ port = largestPort! }), remainingBalance);
+                    core.Source.send(source, #destination({ port = largestPort! }), remainingBalance);
                 };
             };
 

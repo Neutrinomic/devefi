@@ -53,9 +53,11 @@ module {
         public func run(id : T.NodeId, vec : T.NodeCoreMem) {
             let ?th = Map.get(mem.main, Map.n32hash, id) else return;
             let ?source = core.getSource(id, vec, 0) else return;
+            
+            let bal = core.Source.balance(source);
+            let fee = core.Source.fee(source);
+
             let now = U.now();
-            let bal = source.balance();
-            let fee = source.fee();
 
             if (now > th.internals.wait_until_ts) {
                 switch (th.variables.interval_sec) {
@@ -76,8 +78,7 @@ module {
                 var amount = Nat.min(bal, Nat64.toNat(max_amount));
                 if (bal - amount : Nat <= fee * 100) amount := bal; // Don't leave dust
 
-                ignore source.send(#destination({ port = 0 }), amount);
-
+                ignore core.Source.send(source, #destination({ port = 0 }), amount);
             };
         };
 
