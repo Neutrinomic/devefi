@@ -3,16 +3,23 @@ import MU "mo:mosup";
 
 module {
     public type Mem = {
-        main : Map.Map<Nat32, Entry>;
+        main : Map.Map<PoolSubaccount, Pool>;
     };
 
     public func new() : MU.MemShell<Mem> = MU.new<Mem>(
         {
-            main = Map.new<Nat32, Entry>();
+            main = Map.new<PoolSubaccount, Pool>();
         }
     );
 
-    public type Entry = {
-        
+    public type Pool = {
+        var total: Nat;
+        balances: Map.Map<ClientSubaccount, Share>
     };
+
+    public type Share = Nat;
+    public type PoolSubaccount = Blob;
+    public type ClientSubaccount = Blob;
+
+   
 }
