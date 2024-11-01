@@ -68,7 +68,7 @@ actor class () = this {
 
     // Shared components
     let mem_swap_1 = Swap.Mem.Swap.V1.new();
-    let swap = Swap.Mod({xmem=mem_swap_1; core; dvf});
+    let swap = Swap.Mod({xmem=mem_swap_1; core; dvf; primary_ledger = Principal.fromText("lxzze-o7777-77777-aaaaa-cai"); swap_fee = 3000_0000});
 
 
     // Components
@@ -82,7 +82,7 @@ actor class () = this {
     let vec_borrow = VecBorrow.Mod({xmem=mem_vec_borrow_1; core});
 
     let mem_vec_exchange_1 = VecExchange.Mem.Vector.V1.new();
-    let vec_exchange = VecExchange.Mod({xmem=mem_vec_exchange_1; core; dvf; primary_ledger = Principal.fromText("lxzze-o7777-77777-aaaaa-cai"); swap_fee = 3000_0000});
+    let vec_exchange = VecExchange.Mod({xmem=mem_vec_exchange_1; core; swap});
 
     let mem_vec_escrow_1 = VecEscrow.Mem.Vector.V1.new();
     let vec_escrow = VecEscrow.Mod({xmem=mem_vec_escrow_1; core});

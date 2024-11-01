@@ -50,8 +50,8 @@ module {
                 version = #alpha([0, 0, 1]);
                 create_allowed = true;
                 ledger_slots = [
-                    "From",
-                    "To",
+                    "TokenA",
+                    "TokenB",
                 ];
                 billing = Billing.get();
                 sources = sources(0);
@@ -65,7 +65,7 @@ module {
             let obj : VM.NodeMem = {
                 init = t.init;
                 variables = {
-                    var interest = t.variables.interest;
+                    var flow = t.variables.flow;
                 };
                 internals = {};
             };
@@ -79,7 +79,7 @@ module {
 
                 };
                 variables = {
-                    interest = 20;
+                    flow = #add;
                 };
             };
         };
@@ -91,7 +91,7 @@ module {
         public func modify(id : T.NodeId, m : I.ModifyRequest) : T.Modify {
             let ?t = Map.get(mem.main, Map.n32hash, id) else return #err("Not found");
 
-            t.variables.interest := m.interest;
+            t.variables.flow := m.flow;
             #ok();
         };
 
@@ -101,18 +101,18 @@ module {
             #ok {
                 init = t.init;
                 variables = {
-                    interest = t.variables.interest;
+                    flow = t.variables.flow;
                 };
                 internals = {};
             };
         };
 
         public func sources(_id : T.NodeId) : T.Endpoints {
-            [(0, "From")];
+            [(0, "Add A"), (1, "Add B")];
         };
 
         public func destinations(_id : T.NodeId) : T.Endpoints {
-            [(1, "To")];
+            [(0, "Remove A"), (1, "Remove B")];
         };
 
 
@@ -120,12 +120,36 @@ module {
             let ?th = Map.get(mem.main, Map.n32hash, vid) else return;
             let now = U.now();
 
-            let ?source = core.getSource(vid, vec, 0) else return;
-            let bal = core.Source.balance(source);
+            let ?source_A = core.getSource(vid, vec, 0) else return;
+            let ?source_B = core.getSource(vid, vec, 0) else return;
 
-            let intent = swap.Intent.get(U.onlyICLedger(vec.ledgers[0]), U.onlyICLedger(vec.ledgers[1]), bal);
-            let quote = swap.Intent.quote(intent);
-            swap.Intent.commit(intent);
+            let ledger_A = U.onlyICLedger(vec.ledgers[0]);
+            let ledger_B = U.onlyICLedger(vec.ledgers[1]);
+
+            let bal_a = core.Source.balance(source_A);
+            let bal_b = core.Source.balance(source_B);
+
+
+            let price = swap.Price.get(ledger_A, ledger_B);
+
+            // We will add liquidity only at the rate the pool is currently
+            // If bal_a is more valuable than bal_b, in_a will be limited to the amount of bal_b
+            // and vice versa with in_b
+            var in_a = bal_a;
+            var in_b = bal_b;
+
+            if (bal_a * price > bal_b) {
+                in_a := bal_b / price;
+            } else {
+                in_b := bal_a * price;
+            };
+
+
+            let intent = swap.LiquidityIntent.get(ledger_A, ledger_B, in_a, in_b);
+          
+            let quote = swap.LiquidityIntent.quote(intent);
+            
+            swap.LiquidityIntent.commit(intent);
         
         };
 

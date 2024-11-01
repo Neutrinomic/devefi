@@ -12,6 +12,8 @@ import IT "mo:itertools/Iter";
 import Nat32 "mo:base/Nat32";
 import Nat "mo:base/Nat";
 import Vector "mo:vector";
+import Float "mo:base/Float";
+import Debug "mo:base/Debug";
 
 module {
         
@@ -47,6 +49,122 @@ module {
             swap_fee : Nat; // 8 decimals
         }) {
 
+        let mem = MU.access(xmem);
+
+        type LiquidityIntent = {
+            pool_account : Core.Account;
+            asset_a : LedgerAccount;
+            asset_b : LedgerAccount;
+            amount_a : Nat;
+            amount_b : Nat;
+            new_total: Nat;
+            minted_tokens : Nat;
+        };
+
+        public module Price = {
+            public func get(ledger_a: Principal, ledger_b: Principal) : Nat {
+                let pool_account = getPoolAccount(ledger_a, ledger_b, 0);
+                let asset_a = LedgerAccount.get(pool_account, ledger_a);
+                let asset_b = LedgerAccount.get(pool_account, ledger_b);
+                let reserve_A = LedgerAccount.balance(asset_a);
+                let reserve_B = LedgerAccount.balance(asset_b);
+                let rate = reserve_B / reserve_A;
+                rate
+            };
+        };
+
+        public module Pool {
+            public func get(pool_account: Core.Account) : VM.Pool {
+                let ?subaccount = pool_account.subaccount else Debug.trap("Pool account subaccount is missing");
+                switch(Map.get(mem.main, Map.bhash, subaccount)) {
+                    case (?pool) pool;
+                    case (null) {
+                        let pool:VM.Pool = {
+                            var total = 0;
+                            balances = Map.new<VM.ClientSubaccount, VM.Share>();
+                        };
+                        ignore Map.put(mem.main, Map.bhash, subaccount, pool);
+                        pool;
+                    }
+                }
+            };
+
+
+        };
+
+        public module LiquidityIntent {
+            public func get(ledger_a: Principal, ledger_b: Principal, amount_a: Nat, amount_b: Nat) : LiquidityIntent {
+
+                let pool_account = getPoolAccount(ledger_a, ledger_b, 0);
+                let pool = Pool.get(pool_account);
+                let asset_a = LedgerAccount.get(pool_account, ledger_a);
+                let asset_b = LedgerAccount.get(pool_account, ledger_b);
+                let reserve_A = LedgerAccount.balance(asset_a);
+                let reserve_B = LedgerAccount.balance(asset_b);
+                
+                let total = pool.total;
+
+                let minted_liquidity = sqrt(amount_a * amount_b);
+
+                let new_total = total + minted_liquidity;
+
+                let fee_coef = sqrt( reserve_A * reserve_B ) / new_total;
+
+                let minted_tokens = minted_liquidity / fee_coef;
+                    
+                {
+                    pool_account;
+                    asset_a;
+                    asset_b;
+                    amount_a;
+                    amount_b;
+                    new_total;
+                    minted_tokens;
+                };
+            };
+
+            public func quote(liq: LiquidityIntent) : Nat {
+                liq.minted_tokens;
+            };
+
+            public func commit(liq: LiquidityIntent) : () {
+                let pool = Pool.get(liq.pool_account);
+
+                ignore dvf.send({
+                    ledger = liq.asset_a.ledger;
+                    to = liq.pool_account;
+                    amount = liq.amount_a;
+                    memo = null;
+                    from_subaccount = liq.asset_a.account.subaccount;
+                });
+                ignore dvf.send({
+                    ledger = liq.asset_b.ledger;
+                    to = liq.pool_account;
+                    amount = liq.amount_b;
+                    memo = null;
+                    from_subaccount = liq.asset_b.account.subaccount;
+                });
+
+                pool.total := liq.new_total;
+            };
+
+            public func sqrt(x: Nat) : Nat {
+                if (x == 0) return 0;
+                
+                // Initial estimate for the square root
+                var z : Nat = (x + 1) / 2;
+                var y : Nat = x;
+
+                // Babylonian method: iterate until convergence
+                while (z < y) {
+                    y := z;
+                    z := (x / z + z) / 2;
+                };
+
+                return y;
+            };
+        };
+
         public module Intent {
             
             public func quote(path: IntentPath) : Nat {
@@ -66,7 +184,15 @@ module {
                 };
             };
 
-            public func get(ledgers : [Principal], start_amount: Nat) : IntentPath {
+            public func get(from:Principal, to:Principal, start_amount: Nat) : IntentPath {
+                if (to == primary_ledger or from == primary_ledger) {
+                    getExact([from, to], start_amount);
+                } else {
+                    getExact([from, primary_ledger, to], start_amount);
+                };
+            };
+
+            public func getExact(ledgers : [Principal], start_amount: Nat) : IntentPath {
                 let path = Vector.new<Intent>();
                 var acc_bal = start_amount;
                 for (i in Iter.range(0, ledgers.size() - 2)) {
