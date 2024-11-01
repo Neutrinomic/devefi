@@ -12,6 +12,9 @@ import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
 import IT "mo:itertools/Iter";
 import Nat32 "mo:base/Nat32";
+import Nat "mo:base/Nat";
+import Vector "mo:vector";
+import Swap "../../shared_modules/swap/swap";
 
 module {
     let T = Core.VectorModule;
@@ -25,12 +28,14 @@ module {
     };
     let VM = Mem.Vector.V1;
 
+
     public let ID = "exchange";
+
 
     public class Mod({
         xmem : MU.MemShell<VM.Mem>;
         core : Core.Mod;
-        dvf : DeVeFi.DeVeFi;
+        swap : Swap.Mod;
     }) : T.Class<I.CreateRequest, I.ModifyRequest, I.Shared> {
 
         let mem = MU.access(xmem);
@@ -114,96 +119,17 @@ module {
         public func run(vid : T.NodeId, vec : T.NodeCoreMem) : () {
             let ?th = Map.get(mem.main, Map.n32hash, vid) else return;
             let now = U.now();
-            let source = {vid;vec;endpoint_idx=0;};
+
+            let ?source = core.getSource(vid, vec, 0) else return;
             let bal = core.Source.balance(source);
-            let fee = core.Source.fee(source);
 
-            // let pool_account = get_virtual_pool_account(vec.ledgers[0], 0);
-
-            // let pool_a = get_pool(pool_account, vec.ledgers[0]);
-            // let pool_b = get_pool(pool_account, vec.ledgers[1]);
-            // let reserve_one = pool_a.balance();
-            // let reserve_two = pool_b.balance();
-            // let request_amount = bal;
-
-            // let rate_fwd = (reserve_one + request_amount) / reserve_two;
-
-            // let afterfee_fwd = request_amount - fee:Nat;
-
-            // let recieve_fwd = afterfee_fwd / rate_fwd;
-            // ignore source.send(#external_account(pool_account), request_amount);
-            // ignore pool_b.send(#remote_destination({node = vid; port = 0;}), recieve_fwd);
+            let intent = swap.Intent.get([U.onlyICLedger(vec.ledgers[0]), U.onlyICLedger(vec.ledgers[1])], bal);
+            let quote = swap.Intent.quote(intent);
+            swap.Intent.commit(intent);
         
         };
 
-        /// 
-
-        public func get_virtual_pool_account(a : Core.SupportedLedger, pool_idx : Nat8) : Core.Account {
-            let ledger_idx = U.not_opt(dvf.get_ledger_idx(U.onlyICLedger(a)));
-            {
-                owner =  core.getThisCan();
-                subaccount = ?Blob.fromArray(Iter.toArray(IT.pad(IT.flattenArray<Nat8>([[100, pool_idx], U.ENat32(Nat32.fromNat(ledger_idx))]), 32, 0 : Nat8)));
-            };
-        };
-
-  
-
-        public module Pool {
- 
-            public func balance(ledger_i55: Core.SupportedLedger, poolacc: Core.Account) : Nat {
-                let ledger = U.onlyICLedger(ledger_i55);
-                dvf.balance(ledger, poolacc.subaccount);
-            };
-
-            public func fee(ledger_i55: Core.SupportedLedger) : Nat {
-                let ledger = U.onlyICLedger(ledger_i55);
-                dvf.fee(ledger);
-            };
-
-            public func send(
-                ledger_i55: Core.SupportedLedger, 
-                poolacc: Core.Account,
-                location : {
-                    #remote_destination : { node : T.NodeId; port : Nat };
-                    #remote_source : { node : T.NodeId; port : Nat };
-                    #external_account : Core.Account;
-                },
-                amount : Nat,
-            ) : R<Nat64, Core.SourceSendErr> {
-                let ledger = U.onlyICLedger(ledger_i55);
-
-                let ledger_fee = dvf.fee(ledger);
-
-                let to : Core.Account = switch (location) {
-                    case (#remote_destination({ node; port })) {
-                        let ?(_vid, to_vec) = core.getNode(#id(node)) else return #err(#RemoteNodeNotFound);
-                        let ?acc = core.getDestinationAccountIC(to_vec, port) else return #err(#AccountNotSet);
-                        acc
-                    };
-
-                    case (#remote_source({ node; port })) {
-                        let ?(_vid, to_vec) = core.getNode(#id(node)) else return #err(#RemoteNodeNotFound);
-                        let ?acc = core.getSourceAccountIC(to_vec, port) else return #err(#AccountNotSet);
-                        acc
-                    };
-
-                    case (#external_account(account)) {
-                        account;
-                    };
-                };
-
-                core.incrementOps(1);
-                if (ledger_fee >= amount) return #err(#InsufficientFunds);
-
-                dvf.send({
-                    ledger = ledger;
-                    to;
-                    amount = amount;
-                    memo = null;
-                    from_subaccount = poolacc.subaccount;
-                });
-            };
-        };
+       
 
     };
 
