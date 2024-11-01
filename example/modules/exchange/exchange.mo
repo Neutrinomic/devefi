@@ -113,26 +113,26 @@ module {
 
         public func run(vid : T.NodeId, vec : T.NodeCoreMem) : () {
             let ?th = Map.get(mem.main, Map.n32hash, vid) else return;
-            let ?source = core.getSource(vid, vec, 0) else return;
             let now = U.now();
-            let bal = source.balance();
-            let fee = source.fee();
+            let source = {vid;vec;endpoint_idx=0;};
+            let bal = core.Source.balance(source);
+            let fee = core.Source.fee(source);
 
-            let pool_account = get_virtual_pool_account(vec.ledgers[0], 0);
+            // let pool_account = get_virtual_pool_account(vec.ledgers[0], 0);
 
-            let pool_a = get_pool(pool_account, vec.ledgers[0]);
-            let pool_b = get_pool(pool_account, vec.ledgers[1]);
-            let reserve_one = pool_a.balance();
-            let reserve_two = pool_b.balance();
-            let request_amount = bal;
+            // let pool_a = get_pool(pool_account, vec.ledgers[0]);
+            // let pool_b = get_pool(pool_account, vec.ledgers[1]);
+            // let reserve_one = pool_a.balance();
+            // let reserve_two = pool_b.balance();
+            // let request_amount = bal;
 
-            let rate_fwd = (reserve_one + request_amount) / reserve_two;
+            // let rate_fwd = (reserve_one + request_amount) / reserve_two;
 
-            let afterfee_fwd = request_amount - fee:Nat;
+            // let afterfee_fwd = request_amount - fee:Nat;
 
-            let recieve_fwd = afterfee_fwd / rate_fwd;
-            ignore source.send(#external_account(pool_account), request_amount);
-            ignore pool_b.send(#remote_destination({node = vid; port = 0;}), recieve_fwd);
+            // let recieve_fwd = afterfee_fwd / rate_fwd;
+            // ignore source.send(#external_account(pool_account), request_amount);
+            // ignore pool_b.send(#remote_destination({node = vid; port = 0;}), recieve_fwd);
         
         };
 
@@ -140,29 +140,29 @@ module {
 
         public func get_virtual_pool_account(a : Core.SupportedLedger, pool_idx : Nat8) : Core.Account {
             let ledger_idx = U.not_opt(dvf.get_ledger_idx(U.onlyICLedger(a)));
-
             {
                 owner =  core.getThisCan();
                 subaccount = ?Blob.fromArray(Iter.toArray(IT.pad(IT.flattenArray<Nat8>([[100, pool_idx], U.ENat32(Nat32.fromNat(ledger_idx))]), 32, 0 : Nat8)));
             };
         };
 
-        public class Pool(
-            poolacc : Core.Account,
-            ledger_i55 : Core.SupportedLedger,
-        ) {
+  
 
-            let ledger = U.onlyICLedger(ledger_i55);
-
-            public func balance() : Nat {
+        public module Pool {
+ 
+            public func balance(ledger_i55: Core.SupportedLedger, poolacc: Core.Account) : Nat {
+                let ledger = U.onlyICLedger(ledger_i55);
                 dvf.balance(ledger, poolacc.subaccount);
             };
 
-            public func fee() : Nat {
+            public func fee(ledger_i55: Core.SupportedLedger) : Nat {
+                let ledger = U.onlyICLedger(ledger_i55);
                 dvf.fee(ledger);
             };
 
             public func send(
+                ledger_i55: Core.SupportedLedger, 
+                poolacc: Core.Account,
                 location : {
                     #remote_destination : { node : T.NodeId; port : Nat };
                     #remote_source : { node : T.NodeId; port : Nat };
@@ -170,19 +170,20 @@ module {
                 },
                 amount : Nat,
             ) : R<Nat64, Core.SourceSendErr> {
+                let ledger = U.onlyICLedger(ledger_i55);
 
                 let ledger_fee = dvf.fee(ledger);
 
                 let to : Core.Account = switch (location) {
                     case (#remote_destination({ node; port })) {
                         let ?(_vid, to_vec) = core.getNode(#id(node)) else return #err(#RemoteNodeNotFound);
-                        let ?acc = core.getDestinationIC(to_vec, port) else return #err(#AccountNotSet);
+                        let ?acc = core.getDestinationAccountIC(to_vec, port) else return #err(#AccountNotSet);
                         acc
                     };
 
                     case (#remote_source({ node; port })) {
                         let ?(_vid, to_vec) = core.getNode(#id(node)) else return #err(#RemoteNodeNotFound);
-                        let ?acc = core.getSourceIC(to_vec, port) else return #err(#AccountNotSet);
+                        let ?acc = core.getSourceAccountIC(to_vec, port) else return #err(#AccountNotSet);
                         acc
                     };
 
@@ -202,10 +203,6 @@ module {
                     from_subaccount = poolacc.subaccount;
                 });
             };
-        };
-
-        public func get_pool(poolacc : Core.Account, ledger_i55 : Core.SupportedLedger) : Pool {
-            Pool(poolacc, ledger_i55);
         };
 
     };

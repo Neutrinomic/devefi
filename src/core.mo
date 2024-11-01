@@ -52,6 +52,11 @@ module {
     public type ModuleId = VM.ModuleId;
 
     public type SupportedLedger = ICRC55.SupportedLedger;
+    public type SourceReq = {
+        vec : NodeMem;
+        vid : NodeId;
+        endpoint_idx : Nat
+    };
 
     public type SourceSendErr = ICRCLedger.SendError or { 
         #AccountNotSet;
@@ -59,6 +64,7 @@ module {
         };
 
     public module VectorModule {
+        public type Source = SourceReq;
         public type Meta = ICRC55.ModuleMeta;
         public type NodeId = VM.NodeId;
         public type Create =  Result.Result<ModuleId, Text>;
@@ -141,6 +147,9 @@ module {
             Array.map<Principal, ICRC55.SupportedLedger>(dvf.get_ledger_ids(), func(x) = #ic(x));
         };
         
+        public func getNodeById(vid : NodeId) : ?NodeMem {
+            Map.get(mem.nodes, Map.n32hash, vid);
+        };
         public func getNode(req : ICRC55.GetNode) : ?(NodeId, NodeMem) {
             let (vec : NodeMem, vid : NodeId) = switch (req) {
                 case (#id(id)) {
@@ -158,26 +167,7 @@ module {
             return ?(vid, vec);
         };
 
-        public func getSource(vid : NodeId, vec : NodeMem, port_idx : Nat) : ?Source {
-            if (port_idx >= vec.sources.size()) return null;
-
-            let #ok(sinfo) = sourceInfo(vid, U.onlyIC(vec.sources[port_idx].endpoint).account.subaccount) else return null;
-            if (not sinfo.allowed) return null;
-
-            let source = Source(
-                {
-                    endpoint = vec.sources[port_idx].endpoint;
-                    vec;
-                    vid;
-                },
-                dvf,
-                func(x) = Map.get(mem.nodes, Map.n32hash, x),
-                func(x) = mem.ops += x,
-                get_virtual_account,
-            );
-
-            return ?source;
-        };
+  
 
         public func chargeOpCost(vid : NodeId, vec : NodeMem, number_of_fees : Nat) : () {
             let ?pylonAccount = mem.pylon_fee_account else Debug.trap("Pylon account not set");
@@ -289,16 +279,18 @@ module {
             port_idx < vec.destinations.size() and not Option.isNull(U.onlyICDest(vec.destinations[port_idx].endpoint).account);
         };
 
-        public func getDestinationIC(vec: NodeMem, port_idx : Nat) : ?Account {
+        public func getDestinationAccountIC(vec: NodeMem, port_idx : Nat) : ?Account {
             if (port_idx >= vec.destinations.size()) return null;
             U.onlyICDest(vec.destinations[port_idx].endpoint).account
         };
 
-        public func getSourceIC(vec : NodeMem, port_idx : Nat) : ?Account {
+        public func getSourceAccountIC(vec : NodeMem, port_idx : Nat) : ?Account {
             if (port_idx >= vec.sources.size()) return null;
             ?U.onlyIC(vec.sources[port_idx].endpoint).account
         };
 
+     
+   
         private func sourceInfo(vid : NodeId, subaccount : ?Blob) : R<{ allowed : Bool; mine : Bool }, ()> {
             let ?ep_port = U.subaccount2port(subaccount) else return #err;
             if (ep_port.vid != vid) {
@@ -446,31 +438,36 @@ module {
             };
         };
 
-        public class Source(
-            cls : {
-                endpoint : Endpoint;
-                vec : NodeMem;
-                vid : NodeId;
-            },
-            dvf : DeVeFi.DeVeFi,
-            getNode : (NodeId) -> ?NodeMem,
-            incrementOps : (Nat) -> (),
-            get_virtual_account : (Account) -> Account,
-        ) {
+   
+        public func getSource(vid : NodeId, vec : NodeMem, endpoint_idx : Nat) : ?SourceReq {
+            
+            if (endpoint_idx >= vec.sources.size()) return null;
 
-            public let endpoint = U.onlyIC(cls.endpoint) : ICRC55.EndpointIC;
+            let #ok(sinfo) = sourceInfo(vid, U.onlyIC(vec.sources[endpoint_idx].endpoint).account.subaccount) else return null;
+            if (not sinfo.allowed) return null;
 
-            public func balance() : Nat {
+            ?{
+                vec;
+                vid;
+                endpoint_idx;
+            };
+        };
+
+        public module Source {
+
+            public func balance(req: SourceReq) : Nat {
+                
+                let endpoint = U.onlyIC(req.vec.sources[req.endpoint_idx].endpoint);
                 dvf.balance(endpoint.ledger, endpoint.account.subaccount);
             };
 
-            public func fee() : Nat {
-
+            public func fee(req: SourceReq) : Nat {
+                let endpoint = U.onlyIC(req.vec.sources[req.endpoint_idx].endpoint);
                 dvf.fee(endpoint.ledger);
-
             };
 
             public func send(
+                req: SourceReq,
                 location : {
                     #destination : { port : Nat };
                     #source : { port : Nat };
@@ -480,12 +477,13 @@ module {
                 },
                 amount : Nat,
             ) : R<Nat64, SourceSendErr> {
+                let endpoint = U.onlyIC(req.vec.sources[req.endpoint_idx].endpoint);
+
                 let ?pylonAccount = mem.pylon_fee_account else Debug.trap("Pylon account not set");
-                let billing = cls.vec.meta.billing;
+                let billing = req.vec.meta.billing;
                 let ledger_fee = dvf.fee(endpoint.ledger);
                 let tx_fee : Nat = switch (location) {
                     case (#destination(_) or #remote_destination(_)) {
-
                         switch (billing.transaction_fee) {
                             case (#none) 0;
                             case (#flat_fee_multiplier(m)) {
@@ -501,23 +499,23 @@ module {
 
                 let to : Account = switch (location) {
                     case (#destination({ port })) {
-                        let ?acc = U.onlyICDest(cls.vec.destinations[port].endpoint).account else return #err(#AccountNotSet);
+                        let ?acc = U.onlyICDest(req.vec.destinations[port].endpoint).account else return #err(#AccountNotSet);
                         acc;
                     };
 
                     case (#remote_destination({ node; port })) {
-                        let ?to_vec = getNode(node) else return #err(#AccountNotSet);
+                        let ?to_vec = getNodeById(node) else return #err(#AccountNotSet);
                         let ?acc = U.onlyICDest(to_vec.destinations[port].endpoint).account else return #err(#AccountNotSet);
                         acc;
                     };
 
                     case (#remote_source({ node; port })) {
-                        let ?to_vec = getNode(node) else return #err(#AccountNotSet);
+                        let ?to_vec = getNodeById(node) else return #err(#AccountNotSet);
                         U.onlyIC(to_vec.sources[port].endpoint).account;
                     };
 
                     case (#source({ port })) {
-                        U.onlyIC(cls.vec.sources[port].endpoint).account;
+                        U.onlyIC(req.vec.sources[port].endpoint).account;
                     };
 
                     case (#external_account(account)) {
@@ -533,7 +531,7 @@ module {
 
                 if (tx_fee > 0) {
                     let billing_subaccount = ?U.port2subaccount({
-                        vid = cls.vid;
+                        vid = req.vid;
                         flow = #payment;
                         id = 0;
                     });
@@ -545,7 +543,7 @@ module {
                         from_subaccount = billing_subaccount;
                     });
                     ignore virtual.send({
-                        to = cls.vec.meta.author_account;
+                        to = req.vec.meta.author_account;
                         amount = tx_fee * pylon_billing.split.author / 1000;
                         memo = null;
                         from_subaccount = billing_subaccount;
@@ -558,7 +556,7 @@ module {
                     });
                     ignore do ? {
                         ignore virtual.send({
-                            to = get_virtual_account(cls.vec.affiliate!);
+                            to = get_virtual_account(req.vec.affiliate!);
                             amount = tx_fee * pylon_billing.split.affiliate / 1000;
                             memo = null;
                             from_subaccount = billing_subaccount;
