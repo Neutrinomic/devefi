@@ -136,11 +136,16 @@ module {
                 let ledger_A = U.onlyICLedger(vec.ledgers[0]);
                 let ledger_B = U.onlyICLedger(vec.ledgers[1]);
 
-                let lp_bal = 0;
+                
                 let ?destination_A = core.getDestinationAccountIC(vec, 0) else return;
                 let ?destination_B = core.getDestinationAccountIC(vec, 1) else return;
 
                 let from_account = swap.Pool.accountFromVid(vid, 0);
+
+                let pool_account = swap.getPoolAccount(ledger_A, ledger_B, 0);
+                let pool = swap.Pool.get(pool_account);
+
+                let lp_bal = swap.Pool.getShare(pool, from_account);
 
                 let #ok(intent) = swap.LiquidityIntentRemove.get(
                     from_account,
