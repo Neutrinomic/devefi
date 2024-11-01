@@ -24,8 +24,8 @@ import VecLend "./modules/lend/lend";
 import VecExchange "./modules/exchange/exchange";
 import VecEscrow "./modules/escrow/escrow";
 import VecSplit "./modules/split/split";
-
 import Core "../src/core";
+import Swap "./shared_modules/swap/swap";
 
 actor class () = this {
 
@@ -66,6 +66,11 @@ actor class () = this {
         chain;
     });
 
+    // Shared components
+    let mem_swap_1 = Swap.Mem.Swap.V1.new();
+    let swap = Swap.Mod({xmem=mem_swap_1; core; dvf});
+
+
     // Components
     let mem_vec_throttle_1 = VecThrottle.Mem.Vector.V1.new();
     let vec_throttle = VecThrottle.Mod({xmem=mem_vec_throttle_1; core});
@@ -77,7 +82,7 @@ actor class () = this {
     let vec_borrow = VecBorrow.Mod({xmem=mem_vec_borrow_1; core});
 
     let mem_vec_exchange_1 = VecExchange.Mem.Vector.V1.new();
-    let vec_exchange = VecExchange.Mod({xmem=mem_vec_exchange_1; core; dvf});
+    let vec_exchange = VecExchange.Mod({xmem=mem_vec_exchange_1; core; dvf; primary_ledger = Principal.fromText("lxzze-o7777-77777-aaaaa-cai"); swap_fee = 3000_0000});
 
     let mem_vec_escrow_1 = VecEscrow.Mem.Vector.V1.new();
     let vec_escrow = VecEscrow.Mod({xmem=mem_vec_escrow_1; core});
