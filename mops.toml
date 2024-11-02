@@ -4,7 +4,7 @@ version = "0.3.11"
 description = "Neutrinite DeVeFi Framework"
 repository = "https://github.com/Neutrinomic/devefi"
 keywords = [ ]
-license = "All rights reserved"
+license = ""
 
 [dependencies]
 vector = "0.2.0"
