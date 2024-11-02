@@ -76,7 +76,7 @@ module {
             meta : () -> ICRC55.ModuleMeta;
             create : (NodeId, CreateRequest) -> Create;
             defaults : () -> CreateRequest;
-            get : (NodeId) -> R<Shared, Text>;
+            get : (NodeId, NodeMem) -> R<Shared, Text>;
             modify : (NodeId, ModifyRequest) -> Modify;
             sources : (NodeId) -> EndpointsDescription;
             destinations : (NodeId) -> EndpointsDescription;
@@ -170,10 +170,10 @@ module {
   
 
         public func chargeOpCost(vid : NodeId, vec : NodeMem, number_of_fees : Nat) : () {
-            let ?pylonAccount = mem.pylon_fee_account else Debug.trap("Pylon account not set");
+            let ?pylonAccount = mem.pylon_fee_account else U.trap("Pylon account not set");
             let billing = vec.meta.billing;
             let fee_to_charge = pylon_billing.operation_cost * number_of_fees;
-            let ?virtual = dvf.get_virtual(pylon_billing.ledger) else Debug.trap("Virtual ledger not found");
+            let ?virtual = dvf.get_virtual(pylon_billing.ledger) else U.trap("Virtual ledger not found");
             let billing_subaccount = ?U.port2subaccount({
                 vid;
                 flow = #payment;
@@ -197,7 +197,7 @@ module {
         };
 
         public func get_virtual_account(acc : Account) : Account {
-            let ?thiscanister = mem.thiscan else Debug.trap("Canister not set");
+            let ?thiscanister = mem.thiscan else U.trap("Canister not set");
             {
                 owner = thiscanister;
                 subaccount = ?Principal.toLedgerAccount(acc.owner, acc.subaccount);
@@ -206,14 +206,14 @@ module {
 
 
         public func getThisCan() : Principal {
-            let ?thiscanister = mem.thiscan else Debug.trap("Canister not set");
+            let ?thiscanister = mem.thiscan else U.trap("Canister not set");
             thiscanister;
         };
 
         public func start<system>(can : Principal) : () {
             mem.thiscan := ?can;
 
-            let ?acc = do ? { get_virtual_account(settings.PYLON_FEE_ACCOUNT!) } else Debug.trap("PYLON_FEE_ACCOUNT required");
+            let ?acc = do ? { get_virtual_account(settings.PYLON_FEE_ACCOUNT!) } else U.trap("PYLON_FEE_ACCOUNT required");
             mem.pylon_fee_account := ?acc;
         };
 
@@ -373,7 +373,7 @@ module {
         };
 
         private func chargeTimeBasedFees() : () {
-            let ?pylonAccount = mem.pylon_fee_account else Debug.trap("Pylon account not set");
+            let ?pylonAccount = mem.pylon_fee_account else U.trap("Pylon account not set");
 
             let nowU64 = U.now();
             let now = Nat64.toNat(nowU64);
@@ -403,7 +403,7 @@ module {
                 };
 
                 if (fee_to_charge > 0) {
-                    let ?virtual = dvf.get_virtual(pylon_billing.ledger) else Debug.trap("Virtual account not found");
+                    let ?virtual = dvf.get_virtual(pylon_billing.ledger) else U.trap("Virtual account not found");
                     ignore virtual.send({
                         to = platform_account;
                         amount = fee_to_charge * pylon_billing.split.platform / 1000;
@@ -484,7 +484,7 @@ module {
             ) : R<Nat64, SourceSendErr> {
                 let endpoint = U.onlyIC(req.vec.sources[req.endpoint_idx].endpoint);
 
-                let ?pylonAccount = mem.pylon_fee_account else Debug.trap("Pylon account not set");
+                let ?pylonAccount = mem.pylon_fee_account else U.trap("Pylon account not set");
                 let billing = req.vec.meta.billing;
                 let ledger_fee = dvf.fee(endpoint.ledger);
                 let tx_fee : Nat = switch (location) {
@@ -532,7 +532,7 @@ module {
                 if (tx_fee + ledger_fee >= amount) return #err(#InsufficientFunds);
                 let amount_to_send = amount - tx_fee : Nat;
 
-                let ?virtual = dvf.get_virtual(pylon_billing.ledger) else Debug.trap("Virtual account not found");
+                let ?virtual = dvf.get_virtual(pylon_billing.ledger) else U.trap("Virtual account not found");
 
                 if (tx_fee > 0) {
                     let billing_subaccount = ?U.port2subaccount({

@@ -20,16 +20,16 @@ module {
     type Port = VM.Port;
 
     public func onlyIC(ep : ICRC55.Endpoint) : ICRC55.EndpointIC {
-        let #ic(x) = ep else Debug.trap("Not supported");
+        let #ic(x) = ep else trap("Not supported");
         x;
     };
 
     public func onlyICDest(ep : ICRC55.EndpointOpt) : ICRC55.EndpointOptIC {
-        let #ic(x) = ep else Debug.trap("Not supported");
+        let #ic(x) = ep else trap("Not supported");
         x;
     };
     public func onlyICLedger(ledger : ICRC55.SupportedLedger) : Principal {
-        let #ic(x) = ledger else Debug.trap("Not supported");
+        let #ic(x) = ledger else trap("Not supported");
         x;
     };
 
@@ -94,7 +94,7 @@ module {
     public func ok_or_trap<X,A>(x : Result.Result<X,A>) : X {
         switch(x) {
             case (#err(e)) {
-                Debug.trap("Expected ok, got err");
+                trap("Expected ok, got err");
             };
             case (#ok(x)) {
                 x;
@@ -103,7 +103,7 @@ module {
     };
 
     public func not_opt<X>(x : ?X) : X {
-        let ?a = x else Debug.trap("Expected not opt");
+        let ?a = x else trap("Expected not opt");
         a;
     };
 
@@ -166,4 +166,13 @@ module {
 
     };
 
+
+    public func trap(x:Text) : None {
+        Debug.print("ERR:" # x);
+        Debug.trap(x)
+    };
+
+    public func log(x:Text) : () {
+        Debug.print("LOG: " # x);
+    }
 };

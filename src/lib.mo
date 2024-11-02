@@ -9,8 +9,8 @@ import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Debug "mo:base/Debug";
 import Result "mo:base/Result";
-import Virtual "mo:devefi-icrc-ledger/virtual"
-
+import Virtual "mo:devefi-icrc-ledger/virtual";
+import U "./utils";
 module {
     public type Account = ICRCLedgerIF.Account;
     type R<A,B> = Result.Result<A,B>;
@@ -134,7 +134,7 @@ module {
         };
 
         public func me() : Principal {
-            let ?me = mem.me else Debug.trap("Not initialized");
+            let ?me = mem.me else U.trap("Not initialized");
             me;
         };
 
@@ -185,7 +185,7 @@ module {
         };
 
         public func send(t: Send) : R<Nat64, ICRCLedger.SendError> {
-            let ?virtual = get_virtual(t.ledger) else return Debug.trap("No ledger found");
+            let ?virtual = get_virtual(t.ledger) else return U.trap("No ledger found");
             virtual.send(t);
         };
 
@@ -202,7 +202,7 @@ module {
         };
 
         public func balance(ledger:Principal, sa: ?Blob) : Nat {
-            let ?virtual = get_virtual(ledger) else return Debug.trap("No ledger found");
+            let ?virtual = get_virtual(ledger) else return U.trap("No ledger found");
             virtual.balance(sa);
         };
 
