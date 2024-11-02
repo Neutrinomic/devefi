@@ -1,10 +1,10 @@
 [package]
 name = "devefi"
-version = "0.3.10"
+version = "0.3.11"
 description = "Neutrinite DeVeFi Framework"
 repository = "https://github.com/Neutrinomic/devefi"
 keywords = [ ]
-license = "MIT"
+license = "All rights reserved"
 
 [dependencies]
 vector = "0.2.0"
