@@ -49,7 +49,7 @@ module {
         dvf : DeVeFi.DeVeFi;
         core : Core.Mod;
         vmod : {
-            get : (ModuleId, NodeId) -> R<XShared, Text>;
+            get : (ModuleId, NodeId, NodeMem) -> R<XShared, Text>;
             sources : (ModuleId, NodeId) -> EndpointsDescription;
             destinations : (ModuleId, NodeId) -> EndpointsDescription;    
             modify : (ModuleId, NodeId, XModifyRequest) -> R<(), Text>;
@@ -308,7 +308,7 @@ module {
         };
 
         public func icrc55_get_pylon_meta() : ICRC55.PylonMetaResp {
-            let ?pylon_account = core._settings.PYLON_FEE_ACCOUNT else Debug.trap("Pylon account not set");
+            let ?pylon_account = core._settings.PYLON_FEE_ACCOUNT else U.trap("Pylon account not set");
             {
                 name = core._settings.PYLON_NAME;
                 governed_by = core._settings.PYLON_GOVERNED_BY;
@@ -340,7 +340,7 @@ module {
 
         // TODO: should return err
         public func vecToShared(vec : NodeMem, vid : NodeId) : NodeShared<XShared> {
-            let ?thiscanister = mem.thiscan else Debug.trap("Not initialized");
+            let ?thiscanister = mem.thiscan else U.trap("Not initialized");
             let billing = vec.meta.billing;
             let billing_subaccount = ?U.port2subaccount({
                             vid;
@@ -350,7 +350,7 @@ module {
             let current_billing_balance = dvf.balance(core.pylon_billing.ledger, billing_subaccount);
             {
                 id = vid;
-                custom = ?U.ok_or_trap(vmod.get(vec.module_id, vid));
+                custom = ?U.ok_or_trap(vmod.get(vec.module_id, vid, vec));
                 created = vec.created;
                 extractors = vec.extractors;
                 modified = vec.modified;

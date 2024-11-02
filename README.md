@@ -1,4 +1,4 @@
-# DeFi Vectors Motoko Framework
+# Neutrinite DeFi Vectors Motoko Framework
 
 Under construction
 
