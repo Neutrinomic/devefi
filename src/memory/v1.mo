@@ -91,6 +91,7 @@ module {
         create_allowed: Bool;
         ledger_slots : [Text];
         author_account: Account;
+        temporary_allowed: Bool;
     }
 
     }

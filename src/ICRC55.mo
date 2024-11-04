@@ -34,6 +34,7 @@ module {
         sources: EndpointsDescription;
         destinations: EndpointsDescription;
         author_account: Account;
+        temporary_allowed: Bool;
     };
 
     public type SupportedLedger = {

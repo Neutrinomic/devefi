@@ -102,15 +102,10 @@ module {
                     case (#modify_node(vid, nreq, custom)) {
                         #modify_node(icrc55_modify_node(req.controller, vid, nreq, custom));
                     };
-                    // case (#source_transfer(nreq)) {
-                    //     #source_transfer(icrc55_source_transfer(req.controller, nreq));
-                    // };
                     case (#transfer(nreq)) {
                         #transfer(icrc55_transfer(req.controller, nreq));
                     };
-                    // case (#top_up_node(nreq)) {
-                    //     #top_up_node(icrc55_top_up_node(req.controller, nreq));
-                    // }
+
                 };
                 Vector.add(res, r);
             };
@@ -127,38 +122,6 @@ module {
             #ok({id; commands=Vector.toArray(res)});
 
         };
-
-        // public func icrc55_top_up_node(caller : Account, req : ICRC55.TopUpNodeRequest) : ICRC55.TopUpNodeResponse {
-        //     let ?(vid, vec) = core.getNode(#id(req.id)) else return #err("Node not found");
-        //     if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
-
-        //     let billing = vec.meta.billing;
-
-        //     let caller_subaccount = ?Principal.toLedgerAccount(caller.owner, caller.subaccount);
-        //     let caller_balance = dvf.balance(core.pylon_billing.ledger, caller_subaccount);
-
-        //     let payment_account = U.port2subaccount({
-        //         vid;
-        //         flow = #payment;
-        //         id = 0;
-        //     });
-
-        //     if (caller_balance < req.amount) return #err("Insufficient balance");
-        //     let ?thiscanister = mem.thiscan else return #err("This canister not set");
-
-        //     ignore dvf.send({
-        //         ledger = core.pylon_billing.ledger;
-        //         to = {
-        //             owner = thiscanister;
-        //             subaccount = ?payment_account;
-        //         };
-        //         amount = req.amount;
-        //         memo = null;
-        //         from_subaccount = caller_subaccount;
-        //     });
-
-        //     #ok();
-        // };  
 
         public func icrc55_transfer(caller:Account, req: ICRC55.TransferRequest) : ICRC55.TransferResponse {
             let #ic(ic_ledger) = req.ledger else return #err("Ledger not supported");
@@ -234,20 +197,6 @@ module {
             Vector.toArray(rez);
         };
       
-
-        // public func icrc55_source_transfer(caller : Account, req : ICRC55.SourceTransferRequest) : ICRC55.SourceTransferResponse {
-        //     let ?(vid, vec) = core.getNode(#id(req.id)) else return #err("Node not found");
-        //     if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
-
-        //     let ?source = core.getSource(vid, vec, Nat8.toNat(req.source_idx)) else return #err("Source not found");
-        //     let #ic(acc) = req.to else return #err("Ledger not supported");
-        //     let bal = source.balance();
-        //     if (req.amount > bal) return #err("Insufficient balance");
-        //     ignore source.send(#external_account(acc), req.amount);
-        //     core.chargeOpCost(vid, vec, 1);
-        //     #ok();
-        // };
-
         public func icrc55_create_node(caller : Account, req : ICRC55.CommonCreateRequest, custom : XCreateRequest) : CreateNodeResp<XShared> {
             let ?thiscanister = mem.thiscan else return #err("This canister not set");
             // TODO: Limit tempory node creation per hour (against DoS)
@@ -265,6 +214,7 @@ module {
 
             let billing = node.meta.billing;
 
+            
             let caller_subaccount = ?Principal.toLedgerAccount(caller.owner, caller.subaccount);
             let caller_balance = dvf.balance(core.pylon_billing.ledger, caller_subaccount);
             var paid = false;
@@ -286,6 +236,10 @@ module {
                     from_subaccount = caller_subaccount;
                 });
                 paid := true;
+            };
+
+            if (not paid and not node.meta.temporary_allowed) {
+                return #err("Module doesn't allow temporary nodes");
             };
 
             if (not paid and not core._settings.ALLOW_TEMP_NODE_CREATION) return #err("Temp node creation not allowed");
@@ -469,7 +423,7 @@ module {
             #ok;
         };
 
-                // Remove expired nodes
+        // Remove expired nodes
         ignore Timer.recurringTimer<system>(
             #seconds(60),
             func() : async () {
