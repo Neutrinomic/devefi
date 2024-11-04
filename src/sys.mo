@@ -81,8 +81,6 @@ module {
         };
 
 
-
-
         public func icrc55_get_defaults(id : Text) : XCreateRequest {
             vmod.getDefaults(id);
         };
@@ -216,9 +214,9 @@ module {
 
             
             let caller_subaccount = ?Principal.toLedgerAccount(caller.owner, caller.subaccount);
-            let caller_balance = dvf.balance(core.pylon_billing.ledger, caller_subaccount);
+            let caller_balance = dvf.balance(core._settings.BILLING.ledger, caller_subaccount);
             var paid = false;
-            let payment_amount = core.pylon_billing.min_create_balance;
+            let payment_amount = core._settings.BILLING.min_create_balance;
             if (caller_balance >= payment_amount) {
                 let node_payment_account = U.port2subaccount({
                     vid = id;
@@ -226,7 +224,7 @@ module {
                     id = 0;
                 });
                 ignore dvf.send({
-                    ledger = core.pylon_billing.ledger;
+                    ledger = core._settings.BILLING.ledger;
                     to = {
                         owner = thiscanister;
                         subaccount = ?node_payment_account;
@@ -271,7 +269,6 @@ module {
         };
 
         public func icrc55_get_pylon_meta() : ICRC55.PylonMetaResp {
-            let ?pylon_account = core._settings.PYLON_FEE_ACCOUNT else U.trap("Pylon account not set");
             {
                 name = core._settings.PYLON_NAME;
                 governed_by = core._settings.PYLON_GOVERNED_BY;
@@ -282,9 +279,7 @@ module {
                 };
                 create_allowed = true;
                 supported_ledgers = core.get_supported_ledgers();
-                billing = core.pylon_billing;
-                pylon_account;
-                platform_account = core.platform_account;
+                billing = core._settings.BILLING;
                 request_max_expire_sec = core._settings.REQUEST_MAX_EXPIRE_SEC;
             };
         };
@@ -310,7 +305,7 @@ module {
                             flow = #payment;
                             id = 0;
                         });
-            let current_billing_balance = dvf.balance(core.pylon_billing.ledger, billing_subaccount);
+            let current_billing_balance = dvf.balance(core._settings.BILLING.ledger, billing_subaccount);
             {
                 id = vid;
                 custom = ?U.ok_or_trap(vmod.get(vec.module_id, vid, vec));
@@ -379,12 +374,12 @@ module {
                     id = 0;
                 });
 
-                let bal = dvf.balance(core.pylon_billing.ledger, ?from_subaccount);
+                let bal = dvf.balance(core._settings.BILLING.ledger, ?from_subaccount);
                 if (bal > 0) {
                     label refund_payment do {
 
                         ignore dvf.send({
-                            ledger = core.pylon_billing.ledger;
+                            ledger = core._settings.BILLING.ledger;
                             to = refund_acc;
                             amount = bal;
                             memo = null;

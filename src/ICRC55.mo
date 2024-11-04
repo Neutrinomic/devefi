@@ -13,8 +13,6 @@ module {
         };
         supported_ledgers : [SupportedLedger];
         billing: BillingPylon;
-        platform_account : Account;
-        pylon_account: Account;
         request_max_expire_sec: Nat64;
     };
     public type LedgerIdx = Nat;
@@ -128,6 +126,8 @@ module {
         freezing_threshold_days: Nat; // Min days left to freeze the node if it has insufficient balance. Frozen nodes can't do transactions, but can be modified or deleted
         operation_cost: Nat; // Cost incurred per operation (Ex: modify, withdraw). Has to be at least 4 * ledger fee. Paid to the pylon only since the costs are incurred by the pylon
         split: BillingFeeSplit;
+        platform_account : Account;
+        pylon_account: Account;
     };
 
     public type BillingFeeSplit = { /// Ratios, their sum has to be 1000
