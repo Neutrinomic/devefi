@@ -17,6 +17,10 @@ import MU "mo:mosup";
 import Core "./core";
 import Nat32 "mo:base/Nat32";
 import Nat8 "mo:base/Nat8";
+import Timer "mo:base/Timer";
+import Nat64 "mo:base/Nat64";
+import Int "mo:base/Int";
+import Time "mo:base/Time";
 
 module {
 
@@ -43,6 +47,10 @@ module {
     public type ModifyNodeResp<A> = ICRC55.ModifyNodeResponse<A>;
     public type NodeShared<AS> = ICRC55.GetNodeResponse<AS>;
 
+    // As a rule of thumb, this module contains all custom vector module related code
+    // while core doesn't contain any, so we can give core to the modules.
+    // Recursive imports are not allowed in Motoko
+    // Vector modules import Core, Sys imports Core, Sys imports Vector modules
 
     public class Mod<system, XCreateRequest, XShared, XModifyRequest>({
         xmem : MU.MemShell<Mem>;
@@ -53,10 +61,11 @@ module {
             sources : (ModuleId, NodeId) -> EndpointsDescription;
             destinations : (ModuleId, NodeId) -> EndpointsDescription;    
             modify : (ModuleId, NodeId, XModifyRequest) -> R<(), Text>;
-            create : (NodeId, XCreateRequest) -> R<ModuleId, Text>;
+            create : (NodeId, ICRC55.CommonCreateRequest, XCreateRequest) -> R<ModuleId, Text>;
             meta : () -> [ICRC55.ModuleMeta];
             nodeMeta : (ModuleId) -> ICRC55.ModuleMeta;
             getDefaults : (ModuleId) -> XCreateRequest;
+            delete: (ModuleId, NodeId) -> R<(), Text>;
         }
         
     }) {
@@ -68,7 +77,7 @@ module {
             let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return #err("Node not found");
             if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
 
-            #ok(core.delete(vid));
+            delete(vid);
         };
 
 
@@ -399,12 +408,87 @@ module {
         };
 
 
+        public func delete(vid : NodeId) : R<(), Text> {
+            let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return #err("Node not found");
+            
+            switch(vmod.delete(vec.module_id, vid)) {
+                case (#ok()) ();
+                case (#err(e)) return #err(e);
+            };
+            let billing = vec.meta.billing;
+            let refund_acc = core.get_virtual_account(vec.refund);
+            // REFUND: Send staked tokens from the node to the first controller
+            do {
+                let from_subaccount = U.port2subaccount({
+                    vid;
+                    flow = #payment;
+                    id = 0;
+                });
 
+                let bal = dvf.balance(core.pylon_billing.ledger, ?from_subaccount);
+                if (bal > 0) {
+                    label refund_payment do {
+
+                        ignore dvf.send({
+                            ledger = core.pylon_billing.ledger;
+                            to = refund_acc;
+                            amount = bal;
+                            memo = null;
+                            from_subaccount = ?from_subaccount;
+                        });
+                    };
+                };
+
+                dvf.unregisterSubaccount(?U.port2subaccount({ vid = vid; flow = #payment; id = 0 }));
+            };
+
+            label source_refund for (xsource in vec.sources.vals()) {
+                let source = U.onlyIC(xsource.endpoint);
+
+                let #ok(sinfo) = core.sourceInfo(vid, source.account.subaccount) else continue source_refund;
+                if (not sinfo.mine) return continue source_refund;
+
+                dvf.unregisterSubaccount(source.account.subaccount);
+
+                // RETURN tokens from all sources
+                do {
+                    let bal = dvf.balance(source.ledger, source.account.subaccount);
+                    if (bal > 0) {
+                        ignore dvf.send({
+                            ledger = source.ledger;
+                            to = refund_acc;
+                            amount = bal;
+                            memo = null;
+                            from_subaccount = source.account.subaccount;
+                        });
+                    };
+                };
+            };
+
+            ignore Map.remove(mem.nodes, Map.n32hash, vid);
+            #ok;
+        };
+
+                // Remove expired nodes
+        ignore Timer.recurringTimer<system>(
+            #seconds(60),
+            func() : async () {
+                let now = Nat64.fromNat(Int.abs(Time.now()));
+                label vloop for ((vid, vec) in core.entries()) {
+                    let ?expires = vec.billing.expires else continue vloop;
+                    if (now > expires) {
+
+                        // DELETE Node from memory
+                        ignore delete(vid);
+                    };
+                };
+            },
+        );
 
     
         private func node_create(req : ICRC55.CommonCreateRequest, creq : XCreateRequest, id : NodeId, thiscan : Principal) : Result.Result<NodeMem, Text> {
 
-            let module_id = switch(vmod.create(id, creq)) {
+            let module_id = switch(vmod.create(id, req, creq)) {
                 case (#ok(x)) x;
                 case (#err(e)) return #err(e);
             };
