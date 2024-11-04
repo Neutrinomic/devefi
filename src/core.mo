@@ -50,7 +50,7 @@ module {
     public type EndpointOptStored = VM.EndpointOptStored;
     public type NodeMem = VM.NodeMem;
     public type ModuleId = VM.ModuleId;
-
+    public type CommonCreateRequest = ICRC55.CommonCreateRequest;
     public type SupportedLedger = ICRC55.SupportedLedger;
     public type SourceReq = {
         vec : NodeMem;
@@ -69,18 +69,20 @@ module {
         public type NodeId = VM.NodeId;
         public type Create =  Result.Result<ModuleId, Text>;
         public type Modify = Result.Result<(), Text>;
+        public type Delete = Result.Result<(), Text>;
         public type Get<Shared> = R<Shared, Text>;
         public type Endpoints = EndpointsDescription;
         public type NodeCoreMem = VM.NodeMem;
+        public type CommonCreateRequest = ICRC55.CommonCreateRequest;
         public type Class<CreateRequest, ModifyRequest, Shared> = {
             meta : () -> ICRC55.ModuleMeta;
-            create : (NodeId, CreateRequest) -> Create;
+            create : (NodeId, CommonCreateRequest, CreateRequest) -> Create;
             defaults : () -> CreateRequest;
             get : (NodeId, NodeMem) -> R<Shared, Text>;
             modify : (NodeId, ModifyRequest) -> Modify;
             sources : (NodeId) -> EndpointsDescription;
             destinations : (NodeId) -> EndpointsDescription;
-            delete : (NodeId) -> ();
+            delete : (NodeId) -> Delete;
         };
         
     };
@@ -217,61 +219,7 @@ module {
             mem.pylon_fee_account := ?acc;
         };
 
-        public func delete(vid : NodeId) : () {
-            let ?vec = Map.get(mem.nodes, Map.n32hash, vid) else return;
-            
-            let billing = vec.meta.billing;
-            let refund_acc = get_virtual_account(vec.refund);
-            // REFUND: Send staked tokens from the node to the first controller
-            do {
-                let from_subaccount = U.port2subaccount({
-                    vid;
-                    flow = #payment;
-                    id = 0;
-                });
-
-                let bal = dvf.balance(pylon_billing.ledger, ?from_subaccount);
-                if (bal > 0) {
-                    label refund_payment do {
-
-                        ignore dvf.send({
-                            ledger = pylon_billing.ledger;
-                            to = refund_acc;
-                            amount = bal;
-                            memo = null;
-                            from_subaccount = ?from_subaccount;
-                        });
-                    };
-                };
-
-                dvf.unregisterSubaccount(?U.port2subaccount({ vid = vid; flow = #payment; id = 0 }));
-            };
-
-            label source_refund for (xsource in vec.sources.vals()) {
-                let source = U.onlyIC(xsource.endpoint);
-
-                let #ok(sinfo) = sourceInfo(vid, source.account.subaccount) else continue source_refund;
-                if (not sinfo.mine) return continue source_refund;
-
-                dvf.unregisterSubaccount(source.account.subaccount);
-
-                // RETURN tokens from all sources
-                do {
-                    let bal = dvf.balance(source.ledger, source.account.subaccount);
-                    if (bal > 0) {
-                        ignore dvf.send({
-                            ledger = source.ledger;
-                            to = refund_acc;
-                            amount = bal;
-                            memo = null;
-                            from_subaccount = source.account.subaccount;
-                        });
-                    };
-                };
-            };
-
-            ignore Map.remove(mem.nodes, Map.n32hash, vid);
-        };
+        
 
         
 
@@ -291,7 +239,7 @@ module {
 
      
    
-        private func sourceInfo(vid : NodeId, subaccount : ?Blob) : R<{ allowed : Bool; mine : Bool }, ()> {
+        public func sourceInfo(vid : NodeId, subaccount : ?Blob) : R<{ allowed : Bool; mine : Bool }, ()> {
             let ?ep_port = U.subaccount2port(subaccount) else return #err;
             if (ep_port.vid != vid) {
                 // Is it remote vector
@@ -630,21 +578,6 @@ module {
             }
         );
 
-        // Remove expired nodes
-        ignore Timer.recurringTimer<system>(
-            #seconds(60),
-            func() : async () {
-                let now = Nat64.fromNat(Int.abs(Time.now()));
-                label vloop for ((vid, vec) in entries()) {
-                    let ?expires = vec.billing.expires else continue vloop;
-                    if (now > expires) {
-
-                        // DELETE Node from memory
-                        delete(vid);
-                    };
-                };
-            },
-        );
 
         ignore Timer.setTimer<system>(
             #seconds(1),
