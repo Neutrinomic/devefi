@@ -7,31 +7,33 @@ import Principal "mo:base/Principal";
 import Time "mo:base/Time";
 import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
-import Debug "mo:base/Debug";
+// import Debug "mo:base/Debug";
 import Result "mo:base/Result";
-import Virtual "mo:devefi-icrc-ledger/virtual";
-import U "./utils";
+import Virtual "./virtual";
+import U "../utils";
+import MU "mo:mosup";
+import Ver1 "./memory/v1";
+
 module {
+    public module Mem {
+        public module Ledgers {
+            public let V1 = Ver1.Ledgers;
+        }
+    };
+
+    let VM = Mem.Ledgers.V1;
+    let VirtualMem = Ver1.Virtual;
+
     public type Account = ICRCLedgerIF.Account;
     type R<A,B> = Result.Result<A,B>;
 
     public type LedgerInfo = {
-            id:Principal;
-            info: {
-                #icrc: ICRCLedger.Info;
-                #icp: ICPLedger.Info;
-            }
-        };
-
-    public type Ledger = {
-        id: Principal;
-        mem: {
-            #icrc: ICRCLedger.Mem;
-            #icp: ICPLedger.Mem;
-        };
-        virtual_mem : Virtual.Mem;
+        id:Principal;
+        info: {
+            #icrc: ICRCLedger.Info;
+            #icp: ICPLedger.Info;
+        }
     };
-
 
     public type MixedAccount = {
         #icrc : Account;
@@ -67,22 +69,6 @@ module {
         #sent: Sent;
     };
 
-
-    public type Mem = {
-        ledgers : Vector.Vector<Ledger>;
-        var me : ?Principal;
-    };
-
-    public func Mem() : Mem {
-        {
-        ledgers = Vector.new<Ledger>();
-        virtual = Vector.new<Virtual.Mem>();
-        var me = null;
-        };
-    };
-
-    
-
     public type LedgerCls = {
         id : Principal;
         cls : {
@@ -91,7 +77,8 @@ module {
         }
     };
 
-    public class DeVeFi<system>({mem : Mem}) {
+    public class Ledgers<system>({xmem : MU.MemShell<VM.Mem>; me_can: Principal}) {
+        let mem = MU.access(xmem);
 
         let ledgercls = Vector.new<LedgerCls>();
         let virtualcls = Vector.new<Virtual.Virtual>();
@@ -147,20 +134,6 @@ module {
             fn(e);
         };
 
-        public func start<system>(me: Principal) {
-            mem.me := ?me;
- 
-            for (ledger in Vector.vals(ledgercls)) {
-                switch(ledger.cls) {
-                    case (#icrc(l)) {
-                        l.setOwner(me);
-                    };
-                    case (#icp(l)) {
-                        l.setOwner(me);
-                    };
-                };
-            };
-        };
 
         public func registerSubaccount(subaccount: ?Blob) {
             for (ledger in Vector.vals(ledgercls)) {
@@ -254,18 +227,18 @@ module {
 
             let (new_mem, new_cls) = switch(ltype) {
                 case (#icrc) {
-                    let m = ICRCLedger.LMem();
-                    let l =  ICRCLedger.Ledger<system>(m, Principal.toText(id), #last);
+                    let m = ICRCLedger.Mem.Ledger.V1.new();
+                    let l =  ICRCLedger.Ledger<system>(m, Principal.toText(id), #last, me_can);
                     (#icrc(m), {id; cls=#icrc(l)});
                     };
                 case (#icp) {
-                    let m = ICPLedger.LMem();
-                    let l =  ICPLedger.Ledger<system>(m, Principal.toText(id), #last);
+                    let m = ICPLedger.Mem.Ledger.V1.new();
+                    let l =  ICPLedger.Ledger<system>(m, Principal.toText(id), #last, me_can);
                     (#icp(m), {id; cls=#icp(l)});
                     };
             };
 
-            let virt_mem = Virtual.Mem();
+            let virt_mem = VirtualMem.new();
             
             let virt_cls = init_virt<system>(virt_mem, new_cls);
             Vector.add(mem.ledgers, {id; mem=new_mem; virtual_mem = virt_mem});
@@ -281,7 +254,7 @@ module {
             Vector.toArray(rez);
         };
 
-        public func init_virt<system>(mem: Virtual.Mem, cls: LedgerCls) : Virtual.Virtual {
+        public func init_virt<system>(mem: MU.MemShell<VirtualMem.Mem>, cls: LedgerCls) : Virtual.Virtual {
             let virt = switch(cls.cls) {
                 case (#icrc(l)) Virtual.Virtual<system>(mem, l);
                 case (#icp(l)) Virtual.Virtual<system>(mem, l);
@@ -308,13 +281,13 @@ module {
         for (ledger in Vector.vals(mem.ledgers)) {
             switch(ledger.mem) {
                 case (#icrc(m)) {
-                    let cls = ICRCLedger.Ledger<system>(m, Principal.toText(ledger.id), #last);
+                    let cls = ICRCLedger.Ledger<system>(m, Principal.toText(ledger.id), #last, me_can);
 
                     Vector.add(ledgercls, {id=ledger.id; cls=#icrc(cls)});
                     Vector.add(virtualcls, init_virt<system>(ledger.virtual_mem, {id=ledger.id; cls=#icrc(cls)}));
                 };
                 case (#icp(m)) {
-                    let cls = ICPLedger.Ledger<system>(m, Principal.toText(ledger.id), #last);
+                    let cls = ICPLedger.Ledger<system>(m, Principal.toText(ledger.id), #last, me_can);
                     
                     Vector.add(ledgercls, {id=ledger.id; cls=#icp(cls)});
                     Vector.add(virtualcls, init_virt<system>(ledger.virtual_mem, {id=ledger.id; cls=#icp(cls)}));
@@ -322,8 +295,6 @@ module {
 
             };
         };
-
-
 
     };
 

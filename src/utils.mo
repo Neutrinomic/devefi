@@ -93,12 +93,10 @@ module {
 
     public func ok_or_trap<X,A>(x : Result.Result<X,A>) : X {
         switch(x) {
-            case (#err(e)) {
-                trap("Expected ok, got err");
+            case (#err(_e)) {
+                trap("Expected ok, got err ");
             };
-            case (#ok(x)) {
-                x;
-            };
+            case (#ok(x)) x;
         };
     };
 

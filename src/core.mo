@@ -1,25 +1,21 @@
 import Map "mo:map/Map";
-import DeVeFi "./lib";
+import Ledgers "./ledgers/lib";
 import Principal "mo:base/Principal";
 import Option "mo:base/Option";
 import Result "mo:base/Result";
 import U "./utils";
 import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
-import I "mo:itertools/Iter";
 import Array "mo:base/Array";
 import ICRC55 "./ICRC55";
 import Nat8 "mo:base/Nat8";
 import Nat "mo:base/Nat";
 import Timer "mo:base/Timer";
 import Nat64 "mo:base/Nat64";
-import Int "mo:base/Int";
-import Time "mo:base/Time";
-import Vector "mo:vector";
+
 import Debug "mo:base/Debug";
 import Nat32 "mo:base/Nat32";
 import ICRCLedger "mo:devefi-icrc-ledger";
-import Rechain "mo:rechain";
 import Prim "mo:⛔";
 import Ver1 "./memory/v1";
 import MU "mo:mosup";
@@ -99,8 +95,9 @@ module {
 
     public class Mod<system>({
         settings : SETTINGS;
-        dvf : DeVeFi.DeVeFi;
+        dvf : Ledgers.Ledgers;
         xmem : MU.MemShell<Mem>;
+        me_can : Principal;
     }) {
 
 
@@ -131,7 +128,7 @@ module {
             return ?(vid, vec);
         };
 
-        public func chargeOpCost(vid : NodeId, vec : NodeMem, number_of_fees : Nat) : () {
+        public func chargeOpCost(vid : NodeId, _vec : NodeMem, number_of_fees : Nat) : () {
             let fee_to_charge = settings.BILLING.operation_cost * number_of_fees;
             let ?virtual = dvf.get_virtual(settings.BILLING.ledger) else U.trap("Virtual ledger not found");
             let billing_subaccount = ?U.port2subaccount({
@@ -157,21 +154,10 @@ module {
         };
 
         public func get_virtual_account(acc : Account) : Account {
-            let ?thiscanister = mem.thiscan else U.trap("Canister not set");
             {
-                owner = thiscanister;
+                owner = me_can;
                 subaccount = ?Principal.toLedgerAccount(acc.owner, acc.subaccount);
             };
-        };
-
-
-        public func getThisCan() : Principal {
-            let ?thiscanister = mem.thiscan else U.trap("Canister not set");
-            thiscanister;
-        };
-
-        public func start<system>(can : Principal) : () {
-            mem.thiscan := ?can;
         };
 
         public func hasDestination(vec : NodeMem, port_idx : Nat) : Bool {
@@ -203,12 +189,16 @@ module {
             return #ok({ mine = true; allowed = true });
         };
 
-        public func sourceMap(ledgers : [Principal], id : NodeId, thiscan : Principal, sources : [?ICRC55.InputAddress], portdesc : EndpointsDescription) : Result.Result<[EndpointStored], Text> {
+        public func getThisCan() : Principal {
+            me_can;
+        };
+
+        public func sourceMap(ledgers : [Principal], id : NodeId, sources : [?ICRC55.InputAddress], portdesc : EndpointsDescription) : Result.Result<[EndpointStored], Text> {
 
             let accounts = switch (
                 U.all_or_error<(Nat, Text), ?Account, ()>(
                     portdesc,
-                    func(port, idx) = U.expectSourceAccount(thiscan, sources, idx),
+                    func(port, idx) = U.expectSourceAccount(me_can, sources, idx),
                 )
             ) {
                 case (#err) return #err("Invalid account");
@@ -225,7 +215,7 @@ module {
                                 account = Option.get(
                                     accounts[idx],
                                     {
-                                        owner = thiscan;
+                                        owner = me_can;
                                         subaccount = ?U.port2subaccount({
                                             vid = id;
                                             flow = #input;
@@ -306,7 +296,7 @@ module {
                         id = 0;
                     });
                     ignore virtual.send({
-                        to = {owner = getThisCan(); subaccount=fee_subaccount};
+                        to = {owner = me_can; subaccount=fee_subaccount};
                         amount = fee_to_charge;
                         memo = null;
                         from_subaccount = billing_subaccount;
@@ -423,7 +413,7 @@ module {
                     });
 
                     ignore virtual.send({
-                        to = {owner = getThisCan(); subaccount=fee_subaccount};
+                        to = {owner = me_can; subaccount=fee_subaccount};
                         amount = tx_fee;
                         memo = null;
                         from_subaccount = endpoint.account.subaccount;
@@ -469,6 +459,8 @@ module {
             let MINIMUM_TIME_BETWEEN_DISTRIBUTION :Nat64 = 60 * 60 * 6 * 1_000_000_000; // 6 hours
             let min_ts = now - MINIMUM_TIME_BETWEEN_DISTRIBUTION;
             let ledgers = dvf.get_ledgers();
+
+            U.log("Distributing fees");
             label vloop for ((vid, vec) in entries()) {
                 if (vec.billing.last_fee_distribution > min_ts) continue vloop;
                 let fee_subaccount = ?U.port2subaccount({
@@ -482,10 +474,17 @@ module {
 
                     let balance_collected = virtual.balance(fee_subaccount);
                     let ledger_fee = dvf.fee(ledger);
-
+                    U.log("balance_collected " # debug_show(balance_collected));
                     // Minimum distribution is 1000x ledger_fee
-                    if (balance_collected / 1000 < ledger_fee) continue ledgerloop;
+                    if (balance_collected / 100 < ledger_fee) continue ledgerloop; // TODO make it 1000
+                    U.log("Distributing balance " # debug_show(balance_collected));
 
+                    Debug.print("D>" # debug_show({
+                        to = settings.BILLING.platform_account;
+                        amount = balance_collected * settings.BILLING.split.platform / 100;
+                        memo = null;
+                        from_subaccount = fee_subaccount;
+                    }));
                     ignore virtual.send({
                         to = settings.BILLING.platform_account;
                         amount = balance_collected * settings.BILLING.split.platform / 100;
