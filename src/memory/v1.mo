@@ -16,7 +16,6 @@ module {
         {
             nodes = Map.new<NodeId, NodeMem>();
             var next_node_id : NodeId = 0;
-            var thiscan = null;
             var ops = 0;
         }
     );
@@ -24,7 +23,6 @@ module {
     public type Mem = {
         nodes : Map.Map<NodeId, NodeMem>;
         var next_node_id : NodeId;
-        var thiscan : ?Principal;
         var ops : Nat; // Each transaction is one op
     };
 

@@ -6,30 +6,25 @@ import Result "mo:base/Result";
 import ICRCLedger "mo:devefi-icrc-ledger/icrc_ledger";
 import Option "mo:base/Option";
 import Iter "mo:base/Iter";
+import MU "mo:mosup";
+import Ver1 "./memory/v1";
+
+// import Debug "mo:base/Debug";
 
 module {
+
+    public module Mem {
+        public module Virtual {
+            public let V1 = Ver1.Virtual;
+        }
+    };
+
+    let VM = Mem.Virtual.V1;
+
     type R<A, B> = Result.Result<A, B>;
 
     public type SendError = {
         #InsufficientFunds;
-    };
-
-    public type AccountMem = {
-        var balance : Nat;
-    };
-
-    public type Mem = {
-        accounts : Map.Map<Blob, AccountMem>;
-        var collected_fees : Nat;
-        var collected_fees_withdrawn : Nat;
-    };
-
-    public func Mem() : Mem {
-        {
-            accounts = Map.new<Blob, AccountMem>();
-            var collected_fees = 0;
-            var collected_fees_withdrawn = 0;
-        };
     };
 
     public type TransferRecieved = {
@@ -64,10 +59,10 @@ module {
         onReceive : (L.Transfer -> ()) -> ();
         onSent : (Nat64 -> ()) -> ();
         send : IcrcSender.TransactionInput -> R<Nat64, L.SendError>;
-        setOwner : Principal -> ()
     };
 
-    public class Virtual<system>(mem : Mem, ledger: ExpectedLedger) {
+    public class Virtual<system>(xmem : MU.MemShell<VM.Mem>, ledger: ExpectedLedger) {
+        let mem = MU.access(xmem);
 
         var callback_onReceive : ?((TransferRecieved) -> ()) = null;
         var callback_onSent : ?((Nat64) -> ()) = null;
@@ -104,7 +99,7 @@ module {
 
         /// Send from virtual address
         public func send(tr : IcrcSender.TransactionInput) : R<Nat64, SendError> {
-            // The amount we send includes the fee. meaning recepient will get the amount - fee
+            // The amount we send includes the fee. meaning recepient will get the amount - 
             let ?acc = Map.get(mem.accounts, Map.bhash, L.subaccountToBlob(tr.from_subaccount)) else return #err(#InsufficientFunds);
             if (acc.balance : Nat < tr.amount) return #err(#InsufficientFunds);
 
@@ -112,7 +107,7 @@ module {
             if (tr.amount < fee) return #err(#InsufficientFunds);
 
             let id = ledger.genNextSendId();
-
+            
             let { amount; to; from_subaccount } = tr;
             // If local just move the tokens in pooled ledger
             if (to.owner == ledger.me()) {
@@ -140,7 +135,7 @@ module {
         };
 
         private func handle_incoming_amount(subaccount : ?Blob, amount : Nat) : () {
-            switch (Map.get<Blob, AccountMem>(mem.accounts, Map.bhash, L.subaccountToBlob(subaccount))) {
+            switch (Map.get<Blob, VM.AccountMem>(mem.accounts, Map.bhash, L.subaccountToBlob(subaccount))) {
                 case (?acc) {
                     acc.balance += amount : Nat;
                 };
@@ -163,14 +158,14 @@ module {
             acc.balance -= amount : Nat;
 
             if (acc.balance == 0) {
-                ignore Map.remove<Blob, AccountMem>(mem.accounts, Map.bhash, L.subaccountToBlob(subaccount));
+                ignore Map.remove<Blob, VM.AccountMem>(mem.accounts, Map.bhash, L.subaccountToBlob(subaccount));
             };
 
         };
 
         /// Get Iter of all accounts owned by the canister (except dust < fee)
         public func accounts() : Iter.Iter<(Blob, Nat)> {
-            Iter.map<(Blob, AccountMem), (Blob, Nat)>(Map.entries<Blob, AccountMem>(mem.accounts), func((k, v)) { (k, v.balance) });
+            Iter.map<(Blob, VM.AccountMem), (Blob, Nat)>(Map.entries<Blob, VM.AccountMem>(mem.accounts), func((k, v)) { (k, v.balance) });
         };
 
 
