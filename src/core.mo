@@ -132,7 +132,6 @@ module {
         };
 
         public func chargeOpCost(vid : NodeId, vec : NodeMem, number_of_fees : Nat) : () {
-            let billing = vec.meta.billing;
             let fee_to_charge = settings.BILLING.operation_cost * number_of_fees;
             let ?virtual = dvf.get_virtual(settings.BILLING.ledger) else U.trap("Virtual ledger not found");
             let billing_subaccount = ?U.port2subaccount({
@@ -527,7 +526,6 @@ module {
 
                         // Handle payment after temporary vector was created
                         let ?(_, rvec) = found else return;
-                        let billing = rvec.meta.billing;
 
                         let from_subaccount = U.port2subaccount({
                             vid = port.vid;
