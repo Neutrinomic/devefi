@@ -205,42 +205,40 @@ module {
             // Once the node is deleted, we can send the fee back to the caller
             let id = mem.next_node_id;
 
-            let node = switch (node_create(req, custom, id, thiscanister)) {
+            let node = switch (nodeCreate(req, custom, id, thiscanister)) {
                 case (#ok(x)) x;
                 case (#err(e)) return #err(e);
             };
 
-            let billing = node.meta.billing;
 
-            
-            let caller_subaccount = ?Principal.toLedgerAccount(caller.owner, caller.subaccount);
-            let caller_balance = dvf.balance(core._settings.BILLING.ledger, caller_subaccount);
             var paid = false;
-            let payment_amount = core._settings.BILLING.min_create_balance;
-            if (caller_balance >= payment_amount) {
-                let node_payment_account = U.port2subaccount({
-                    vid = id;
-                    flow = #payment;
-                    id = 0;
-                });
-                ignore dvf.send({
-                    ledger = core._settings.BILLING.ledger;
-                    to = {
-                        owner = thiscanister;
-                        subaccount = ?node_payment_account;
-                    };
-                    amount = payment_amount;
-                    memo = null;
-                    from_subaccount = caller_subaccount;
-                });
-                paid := true;
+            if (not req.temporary) {
+                let caller_subaccount = ?Principal.toLedgerAccount(caller.owner, caller.subaccount);
+                let caller_balance = dvf.balance(core._settings.BILLING.ledger, caller_subaccount);
+                
+                let payment_amount = core._settings.BILLING.min_create_balance;
+                if (caller_balance >= payment_amount) {
+                    let node_payment_account = U.port2subaccount({
+                        vid = id;
+                        flow = #payment;
+                        id = 0;
+                    });
+                    ignore dvf.send({
+                        ledger = core._settings.BILLING.ledger;
+                        to = {
+                            owner = thiscanister;
+                            subaccount = ?node_payment_account;
+                        };
+                        amount = payment_amount;
+                        memo = null;
+                        from_subaccount = caller_subaccount;
+                    });
+                    paid := true;
+                };
             };
-
-            if (not paid and not node.meta.temporary_allowed) {
-                return #err("Module doesn't allow temporary nodes");
-            };
-
-            if (not paid and not core._settings.ALLOW_TEMP_NODE_CREATION) return #err("Temp node creation not allowed");
+            if (not paid and not req.temporary) return #err("Insufficient payment account balance");
+            if (not paid and not node.meta.temporary_allowed) return #err("Module doesn't allow temporary nodes");
+            if (not paid and not core._settings.ALLOW_TEMP_NODE_CREATION) return #err("Temp node creation not allowed inside Pylon");
 
             if (not paid) node.billing.expires := ?(U.now() + core._settings.TEMP_NODE_EXPIRATION_SEC * 1_000_000_000);
 
@@ -341,7 +339,7 @@ module {
         };
 
         public func icrc55_get_controller_nodes(_caller : Principal, req : ICRC55.GetControllerNodesRequest) : [NodeShared<XShared>] {
-            // Unoptimised for now, but it will get it done
+            // Unoptimised for now
             let res = Vector.new<NodeShared<XShared>>();
             var cid = 0;
             let start = Nat32.toNat(req.start);
@@ -364,33 +362,29 @@ module {
                 case (#ok()) ();
                 case (#err(e)) return #err(e);
             };
-            let billing = vec.meta.billing;
             let refund_acc = core.get_virtual_account(vec.refund);
-            // REFUND: Send staked tokens from the node to the first controller
             do {
-                let from_subaccount = U.port2subaccount({
+                let billing_subaccount = U.port2subaccount({
                     vid;
                     flow = #payment;
                     id = 0;
                 });
 
-                let bal = dvf.balance(core._settings.BILLING.ledger, ?from_subaccount);
+                let bal = dvf.balance(core._settings.BILLING.ledger, ?billing_subaccount);
                 if (bal > 0) {
-                    label refund_payment do {
-
-                        ignore dvf.send({
-                            ledger = core._settings.BILLING.ledger;
-                            to = refund_acc;
-                            amount = bal;
-                            memo = null;
-                            from_subaccount = ?from_subaccount;
-                        });
-                    };
+                    ignore dvf.send({
+                        ledger = core._settings.BILLING.ledger;
+                        to = refund_acc;
+                        amount = bal;
+                        memo = null;
+                        from_subaccount = ?billing_subaccount;
+                    });
                 };
 
                 dvf.unregisterSubaccount(?U.port2subaccount({ vid = vid; flow = #payment; id = 0 }));
             };
 
+            // RETURN tokens from all sources
             label source_refund for (xsource in vec.sources.vals()) {
                 let source = U.onlyIC(xsource.endpoint);
 
@@ -398,19 +392,17 @@ module {
                 if (not sinfo.mine) return continue source_refund;
 
                 dvf.unregisterSubaccount(source.account.subaccount);
-
-                // RETURN tokens from all sources
-                do {
-                    let bal = dvf.balance(source.ledger, source.account.subaccount);
-                    if (bal > 0) {
-                        ignore dvf.send({
-                            ledger = source.ledger;
-                            to = refund_acc;
-                            amount = bal;
-                            memo = null;
-                            from_subaccount = source.account.subaccount;
-                        });
-                    };
+                
+                let bal = dvf.balance(source.ledger, source.account.subaccount);
+                U.log("refund balance" # debug_show(bal));
+                if (bal > 0) {
+                    ignore dvf.send({
+                        ledger = source.ledger;
+                        to = refund_acc;
+                        amount = bal;
+                        memo = null;
+                        from_subaccount = source.account.subaccount;
+                    });
                 };
             };
 
@@ -435,7 +427,7 @@ module {
         );
 
     
-        private func node_create(req : ICRC55.CommonCreateRequest, creq : XCreateRequest, id : NodeId, thiscan : Principal) : Result.Result<NodeMem, Text> {
+        private func nodeCreate(req : ICRC55.CommonCreateRequest, creq : XCreateRequest, id : NodeId, thiscan : Principal) : Result.Result<NodeMem, Text> {
 
             let module_id = switch(vmod.create(id, req, creq)) {
                 case (#ok(x)) x;
