@@ -147,6 +147,7 @@ module {
         let whobit : Nat8 = switch (p.flow) {
             case (#input) 1;
             case (#payment) 2;
+            case (#fee) 3;
         };
         Blob.fromArray(Iter.toArray(I.pad(I.flattenArray<Nat8>([[whobit], [p.id], ENat32(p.vid)]), 32, 0 : Nat8)));
     };
