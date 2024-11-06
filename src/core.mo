@@ -132,7 +132,6 @@ module {
         };
 
         public func chargeOpCost(vid : NodeId, vec : NodeMem, number_of_fees : Nat) : () {
-            let ?pylonAccount = mem.pylon_fee_account else U.trap("Pylon account not set");
             let billing = vec.meta.billing;
             let fee_to_charge = settings.BILLING.operation_cost * number_of_fees;
             let ?virtual = dvf.get_virtual(settings.BILLING.ledger) else U.trap("Virtual ledger not found");
@@ -143,7 +142,7 @@ module {
             });
 
             ignore virtual.send({
-                to = pylonAccount;
+                to = settings.BILLING.pylon_account;
                 amount = fee_to_charge;
                 memo = null;
                 from_subaccount = billing_subaccount;
@@ -174,9 +173,6 @@ module {
 
         public func start<system>(can : Principal) : () {
             mem.thiscan := ?can;
-
-            let acc = get_virtual_account(settings.BILLING.pylon_account);
-            mem.pylon_fee_account := ?acc;
         };
 
         public func hasDestination(vec : NodeMem, port_idx : Nat) : Bool {
@@ -275,7 +271,6 @@ module {
         };
 
         private func chargeTimeBasedFees() : () {
-            let ?pylonAccount = mem.pylon_fee_account else U.trap("Pylon account not set");
 
             let nowU64 = U.now();
             let now = Nat64.toNat(nowU64);
@@ -305,33 +300,19 @@ module {
                 };
 
                 if (fee_to_charge > 0) {
-                    let ?virtual = dvf.get_virtual(settings.BILLING.ledger) else U.trap("Virtual account not found");
+                    let ?virtual = dvf.get_virtual(settings.BILLING.ledger) else U.trap("Virtual ledger not found");
+                    let fee_subaccount = ?U.port2subaccount({
+                        vid = vid;
+                        flow = #fee;
+                        id = 0;
+                    });
                     ignore virtual.send({
-                        to = settings.BILLING.platform_account;
-                        amount = fee_to_charge * settings.BILLING.split.platform / 1000;
+                        to = {owner = getThisCan(); subaccount=fee_subaccount};
+                        amount = fee_to_charge;
                         memo = null;
                         from_subaccount = billing_subaccount;
                     });
-                    ignore virtual.send({
-                        to = vec.meta.author_account;
-                        amount = fee_to_charge * settings.BILLING.split.author / 1000;
-                        memo = null;
-                        from_subaccount = billing_subaccount;
-                    });
-                    ignore virtual.send({
-                        to = pylonAccount;
-                        amount = fee_to_charge * settings.BILLING.split.pylon / 1000;
-                        memo = null;
-                        from_subaccount = billing_subaccount;
-                    });
-                    ignore do ? {
-                        ignore virtual.send({
-                            to = get_virtual_account(vec.affiliate!);
-                            amount = fee_to_charge * settings.BILLING.split.affiliate / 1000;
-                            memo = null;
-                            from_subaccount = billing_subaccount;
-                        });
-                    };
+  
 
                 };
 
@@ -386,7 +367,6 @@ module {
             ) : R<Nat64, SourceSendErr> {
                 let endpoint = U.onlyIC(req.vec.sources[req.endpoint_idx].endpoint);
 
-                let ?pylonAccount = mem.pylon_fee_account else U.trap("Pylon account not set");
                 let billing = req.vec.meta.billing;
                 let ledger_fee = dvf.fee(endpoint.ledger);
                 let tx_fee : Nat = switch (location) {
@@ -396,7 +376,7 @@ module {
                             case (#flat_fee_multiplier(m)) {
                                 ledger_fee * m;
                             };
-                            case (#transaction_percentage_fee(p)) {
+                            case (#transaction_percentage_fee_e8s(p)) {
                                 amount * p / 1_0000_0000;
                             };
                         };
@@ -434,41 +414,22 @@ module {
                 if (tx_fee + ledger_fee >= amount) return #err(#InsufficientFunds);
                 let amount_to_send = amount - tx_fee : Nat;
 
-                let ?virtual = dvf.get_virtual(settings.BILLING.ledger) else U.trap("Virtual account not found");
+                let ?virtual = dvf.get_virtual(settings.BILLING.ledger) else U.trap("Virtual ledger not found");
 
                 if (tx_fee > 0) {
-                    let billing_subaccount = ?U.port2subaccount({
+                    let fee_subaccount = ?U.port2subaccount({
                         vid = req.vid;
-                        flow = #payment;
+                        flow = #fee;
                         id = 0;
                     });
 
                     ignore virtual.send({
-                        to = settings.BILLING.platform_account;
-                        amount = tx_fee * settings.BILLING.split.platform / 1000;
+                        to = {owner = getThisCan(); subaccount=fee_subaccount};
+                        amount = tx_fee;
                         memo = null;
-                        from_subaccount = billing_subaccount;
+                        from_subaccount = endpoint.account.subaccount;
                     });
-                    ignore virtual.send({
-                        to = req.vec.meta.author_account;
-                        amount = tx_fee * settings.BILLING.split.author / 1000;
-                        memo = null;
-                        from_subaccount = billing_subaccount;
-                    });
-                    ignore virtual.send({
-                        to = pylonAccount;
-                        amount = tx_fee * settings.BILLING.split.pylon / 1000;
-                        memo = null;
-                        from_subaccount = billing_subaccount;
-                    });
-                    ignore do ? {
-                        ignore virtual.send({
-                            to = get_virtual_account(req.vec.affiliate!);
-                            amount = tx_fee * settings.BILLING.split.affiliate / 1000;
-                            memo = null;
-                            from_subaccount = billing_subaccount;
-                        });
-                    };
+
                 };
 
                 dvf.send({
@@ -501,6 +462,59 @@ module {
                 if (inst_now - inst_start > settings.MAX_INSTRUCTIONS_PER_HEARTBEAT) return; // We have used enough instructions
             }
 
+        };
+
+        private func distributeFees() : () {
+            
+            let now = U.now();
+            let MINIMUM_TIME_BETWEEN_DISTRIBUTION :Nat64 = 60 * 60 * 6 * 1_000_000_000; // 6 hours
+            let min_ts = now - MINIMUM_TIME_BETWEEN_DISTRIBUTION;
+            let ledgers = dvf.get_ledgers();
+            label vloop for ((vid, vec) in entries()) {
+                if (vec.billing.last_fee_distribution > min_ts) continue vloop;
+                let fee_subaccount = ?U.port2subaccount({
+                        vid;
+                        flow = #fee;
+                        id = 0;
+                    });
+
+                label ledgerloop for (ledger in ledgers.vals()) {
+                    let ?virtual = dvf.get_virtual(ledger) else continue ledgerloop;
+
+                    let balance_collected = virtual.balance(fee_subaccount);
+                    let ledger_fee = dvf.fee(ledger);
+
+                    // Minimum distribution is 1000x ledger_fee
+                    if (balance_collected / 1000 < ledger_fee) continue ledgerloop;
+
+                    ignore virtual.send({
+                        to = settings.BILLING.platform_account;
+                        amount = balance_collected * settings.BILLING.split.platform / 100;
+                        memo = null;
+                        from_subaccount = fee_subaccount;
+                    });
+                    ignore virtual.send({
+                        to = vec.meta.author_account;
+                        amount = balance_collected * settings.BILLING.split.author / 100;
+                        memo = null;
+                        from_subaccount = fee_subaccount;
+                    });
+                    ignore virtual.send({
+                        to = settings.BILLING.pylon_account;
+                        amount = balance_collected * settings.BILLING.split.pylon / 100;
+                        memo = null;
+                        from_subaccount = fee_subaccount;
+                    });
+                    ignore do ? {
+                        ignore virtual.send({
+                            to = get_virtual_account(vec.affiliate!);
+                            amount = balance_collected * settings.BILLING.split.affiliate / 100;
+                            memo = null;
+                            from_subaccount = fee_subaccount;
+                        });
+                    };
+                };
+            };
         };
 
         dvf.onEvent(
@@ -545,10 +559,11 @@ module {
         );
 
         ignore Timer.recurringTimer<system>(
-            #seconds(10),
-            func() : async () {
-                chargeTimeBasedFees();
-            },
+            #seconds(10), func() : async () { chargeTimeBasedFees(); },
+        );
+
+        ignore Timer.recurringTimer<system>(
+            #seconds(600), func() : async () { distributeFees(); }
         );
 
     };

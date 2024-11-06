@@ -463,6 +463,7 @@ module {
                     var expires = null;
                     var frozen = false;
                     var last_billed = U.now();
+                    var last_fee_distribution = U.now();
                 };
                 var active = true;
                 module_id;

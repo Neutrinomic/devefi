@@ -18,7 +18,6 @@ module {
             var next_node_id : NodeId = 0;
             var thiscan = null;
             var ops = 0;
-            var pylon_fee_account = null;
         }
     );
 
@@ -27,7 +26,6 @@ module {
         var next_node_id : NodeId;
         var thiscan : ?Principal;
         var ops : Nat; // Each transaction is one op
-        var pylon_fee_account : ?Account;
     };
 
     public type Endpoint = ICRC55.Endpoint;
@@ -38,7 +36,7 @@ module {
         owner : Principal;
         subaccount : ?Blob;
     };
-    public type Flow = { #input; #payment };
+    public type Flow = { #input; #payment; #fee };
     public type Port = {
         vid : NodeId;
         flow : Flow;
@@ -81,6 +79,7 @@ module {
             var expires : ?Nat64;
             var frozen : Bool;
             var last_billed : Nat64;
+            var last_fee_distribution : Nat64;
         };
         module_id : ModuleId;
         var meta : MetaSlice;

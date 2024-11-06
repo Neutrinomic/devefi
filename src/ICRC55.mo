@@ -130,7 +130,7 @@ module {
         pylon_account: Account;
     };
 
-    public type BillingFeeSplit = { /// Ratios, their sum has to be 1000
+    public type BillingFeeSplit = { /// Ratios, their sum has to be 100 
         platform : Nat;
         pylon : Nat; 
         author : Nat; 
@@ -148,7 +148,7 @@ module {
     public type BillingTransactionFee = { 
         #none;
         #flat_fee_multiplier: Nat; // On top of that the pylon always gets 1 fee for virtual transfers and 4 fees for external transfers to cover its costs
-        #transaction_percentage_fee: Nat // 8 decimal places
+        #transaction_percentage_fee_e8s: Nat // 8 decimal places
     };
 
     public type BillingInternal = {
