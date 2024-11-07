@@ -107,10 +107,15 @@ module {
         public func get_supported_ledgers() : [ICRC55.SupportedLedger] {
             Array.map<Principal, ICRC55.SupportedLedger>(dvf.get_ledger_ids(), func(x) = #ic(x));
         };
-        
+
+        public func get_ledger_cls(id: Principal) : ?Ledgers.LedgerCls {
+            return dvf.get_ledger(id);
+        };
+
         public func getNodeById(vid : NodeId) : ?NodeMem {
             Map.get(mem.nodes, Map.n32hash, vid);
         };
+
         public func getNode(req : ICRC55.GetNode) : ?(NodeId, NodeMem) {
             let (vec : NodeMem, vid : NodeId) = switch (req) {
                 case (#id(id)) {
@@ -403,7 +408,7 @@ module {
                 if (tx_fee + ledger_fee >= amount) return #err(#InsufficientFunds);
                 let amount_to_send = amount - tx_fee : Nat;
 
-                let ?virtual = dvf.get_virtual(settings.BILLING.ledger) else U.trap("Virtual ledger not found");
+                let ?virtual = dvf.get_virtual(endpoint.ledger) else U.trap("Virtual ledger not found");
 
                 if (tx_fee > 0) {
                     let fee_subaccount = ?U.port2subaccount({
