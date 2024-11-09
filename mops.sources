@@ -5,11 +5,11 @@
 --package account .mops/account@1.0.1/src
 --package array .mops/_github/array#v0.2.1/src
 --package itertools .mops/itertools@0.2.1/src
---package devefi-icrc-ledger .mops/devefi-icrc-ledger@1.5.3/src
+--package devefi-icrc-ledger .mops/devefi-icrc-ledger@1.5.4/src
 --package swb .mops/swb@1.1.1/src
 --package stableheapbtreemap .mops/stableheapbtreemap@1.5.0/src
 --package mosup .mops/mosup@0.1.1/src
---package devefi-icp-ledger .mops/devefi-icp-ledger@1.5.3/src
+--package devefi-icp-ledger .mops/devefi-icp-ledger@1.5.4/src
 --package rechain .mops/rechain@1.1.5/src
 --package sha2 .mops/sha2@0.0.4/src
 --package rep-indy-hash .mops/rep-indy-hash@0.1.1/src
