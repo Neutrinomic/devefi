@@ -157,6 +157,24 @@ module {
             };
         };
 
+
+        public module Send {
+            public type Intent = {
+                virtual : Virtual.Virtual;
+                tx : Send;
+            };
+            public func intent(t : Send) : R<Intent, ICRCLedger.SendError>{
+                let ?virtual = get_virtual(t.ledger) else return U.trap("No ledger found");
+                let bal = virtual.balance(t.from_subaccount);
+                if (bal < t.amount) return #err( #InsufficientFunds );
+                #ok({virtual; tx=t});
+            };
+            public func commit(intent: Intent) : Nat64 {
+                let #ok(n) = intent.virtual.send(intent.tx) else U.trap("Internal error in send intent commit");
+                n;
+            };
+        };
+
         public func send(t: Send) : R<Nat64, ICRCLedger.SendError> {
             let ?virtual = get_virtual(t.ledger) else return U.trap("No ledger found");
             virtual.send(t);
