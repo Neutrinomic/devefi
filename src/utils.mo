@@ -13,6 +13,8 @@ import Iter "mo:base/Iter";
 import I "mo:itertools/Iter";
 import Array "mo:base/Array";
 import Option "mo:base/Option";
+import Prim "mo:⛔";
+import Float "mo:base/Float";
 
 module {
 
@@ -46,6 +48,16 @@ module {
         ];
     };
 
+
+    public func performance<A>( tex: Text, f : () -> A ) : A {
+        let inst_start = Prim.performanceCounter(0); 
+        let rez = f();
+        let inst_end = Prim.performanceCounter(0); 
+        let inst_diff = inst_end - inst_start;
+        log(tex # " | instructions | " # Float.toText( Float.fromInt(Nat64.toNat(inst_diff))/ 2_000_000_000 ));
+        rez;
+    };
+    
     public func DNat64(array : [Nat8]) : ?Nat64 {
         if (array.size() != 8) return null;
         return ?(Nat64.fromNat(Nat8.toNat(array[0])) << 56 | Nat64.fromNat(Nat8.toNat(array[1])) << 48 | Nat64.fromNat(Nat8.toNat(array[2])) << 40 | Nat64.fromNat(Nat8.toNat(array[3])) << 32 | Nat64.fromNat(Nat8.toNat(array[4])) << 24 | Nat64.fromNat(Nat8.toNat(array[5])) << 16 | Nat64.fromNat(Nat8.toNat(array[6])) << 8 | Nat64.fromNat(Nat8.toNat(array[7])));
@@ -167,7 +179,7 @@ module {
 
 
     public func trap(x:Text) : None {
-        Debug.print("ERR:" # x);
+        Debug.print("\n🟥🟥🟥🟥🟥 ERR:" # x);
         Debug.trap(x)
     };
 

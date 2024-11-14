@@ -294,6 +294,7 @@ module {
                 };
 
                 if (fee_to_charge > 0) {
+                    
                     let ?virtual = dvf.get_virtual(settings.BILLING.ledger) else U.trap("Virtual ledger not found");
                     let fee_subaccount = ?U.port2subaccount({
                         vid = vid;
@@ -348,91 +349,124 @@ module {
                 ?U.onlyIC(req.vec.sources[req.endpoint_idx].endpoint).account
             };
 
-            public func send(
-                req: SourceReq,
-                location : {
-                    #destination : { port : Nat };
-                    #source : { port : Nat };
-                    #remote_destination : { node : NodeId; port : Nat };
-                    #remote_source : { node : NodeId; port : Nat };
-                    #external_account : Account;
-                },
-                amount : Nat,
-            ) : R<Nat64, SourceSendErr> {
-                let endpoint = U.onlyIC(req.vec.sources[req.endpoint_idx].endpoint);
+            public module Send {
 
-                let billing = req.vec.meta.billing;
-                let ledger_fee = dvf.fee(endpoint.ledger);
-                let tx_fee : Nat = switch (location) {
-                    case (#destination(_) or #remote_destination(_)) {
-                        switch (billing.transaction_fee) {
-                            case (#none) 0;
-                            case (#flat_fee_multiplier(m)) {
-                                ledger_fee * m;
-                            };
-                            case (#transaction_percentage_fee_e8s(p)) {
-                                amount * p / 1_0000_0000;
+                public type Intent = {
+                    req: SourceReq;
+                    location : Location;
+                    amount : Nat;
+                    endpoint : ICRC55.EndpointIC;
+                    amount_to_send : Nat;
+                    tx_fee : Nat;
+                    ledger_fee : Nat;
+                    to: Account;
+                };
+                public func commit(intent: Intent) : Nat64 {
+
+                    let ?virtual = dvf.get_virtual(intent.endpoint.ledger) else U.trap("Virtual ledger not found");
+
+                    incrementOps(1);
+
+                    if (intent.tx_fee > 0) {
+                        let fee_subaccount = ?U.port2subaccount({
+                            vid = intent.req.vid;
+                            flow = #fee;
+                            id = 0;
+                        });
+
+                        ignore virtual.send({
+                            to = {owner = me_can; subaccount=fee_subaccount};
+                            amount = intent.tx_fee;
+                            memo = null;
+                            from_subaccount = intent.endpoint.account.subaccount;
+                        });
+
+                    };
+
+                    let #ok(bid) = dvf.send({
+                        ledger = intent.endpoint.ledger;
+                        to = intent.to;
+                        amount = intent.amount_to_send;
+                        memo = null;
+                        from_subaccount = intent.endpoint.account.subaccount;
+                    }) else U.trap("Internal error in source send commit");
+                    bid;
+                };
+
+                public type Location = {
+                        #destination : { port : Nat };
+                        #source : { port : Nat };
+                        #remote_destination : { node : NodeId; port : Nat };
+                        #remote_source : { node : NodeId; port : Nat };
+                        #external_account : Account;
+                    };
+
+                public func intent(
+                    req: SourceReq,
+                    location : Location,
+                    amount : Nat,
+                ) : R<Intent, SourceSendErr> {
+                    let endpoint = U.onlyIC(req.vec.sources[req.endpoint_idx].endpoint);
+
+                    let billing = req.vec.meta.billing;
+                    let ledger_fee = dvf.fee(endpoint.ledger);
+                    let tx_fee : Nat = switch (location) {
+                        case (#destination(_) or #remote_destination(_)) {
+                            switch (billing.transaction_fee) {
+                                case (#none) 0;
+                                case (#flat_fee_multiplier(m)) {
+                                    ledger_fee * m;
+                                };
+                                case (#transaction_percentage_fee_e8s(p)) {
+                                    amount * p / 1_0000_0000;
+                                };
                             };
                         };
-                    };
-                    case (_) 0;
-                };
-
-                let to : Account = switch (location) {
-                    case (#destination({ port })) {
-                        let ?acc = U.onlyICDest(req.vec.destinations[port].endpoint).account else return #err(#AccountNotSet);
-                        acc;
+                        case (_) 0;
                     };
 
-                    case (#remote_destination({ node; port })) {
-                        let ?to_vec = getNodeById(node) else return #err(#AccountNotSet);
-                        let ?acc = U.onlyICDest(to_vec.destinations[port].endpoint).account else return #err(#AccountNotSet);
-                        acc;
+                    let to : Account = switch (location) {
+                        case (#destination({ port })) {
+                            let ?acc = U.onlyICDest(req.vec.destinations[port].endpoint).account else return #err(#AccountNotSet);
+                            acc;
+                        };
+
+                        case (#remote_destination({ node; port })) {
+                            let ?to_vec = getNodeById(node) else return #err(#AccountNotSet);
+                            let ?acc = U.onlyICDest(to_vec.destinations[port].endpoint).account else return #err(#AccountNotSet);
+                            acc;
+                        };
+
+                        case (#remote_source({ node; port })) {
+                            let ?to_vec = getNodeById(node) else return #err(#AccountNotSet);
+                            U.onlyIC(to_vec.sources[port].endpoint).account;
+                        };
+
+                        case (#source({ port })) {
+                            U.onlyIC(req.vec.sources[port].endpoint).account;
+                        };
+
+                        case (#external_account(account)) {
+                            account;
+                        };
                     };
 
-                    case (#remote_source({ node; port })) {
-                        let ?to_vec = getNodeById(node) else return #err(#AccountNotSet);
-                        U.onlyIC(to_vec.sources[port].endpoint).account;
-                    };
+                    if (tx_fee + ledger_fee >= amount) return #err(#InsufficientFunds);
+                    let amount_to_send = amount - tx_fee : Nat;
 
-                    case (#source({ port })) {
-                        U.onlyIC(req.vec.sources[port].endpoint).account;
-                    };
 
-                    case (#external_account(account)) {
-                        account;
-                    };
-                };
-
-                incrementOps(1);
-                if (tx_fee + ledger_fee >= amount) return #err(#InsufficientFunds);
-                let amount_to_send = amount - tx_fee : Nat;
-
-                let ?virtual = dvf.get_virtual(endpoint.ledger) else U.trap("Virtual ledger not found");
-
-                if (tx_fee > 0) {
-                    let fee_subaccount = ?U.port2subaccount({
-                        vid = req.vid;
-                        flow = #fee;
-                        id = 0;
+                    #ok({
+                        req;
+                        location;
+                        amount;
+                        endpoint;
+                        tx_fee;
+                        ledger_fee;
+                        amount_to_send;
+                        to;
                     });
-
-                    ignore virtual.send({
-                        to = {owner = me_can; subaccount=fee_subaccount};
-                        amount = tx_fee;
-                        memo = null;
-                        from_subaccount = endpoint.account.subaccount;
-                    });
-
                 };
 
-                dvf.send({
-                    ledger = endpoint.ledger;
-                    to;
-                    amount = amount_to_send;
-                    memo = null;
-                    from_subaccount = endpoint.account.subaccount;
-                });
             };
         };
 
@@ -465,7 +499,7 @@ module {
             let min_ts = now - MINIMUM_TIME_BETWEEN_DISTRIBUTION;
             let ledgers = dvf.get_ledgers();
 
-            U.log("Distributing fees");
+            
             label vloop for ((vid, vec) in entries()) {
                 if (vec.billing.last_fee_distribution > min_ts) continue vloop;
                 let fee_subaccount = ?U.port2subaccount({
@@ -479,17 +513,11 @@ module {
 
                     let balance_collected = virtual.balance(fee_subaccount);
                     let ledger_fee = dvf.fee(ledger);
-                    U.log("balance_collected " # debug_show(balance_collected));
+                    // U.log("balance_collected " # debug_show(balance_collected));
                     // Minimum distribution is 1000x ledger_fee
                     if (balance_collected / 100 < ledger_fee) continue ledgerloop; // TODO make it 1000
-                    U.log("Distributing balance " # debug_show(balance_collected));
+                    // U.log("Distributing balance " # debug_show(balance_collected));
 
-                    Debug.print("D>" # debug_show({
-                        to = settings.BILLING.platform_account;
-                        amount = balance_collected * settings.BILLING.split.platform / 100;
-                        memo = null;
-                        from_subaccount = fee_subaccount;
-                    }));
                     ignore virtual.send({
                         to = settings.BILLING.platform_account;
                         amount = balance_collected * settings.BILLING.split.platform / 100;
