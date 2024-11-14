@@ -50,11 +50,11 @@ module {
     public type LedgerIdx = Nat;
     public type EndpointsDescription = ICRC55.EndpointsDescription;
 
-
     public type EndpointStored = {
         endpoint: Endpoint;
         name: Text;
     };
+
     public type EndpointOptStored = {
         endpoint: EndpointOpt;
         name: Text;
@@ -78,6 +78,7 @@ module {
             var frozen : Bool;
             var last_billed : Nat64;
             var last_fee_distribution : Nat64;
+            var billing_option : Nat;
         };
         module_id : ModuleId;
         var meta : MetaSlice;

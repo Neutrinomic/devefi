@@ -25,7 +25,7 @@ module {
         description : Text;
         author : Text;
         supported_ledgers : [SupportedLedger]; // SPEC: If it's empty, this means it supports all pylon ledgers
-        billing : Billing;
+        billing : [Billing];
         version: Version;
         create_allowed: Bool;
         ledger_slots : [Text];
@@ -156,6 +156,7 @@ module {
         current_balance: Nat;
         account : Account;
         expires : ?Nat64;
+        billing_option: Nat;
     }; 
 
     public type Controller = Account;
@@ -197,6 +198,7 @@ module {
         affiliate: ?Account;
         temporary: Bool;
         temp_id: Nat32;
+        billing_option: Nat;
     };
 
     public type CommonModifyRequest = {
