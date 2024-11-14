@@ -331,6 +331,7 @@ module {
                     frozen = vec.billing.frozen;
                     expires = vec.billing.expires;
                     current_balance = current_billing_balance;
+                    billing_option = vec.billing.billing_option;
                     account = {
                         owner = me_can;
                         subaccount = billing_subaccount;
@@ -457,10 +458,17 @@ module {
                     var frozen = false;
                     var last_billed = U.now();
                     var last_fee_distribution = U.now();
+                    var billing_option = req.billing_option;
                 };
                 var active = true;
                 module_id;
-                var meta = meta;
+                var meta = {
+                    billing = meta.billing[req.billing_option];
+                    create_allowed = meta.create_allowed;
+                    ledger_slots = meta.ledger_slots;
+                    author_account = meta.author_account;
+                    temporary_allowed = meta.temporary_allowed;
+                };
             };
 
             #ok(node);
