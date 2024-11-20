@@ -274,7 +274,8 @@ module {
             let now = Nat64.toNat(nowU64);
             label vloop for ((vid, vec) in entries()) {
                 if (vec.billing.expires != null) continue vloop; // Not charging temp nodes
-
+                if (vec.meta.billing.cost_per_day == 0) continue vloop;
+                
                 let billing = vec.meta.billing;
                 let billing_subaccount = ?U.port2subaccount({
                     vid;
