@@ -11,10 +11,19 @@ module {
             allowed : Bool;
             expire_sec: Nat64;
         };
-        supported_ledgers : [SupportedLedger];
+        supported_ledgers : [LedgerInfo];
         billing: BillingPylon;
         request_max_expire_sec: Nat64;
     };
+
+    public type LedgerInfo = {
+        ledger : SupportedLedger;
+        fee: Nat;
+        decimals: Nat8;
+        symbol: Text;
+        name: Text;
+    };
+
     public type LedgerIdx = Nat;
     public type LedgerLabel = Text;
     public type EndpointsDescription = [(LedgerIdx, LedgerLabel)];
@@ -292,6 +301,9 @@ module {
     };
 
     public type VirtualBalancesRequest = Account;
+
+    
+
     public type VirtualBalancesResponse = [(SupportedLedger, Nat)];
     public type ValidationResult = {
         #Ok : Text;

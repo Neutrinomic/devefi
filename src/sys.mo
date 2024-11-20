@@ -278,7 +278,7 @@ module {
                     expire_sec = core._settings.TEMP_NODE_EXPIRATION_SEC;
                 };
                 create_allowed = true;
-                supported_ledgers = core.get_supported_ledgers();
+                supported_ledgers = core.get_supported_ledgers_info();
                 billing = core._settings.BILLING;
                 request_max_expire_sec = core._settings.REQUEST_MAX_EXPIRE_SEC;
             };

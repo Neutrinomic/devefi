@@ -108,6 +108,10 @@ module {
             Array.map<Principal, ICRC55.SupportedLedger>(dvf.get_ledger_ids(), func(x) = #ic(x));
         };
 
+        public func get_supported_ledgers_info() : [ICRC55.LedgerInfo] {
+            dvf.get_ledger_info();
+        };
+
         public func get_ledger_cls(id: Principal) : ?Ledgers.LedgerCls {
             return dvf.get_ledger(id);
         };

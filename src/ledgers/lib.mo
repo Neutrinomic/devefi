@@ -13,6 +13,7 @@ import Virtual "./virtual";
 import U "../utils";
 import MU "mo:mosup";
 import Ver1 "./memory/v1";
+import ICRC55 "../ICRC55";
 
 module {
     public module Mem {
@@ -77,6 +78,14 @@ module {
         }
     };
 
+
+    public type LedgerMeta = {
+        symbol: Text;
+        name: Text;
+        decimals: Nat8;
+        fee: Nat;
+    };
+
     public class Ledgers<system>({xmem : MU.MemShell<VM.Mem>; me_can: Principal}) {
         let mem = MU.access(xmem);
 
@@ -98,6 +107,25 @@ module {
             let rez = Vector.new<Principal>();
             for (ledger in Vector.vals(ledgercls)) {
                 Vector.add(rez, ledger.id);
+            };
+            Vector.toArray(rez);
+        };
+
+
+        public func get_ledger_info() : [ICRC55.LedgerInfo] {
+            let rez = Vector.new<ICRC55.LedgerInfo>();
+            for (ledger in Vector.vals(ledgercls)) {
+                let meta : ICRCLedger.Meta = switch(ledger.cls) {
+                    case (#icrc(l)) l.getMeta();
+                    case (#icp(l)) l.getMeta();
+                };
+                Vector.add(rez, {
+                    ledger = #ic(ledger.id);
+                    symbol = meta.symbol;
+                    name = meta.name;
+                    decimals = meta.decimals;
+                    fee = meta.fee;
+                    });
             };
             Vector.toArray(rez);
         };
