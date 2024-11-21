@@ -300,11 +300,15 @@ module {
         };
     };
 
-    public type VirtualBalancesRequest = Account;
+    public type AccountsRequest = Account;
 
     
+    public type AccountEndpoint = {
+        endpoint : Endpoint;
+        balance : Nat;
+    };
 
-    public type VirtualBalancesResponse = [(SupportedLedger, Nat)];
+    public type AccountsResponse = [AccountEndpoint];
     public type ValidationResult = {
         #Ok : Text;
         #Err : Text;
@@ -319,6 +323,6 @@ module {
         icrc55_get_nodes : shared query [GetNode] -> async [?GetNodeResponse<Any>];
         icrc55_get_pylon_meta : shared query () -> async PylonMetaResp;
 
-        icrc55_virtual_balances : shared query (VirtualBalancesRequest) -> async VirtualBalancesResponse;
+        icrc55_accounts : shared query (AccountsRequest) -> async AccountsResponse;
     };
 };

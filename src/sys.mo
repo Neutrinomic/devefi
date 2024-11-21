@@ -189,12 +189,18 @@ module {
             
         };
 
-        public func icrc55_virtual_balances(_caller: Principal, req: ICRC55.VirtualBalancesRequest) : ICRC55.VirtualBalancesResponse {
+        public func icrc55_accounts(_caller: Principal, req: ICRC55.AccountsRequest) : ICRC55.AccountsResponse {
             let acc = core.get_virtual_account(req);
-            let rez = Vector.new<(ICRC55.SupportedLedger, Nat)>();
+            let rez = Vector.new<ICRC55.AccountEndpoint>();
             for (ledger in dvf.get_ledger_ids().vals()) {
-                let bal = dvf.balance(ledger, acc.subaccount);
-                Vector.add(rez, (#ic(ledger), bal));
+                let balance = dvf.balance(ledger, acc.subaccount);
+                Vector.add(rez, {
+                    endpoint=#ic({
+                        ledger;
+                        account = {owner = me_can; subaccount = acc.subaccount};
+                    });
+                    balance
+                });
             };
             Vector.toArray(rez);
         };
