@@ -295,7 +295,7 @@ module {
             #other: Text;
         };
         #ok : {
-            id: Nat;
+            id: ?Nat;
             commands: [CommandResponse<A>]
         };
     };
@@ -324,5 +324,7 @@ module {
         icrc55_get_pylon_meta : shared query () -> async PylonMetaResp;
 
         icrc55_accounts : shared query (AccountsRequest) -> async AccountsResponse;
+
+        icrc55_account_register : shared () -> async ();
     };
 };

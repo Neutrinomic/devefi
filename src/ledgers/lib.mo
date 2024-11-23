@@ -174,6 +174,18 @@ module {
             };
         };
 
+        public func isRegisteredSubaccount(subaccount: ?Blob) : Bool {
+            for (ledger in Vector.vals(ledgercls)) {
+                switch(ledger.cls) {
+                    case (#icp(m)) {
+                        return m.isRegisteredSubaccount(subaccount)
+                    };
+                    case (_) ();
+                };
+            };
+            true;
+        };
+
         public func unregisterSubaccount(subaccount: ?Blob) {
             for (ledger in Vector.vals(ledgercls)) {
                 switch(ledger.cls) {

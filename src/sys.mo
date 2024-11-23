@@ -90,36 +90,51 @@ module {
             ignore do ? { if (req.expire_at! < U.now()) return #err(#expired) };
             if (caller != req.controller.owner) return #err(#caller_not_controller);
             let res = Vector.new<ICRC55.CommandResponse<XShared>>();
+            let res_command_only_ok = Vector.new<ICRC55.Command<XCreateRequest, XModifyRequest>>();
+
+            
+
             for (cmd in req.commands.vals()) {
                 let r : ICRC55.CommandResponse<XShared> = switch (cmd) {
                     case (#create_node(nreq, custom)) {
-                        #create_node(icrc55_create_node(req.controller, nreq, custom));
+                        let r = icrc55_create_node(req.controller, nreq, custom);
+                        switch(r) { case (#err(_)) (); case (#ok(_)) Vector.add(res_command_only_ok, cmd); };
+                        #create_node(r);
                     };
                     case (#delete_node(vid)) {
-                        #delete_node(icrc55_delete_node(req.controller, vid));
+                        let r = icrc55_delete_node(req.controller, vid);
+                        switch(r) { case (#err(_)) (); case (#ok(_)) Vector.add(res_command_only_ok, cmd); };
+                        #delete_node(r);
                     };
                     case (#modify_node(vid, nreq, custom)) {
-                        #modify_node(icrc55_modify_node(req.controller, vid, nreq, custom));
+                        let r = icrc55_modify_node(req.controller, vid, nreq, custom);
+                        switch(r) { case (#err(_)) (); case (#ok(_)) Vector.add(res_command_only_ok, cmd); };
+                        #modify_node(r);
                     };
                     case (#transfer(nreq)) {
-                        #transfer(icrc55_transfer(req.controller, nreq));
+                        let r = icrc55_transfer(req.controller, nreq);
+                        switch(r) { case (#err(_)) (); case (#ok(_)) Vector.add(res_command_only_ok, cmd); };                    
+                        #transfer(r);
                     };
 
                 };
                 Vector.add(res, r);
             };
-            
-            let res_command_only_ok = Vector.new<ICRC55.Command<XCreateRequest, XModifyRequest>>();
-            for (r in Vector.keys(res)) {
-                Vector.add(res_command_only_ok, req.commands[r]);
-            };  
-
-            // For now we won't use other reducers so that is fine
-            let #Ok(id) = dispatch({req with commands = Vector.toArray(res_command_only_ok)}) else return #err(#other("Dispatch failed"));
-            
+       
+            // Not logging if no commands succeeded
+            let id : ?Nat = if (Vector.size(res_command_only_ok) > 0) {
+                // For now we won't use other reducers so that is fine
+                let #Ok(id) = dispatch({req with commands = Vector.toArray(res_command_only_ok)}) else return #err(#other("Dispatch failed"));
+                ?id
+                } else { null };
 
             #ok({id; commands=Vector.toArray(res)});
 
+        };
+
+        public func icrc55_account_register(caller : Principal, acc: Account) : () {
+            assert acc.owner == caller;
+            dvf.registerSubaccount( core.get_virtual_account(acc).subaccount );
         };
 
         public func icrc55_transfer(caller:Account, req: ICRC55.TransferRequest) : ICRC55.TransferResponse {
@@ -137,7 +152,8 @@ module {
                     account.subaccount;
                 };
                 case (#account(acc)) {
-                    let account = core.get_virtual_account(acc);
+                    let account = core.get_virtual_account(caller);
+                    if (acc != account) return #err("Not the owner");
                     account.subaccount;
                 };
             };
@@ -174,7 +190,8 @@ module {
                     account;
                 };
             };
-            
+
+            if (to.owner == me_can and from_subaccount == to.subaccount) return #err("Can't transfer to the same account");         
 
             switch(dvf.send({
                 ledger = ic_ledger;
@@ -189,11 +206,16 @@ module {
             
         };
 
+        let icp_ledger = Principal.fromText("ryjl3-tyaaa-aaaaa-aaaba-cai");
+
         public func icrc55_accounts(_caller: Principal, req: ICRC55.AccountsRequest) : ICRC55.AccountsResponse {
             let acc = core.get_virtual_account(req);
             let rez = Vector.new<ICRC55.AccountEndpoint>();
-            for (ledger in dvf.get_ledger_ids().vals()) {
+            label ledgerloop for (ledger in dvf.get_ledger_ids().vals()) {
                 let balance = dvf.balance(ledger, acc.subaccount);
+                if (ledger == icp_ledger) {
+                    if (not dvf.isRegisteredSubaccount(acc.subaccount)) continue ledgerloop; // Skip ICP if not registered
+                };
                 Vector.add(rez, {
                     endpoint=#ic({
                         ledger;
@@ -509,6 +531,8 @@ module {
 
         private func node_modifyRequest(id : NodeId, vec : NodeMem, nreq : ?ICRC55.CommonModifyRequest, creq : ?XModifyRequest) : ModifyNodeResp<XShared> {
             
+            
+
             let old_sources = vec.sources;
 
             ignore do ? {

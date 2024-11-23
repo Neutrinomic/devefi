@@ -211,7 +211,7 @@ module {
                 let exists = Map.has(mem.accounts, Map.bhash, L.subaccountToBlob(tx.to.subaccount));
 
                 // Won't open new account in memory if dust is sent
-                if (not exists and tx.amount < ledger.getFee()*100) return;
+                if (not exists and tx.amount < ledger.getFee()*20) return;
 
 
                 if (Option.isNull(pass) or pass == ?true) {

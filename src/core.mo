@@ -183,6 +183,11 @@ module {
             ?U.onlyIC(vec.sources[port_idx].endpoint).account
         };
 
+        public func isAllowedExtractor(vid: NodeId, extractor: NodeId) : Bool {
+            let ?vec = getNodeById(vid) else return false;
+            Array.indexOf(extractor, vec.extractors, Nat32.equal) != null;
+        };
+
         public func sourceInfo(vid : NodeId, subaccount : ?Blob) : R<{ allowed : Bool; mine : Bool }, ()> {
             let ?ep_port = U.subaccount2port(subaccount) else return #err;
             if (ep_port.vid != vid) {
@@ -212,6 +217,16 @@ module {
             ) {
                 case (#err) return #err("Invalid account");
                 case (#ok(x)) x;
+            };
+
+            // Check if accounts are pointing to the current can and if extractors are allowed
+            label checks for (account in accounts.vals()) {
+                let ?acc = account else continue checks;
+                if (acc.owner != me_can) return #err("Invalid account. Has to be owned by the current canister");
+                let ?port = U.subaccount2port(acc.subaccount) else return #err("Invalid subaccount");
+                if (port.vid == id) continue checks;
+                if (port.flow != #input) return #err("Source account has to #input");
+                if (not isAllowedExtractor(port.vid, id)) return #err("Invalid extractor");
             };
 
             #ok(
