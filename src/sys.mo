@@ -291,8 +291,10 @@ module {
         public func icrc55_modify_node(caller : Account, vid : NodeId, nreq : ?ICRC55.CommonModifyRequest, custom : ?XModifyRequest) : ModifyNodeResp<XShared> {
             let ?(_, vec) = core.getNode(#id(vid)) else return #err("Node not found");
             if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
-            core.chargeOpCost(vid, vec, 1);
-            node_modifyRequest(vid, vec, nreq, custom);
+            switch(core.chargeOpCost(vid, vec, 1)) {
+                case (#ok(_)) node_modifyRequest(vid, vec, nreq, custom);
+                case (#err(_)) return #err("Payment for operation failed. Recharge vector");
+            }
             
         };
 

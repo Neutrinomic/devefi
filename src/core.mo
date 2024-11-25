@@ -137,7 +137,7 @@ module {
             return ?(vid, vec);
         };
 
-        public func chargeOpCost(vid : NodeId, _vec : NodeMem, number_of_fees : Nat) : () {
+        public func chargeOpCost(vid : NodeId, _vec : NodeMem, number_of_fees : Nat) : R<Nat64, ICRCLedger.SendError> {
             let fee_to_charge = settings.BILLING.operation_cost * number_of_fees;
             let ?virtual = dvf.get_virtual(settings.BILLING.ledger) else U.trap("Virtual ledger not found");
             let billing_subaccount = ?U.port2subaccount({
@@ -146,7 +146,7 @@ module {
                 id = 0;
             });
 
-            ignore virtual.send({
+            virtual.send({
                 to = settings.BILLING.pylon_account;
                 amount = fee_to_charge;
                 memo = null;
