@@ -224,8 +224,8 @@ module {
                 let ?acc = account else continue checks;
                 if (acc.owner != me_can) return #err("Invalid account. Has to be owned by the current canister");
                 let ?port = U.subaccount2port(acc.subaccount) else return #err("Invalid subaccount");
-                if (port.vid == id) continue checks;
                 if (port.flow != #input) return #err("Source account has to #input");
+                if (port.vid == id) continue checks;
                 if (not isAllowedExtractor(port.vid, id)) return #err("Invalid extractor");
             };
 

@@ -152,8 +152,8 @@ module {
                     account.subaccount;
                 };
                 case (#account(acc)) {
-                    let account = core.get_virtual_account(caller);
-                    if (acc != account) return #err("Not the owner");
+                    if (caller != acc) return #err("Not the owner");
+                    let account = core.get_virtual_account(acc);
                     account.subaccount;
                 };
             };
@@ -392,7 +392,7 @@ module {
                 case (#ok()) ();
                 case (#err(e)) return #err(e);
             };
-            let refund_acc = core.get_virtual_account(vec.refund);
+            let refund_acc = vec.refund;
             do {
                 let billing_subaccount = U.port2subaccount({
                     vid;
