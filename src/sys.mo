@@ -291,11 +291,14 @@ module {
         public func icrc55_modify_node(caller : Account, vid : NodeId, nreq : ?ICRC55.CommonModifyRequest, custom : ?XModifyRequest) : ModifyNodeResp<XShared> {
             let ?(_, vec) = core.getNode(#id(vid)) else return #err("Node not found");
             if (Option.isNull(Array.indexOf(caller, vec.controllers, U.Account.equal))) return #err("Not a controller");
-            switch(core.chargeOpCost(vid, vec, 1)) {
-                case (#ok(_)) node_modifyRequest(vid, vec, nreq, custom);
+
+            // Allow temp nodes to be modified without payment. TODO: should allow only certain amount of modifications
+            if (Option.isNull(vec.billing.expires)) switch(core.chargeOpCost(vid, vec, 1)) {
+                case (#ok(_)) ();
                 case (#err(_)) return #err("Payment for operation failed. Recharge vector");
-            }
-            
+            };
+
+            node_modifyRequest(vid, vec, nreq, custom);
         };
 
         public func icrc55_get_pylon_meta() : ICRC55.PylonMetaResp {
@@ -426,7 +429,7 @@ module {
                 dvf.unregisterSubaccount(source.account.subaccount);
                 
                 let bal = dvf.balance(source.ledger, source.account.subaccount);
-                U.log("refund balance" # debug_show(bal));
+                // U.log("refund balance" # debug_show(bal));
                 if (bal > 0) {
                     ignore dvf.send({
                         ledger = source.ledger;
