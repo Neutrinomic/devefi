@@ -8,7 +8,7 @@ import Option "mo:base/Option";
 import Iter "mo:base/Iter";
 import MU "mo:mosup";
 import Ver1 "./memory/v1";
-
+import U "../utils";
 // import Debug "mo:base/Debug";
 
 module {
@@ -110,6 +110,8 @@ module {
             
             let { amount; to; from_subaccount } = tr;
             // If local just move the tokens in pooled ledger
+
+            
             if (to.owner == ledger.me()) {
                 handle_outgoing_amount(from_subaccount, amount);
                 handle_incoming_amount(to.subaccount, amount - fee);
