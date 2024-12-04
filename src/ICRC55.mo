@@ -208,6 +208,7 @@ module {
         temporary: Bool;
         temp_id: Nat32;
         billing_option: Nat;
+        initial_billing_amount: ?Nat;
     };
 
     public type CommonModifyRequest = {
@@ -254,6 +255,7 @@ module {
                 node_id : LocalNodeId;
                 endpoint_idx : EndpointIdx;
             };
+            #temp : {id: Nat32; source_idx: EndpointIdx}
         };
         amount: Nat;
     };

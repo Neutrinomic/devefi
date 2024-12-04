@@ -283,14 +283,17 @@ module {
             );
         };
 
+        let TIME_BETWEEN_BILLING :Nat64 = 60 * 60 * 6 * 1_000_000_000; // 6 hours
+
         private func chargeTimeBasedFees() : () {
 
             let nowU64 = U.now();
             let now = Nat64.toNat(nowU64);
             label vloop for ((vid, vec) in entries()) {
                 if (vec.billing.expires != null) continue vloop; // Not charging temp nodes
+                if (vec.billing.frozen) continue vloop;
                 if (vec.meta.billing.cost_per_day == 0) continue vloop;
-                
+                if (vec.billing.last_billed + TIME_BETWEEN_BILLING > nowU64) continue vloop;
                 let billing = vec.meta.billing;
                 let billing_subaccount = ?U.port2subaccount({
                     vid;
@@ -303,7 +306,6 @@ module {
                 var fee_to_charge = ((billing.cost_per_day * (now - Nat64.toNat(vec.billing.last_billed) : Nat)) / (60 * 60 * 24)) / 1_000_000_000;
 
                 if (current_billing_balance < fee_to_charge) {
-                    vec.billing.expires := ?(nowU64 + settings.TEMP_NODE_EXPIRATION_SEC);
                     fee_to_charge := current_billing_balance;
                 };
 
@@ -311,6 +313,8 @@ module {
                 let days_left = (current_billing_balance - fee_to_charge : Nat) / billing.cost_per_day;
                 if (days_left <= settings.BILLING.freezing_threshold_days) {
                     vec.billing.frozen := true;
+                } else if (vec.billing.frozen) {
+                    vec.billing.frozen := false;
                 };
 
                 if (fee_to_charge > 0) {
@@ -588,6 +592,7 @@ module {
                         let bal = dvf.balance(r.ledger, ?from_subaccount);
                         if (bal >= settings.BILLING.min_create_balance) {
                             rvec.billing.expires := null;
+                            rvec.billing.frozen := false;
                         };
 
                     };
@@ -609,11 +614,11 @@ module {
         );
 
         ignore Timer.recurringTimer<system>(
-            #seconds(10), func() : async () { chargeTimeBasedFees(); },
+            #seconds(3600), func() : async () { chargeTimeBasedFees(); },
         );
 
         ignore Timer.recurringTimer<system>(
-            #seconds(600), func() : async () { distributeFees(); }
+            #seconds(7200), func() : async () { distributeFees(); }
         );
 
     };

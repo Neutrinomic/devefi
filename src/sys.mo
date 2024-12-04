@@ -189,6 +189,7 @@ module {
                     let account = {owner = me_can; subaccount = ?billing_subaccount};
                     account;
                 };
+                case (#temp(_x)) return #err("Not implemented");
             };
 
             if (to.owner == me_can and from_subaccount == to.subaccount) return #err("Can't transfer to the same account");         
@@ -228,12 +229,8 @@ module {
         };
       
         public func icrc55_create_node(caller : Account, req : ICRC55.CommonCreateRequest, custom : XCreateRequest) : CreateNodeResp<XShared> {
-            // TODO: Limit tempory node creation per hour (against DoS)
 
-            // if (Option.isNull(dvf.get_ledger(v.ledger))) return #err("Ledger not supported");
 
-            // Payment - If the local caller wallet has enough funds send the fee to the node payment balance
-            // Once the node is deleted, we can send the fee back to the caller
             let id = mem.next_node_id;
 
             let node = switch (nodeCreate(req, custom, id)) {
@@ -247,7 +244,7 @@ module {
                 let caller_subaccount = ?Principal.toLedgerAccount(caller.owner, caller.subaccount);
                 let caller_balance = dvf.balance(core._settings.BILLING.ledger, caller_subaccount);
                 
-                let payment_amount = core._settings.BILLING.min_create_balance;
+                let payment_amount = Nat.max(core._settings.BILLING.min_create_balance, Option.get(req.initial_billing_amount, 0));
                 if (caller_balance >= payment_amount) {
                     let node_payment_account = U.port2subaccount({
                         vid = id;
@@ -446,20 +443,22 @@ module {
         };
 
         // Remove expired nodes
-        ignore Timer.recurringTimer<system>(
-            #seconds(60),
-            func() : async () {
-                let now = Nat64.fromNat(Int.abs(Time.now()));
-                label vloop for ((vid, vec) in core.entries()) {
-                    let ?expires = vec.billing.expires else continue vloop;
-                    if (now > expires) {
+        if (core._settings.ALLOW_TEMP_NODE_CREATION) {
+            ignore Timer.recurringTimer<system>(
+                #seconds(3600),
+                func() : async () {
+                    let now = Nat64.fromNat(Int.abs(Time.now()));
+                    label vloop for ((vid, vec) in core.entries()) {
+                        let ?expires = vec.billing.expires else continue vloop;
+                        if (now > expires) {
 
-                        // DELETE Node from memory
-                        ignore delete(vid);
+                            // DELETE Node from memory
+                            ignore delete(vid);
+                        };
                     };
-                };
-            },
-        );
+                },
+            );
+        };
 
     
         private func nodeCreate(req : ICRC55.CommonCreateRequest, creq : XCreateRequest, id : NodeId) : Result.Result<NodeMem, Text> {
