@@ -9,6 +9,10 @@ import Iter "mo:base/Iter";
 import MU "mo:mosup";
 import Ver1 "./memory/v1";
 import U "../utils";
+import Chrono "mo:chronotrinite/client";
+import AccountLib "mo:account";
+import ChronoIF "../chrono";
+
 // import Debug "mo:base/Debug";
 
 module {
@@ -16,7 +20,7 @@ module {
     public module Mem {
         public module Virtual {
             public let V1 = Ver1.Virtual;
-        }
+        };
     };
 
     let VM = Mem.Virtual.V1;
@@ -61,33 +65,39 @@ module {
         send : IcrcSender.TransactionInput -> R<Nat64, L.SendError>;
     };
 
-    public class Virtual<system>(xmem : MU.MemShell<VM.Mem>, ledger: ExpectedLedger) {
+    public class Virtual<system>({
+        xmem : MU.MemShell<VM.Mem>;
+        ledger : ExpectedLedger;
+        chrono : Chrono.ChronoClient;
+        ledger_id : Principal;
+        me_can : Principal;
+    }) {
         let mem = MU.access(xmem);
 
         var callback_onReceive : ?((TransferRecieved) -> ()) = null;
         var callback_onSent : ?((Nat64) -> ()) = null;
         var callback_onRecieveShouldVirtualize : ?((Transfer) -> Bool) = null;
 
-        public func onReceive(fn:(TransferRecieved) -> ()) : () {
-            assert(Option.isNull(callback_onReceive));
+        public func onReceive(fn : (TransferRecieved) -> ()) : () {
+            assert (Option.isNull(callback_onReceive));
             callback_onReceive := ?fn;
         };
 
-        public func onSent(fn:(Nat64) -> ()) : () {
-            assert(Option.isNull(callback_onSent));
+        public func onSent(fn : (Nat64) -> ()) : () {
+            assert (Option.isNull(callback_onSent));
             callback_onSent := ?fn;
         };
 
-        public func onRecieveShouldVirtualize(fn:(Transfer) -> Bool) : () {
-            assert(Option.isNull(callback_onRecieveShouldVirtualize));
+        public func onRecieveShouldVirtualize(fn : (Transfer) -> Bool) : () {
+            assert (Option.isNull(callback_onRecieveShouldVirtualize));
             callback_onRecieveShouldVirtualize := ?fn;
         };
 
-        public func registerSubaccount(_subaccount: ?Blob) : () {
+        public func registerSubaccount(_subaccount : ?Blob) : () {
             // Only used in the ICP version
         };
 
-        public func unregisterSubaccount(_subaccount: ?Blob) : () {
+        public func unregisterSubaccount(_subaccount : ?Blob) : () {
             // Only used in the ICP version
         };
 
@@ -99,7 +109,7 @@ module {
 
         /// Send from virtual address
         public func send(tr : IcrcSender.TransactionInput) : R<Nat64, SendError> {
-            // The amount we send includes the fee. meaning recepient will get the amount - 
+            // The amount we send includes the fee. meaning recepient will get the amount -
             let ?acc = Map.get(mem.accounts, Map.bhash, L.subaccountToBlob(tr.from_subaccount)) else return #err(#InsufficientFunds);
             if (acc.balance : Nat < tr.amount) return #err(#InsufficientFunds);
 
@@ -107,16 +117,31 @@ module {
             if (tr.amount < fee) return #err(#InsufficientFunds);
 
             let id = ledger.genNextSendId();
-            
+
             let { amount; to; from_subaccount } = tr;
             // If local just move the tokens in pooled ledger
 
-            
             if (to.owner == ledger.me()) {
+                chrono_insert_recieved({
+                    id;
+                    from = #icrc({
+                        owner = me_can;
+                        subaccount = from_subaccount;
+                    });
+                    to = to.subaccount;
+                    amount = amount;
+                });
+                chrono_insert_sent({
+                    id;
+                    to = #icrc(to);
+                    from = from_subaccount;
+                    amount = amount;
+                });
                 handle_outgoing_amount(from_subaccount, amount);
                 handle_incoming_amount(to.subaccount, amount - fee);
                 mem.collected_fees += fee;
-                ignore do ? { // This will cause recursion if onRecieve sends (as intended) so be careful with it
+                ignore do ? {
+                    // This will cause recursion if onRecieve sends (as intended) so be careful with it
                     callback_onReceive!({
                         amount = amount - fee;
                         to_subaccount = to.subaccount;
@@ -124,16 +149,72 @@ module {
                 };
                 #ok(id);
             } else {
+
                 let #ok(id) = ledger.send({
                     from_subaccount = null; // pool account
                     to = to;
                     amount = amount;
-                }) else return(#err(#InsufficientFunds));
-                
+                }) else return (#err(#InsufficientFunds));
+
+                chrono_insert_sent({
+                    id;
+                    to = #icrc(to);
+                    from = from_subaccount;
+                    amount = amount;
+                });
+
                 handle_outgoing_amount(from_subaccount, amount);
                 // If remote, send tokens from pool to remote account
                 #ok(id);
             };
+        };
+
+        private func chrono_insert_recieved({
+            id : Nat64;
+            from : AccountMixed;
+            to : ?Blob;
+            amount : Nat;
+        }) : () {
+            chrono.insert_one(
+                "/a/" # AccountLib.toText({
+                    owner = ledger.me();
+                    subaccount = to;
+                }),
+                U.now_tid(id),
+                #CANDID(
+                    to_candid (
+                        #account(#received({
+                            ledger = ledger_id;
+                            from = from;
+                            amount = amount;
+                        })) : ChronoIF.ChronoRecord
+                    ),
+                ),
+            );
+        };
+
+        private func chrono_insert_sent({
+            id : Nat64;
+            to : AccountMixed;
+            from : ?Blob;
+            amount : Nat;
+        }) : () {
+            chrono.insert_one(
+                "/a/" # AccountLib.toText({
+                    owner = ledger.me();
+                    subaccount = from;
+                }),
+                U.now_tid(id),
+                #CANDID(
+                    to_candid (
+                        #account(#sent({
+                            ledger = ledger_id;
+                            to = to;
+                            amount = amount;
+                        })) : ChronoIF.ChronoRecord
+                    ),
+                ),
+            );
         };
 
         private func handle_incoming_amount(subaccount : ?Blob, amount : Nat) : () {
@@ -153,6 +234,7 @@ module {
                     );
                 };
             };
+
         };
 
         private func handle_outgoing_amount(subaccount : ?Blob, amount : Nat) : () {
@@ -170,17 +252,16 @@ module {
             Iter.map<(Blob, VM.AccountMem), (Blob, Nat)>(Map.entries<Blob, VM.AccountMem>(mem.accounts), func((k, v)) { (k, v.balance) });
         };
 
-
         ledger.onReceive(
             func(tx) {
                 // If we are sending from a subaccount to the pool it will always have from = #icrc and not #icp
-                switch(tx.from) {
+                switch (tx.from) {
                     case (#icrc(from)) {
                         if (from.owner == ledger.me() and from.subaccount != null and tx.to.subaccount == null) {
                             // a subaccount is sending tokens to the pool
                             handle_incoming_amount(from.subaccount, tx.amount);
                             ignore do ? {
-                                callback_onReceive!({
+                                callback_onReceive! ({
                                     amount = tx.amount;
                                     to_subaccount = from.subaccount;
                                 });
@@ -191,42 +272,50 @@ module {
                                 // Someone from outside is sending to the pool
                                 handle_incoming_amount(tx.to.subaccount, tx.amount);
                                 ignore do ? {
-                                    callback_onReceive!({
+                                    callback_onReceive! ({
                                         amount = tx.amount;
                                         to_subaccount = null;
                                     });
                                 };
                                 return;
-                            }
-                        } 
+                            };
+                        };
                     };
                     case (#icp(_)) ();
                 };
 
                 // External transfer to a subaccount
-                let pass = do ? { callback_onRecieveShouldVirtualize!(tx); };
+                let pass = do ? { callback_onRecieveShouldVirtualize! (tx) };
 
                 // Ignore dust
-                if (tx.amount < ledger.getFee()*2) return;
-                
+                if (tx.amount < ledger.getFee() * 2) return;
+
                 // Check if account was created
                 let exists = Map.has(mem.accounts, Map.bhash, L.subaccountToBlob(tx.to.subaccount));
 
                 // Won't open new account in memory if dust is sent
-                if (not exists and tx.amount < ledger.getFee()*20) return;
-
+                if (not exists and tx.amount < ledger.getFee() * 20) return;
 
                 if (Option.isNull(pass) or pass == ?true) {
-                    ignore ledger.send({
-                        from_subaccount = tx.to.subaccount; 
+
+                    let #ok(id) = ledger.send({
+                        from_subaccount = tx.to.subaccount;
                         to = {
                             owner = ledger.me();
                             subaccount = null; // pool account
-                            };
+                        };
                         amount = tx.amount;
-                        });
+                    }) else return;
+
+                    chrono_insert_recieved({
+                        id;
+                        from = tx.from;
+                        to = tx.to.subaccount;
+                        amount = tx.amount - ledger.getFee();
+                    });
+
                 }
-               
+
             }
         );
 

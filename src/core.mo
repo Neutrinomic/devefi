@@ -19,6 +19,7 @@ import ICRCLedger "mo:devefi-icrc-ledger";
 import Prim "mo:⛔";
 import Ver1 "./memory/v1";
 import MU "mo:mosup";
+import Chrono "mo:chronotrinite/client"
 
 module {
 
@@ -98,8 +99,10 @@ module {
         dvf : Ledgers.Ledgers;
         xmem : MU.MemShell<Mem>;
         me_can : Principal;
+        _chrono: Chrono.ChronoClient;
     }) {
 
+        public let chrono = _chrono;
 
         public let _settings = settings;
         let mem = MU.access(xmem);
@@ -146,13 +149,31 @@ module {
                 id = 0;
             });
 
+            let virtual_billing_acc = get_virtual_account(settings.BILLING.pylon_account);
+
             virtual.send({
-                to = settings.BILLING.pylon_account;
+                to = virtual_billing_acc;
                 amount = fee_to_charge;
                 memo = null;
                 from_subaccount = billing_subaccount;
             });
+
         };
+
+
+        private func disburseOpCost() { 
+            let virtual_billing_acc = get_virtual_account(settings.BILLING.pylon_account);
+            let balance = dvf.balance(settings.BILLING.ledger, virtual_billing_acc.subaccount);
+            let ?virtual = dvf.get_virtual(settings.BILLING.ledger) else U.trap("Virtual ledger not found");
+
+            ignore virtual.send({
+                to = settings.BILLING.pylon_account;
+                amount = balance;
+                memo = null;
+                from_subaccount = virtual_billing_acc.subaccount;
+            });
+        };
+    
 
         public func entries() : Iter.Iter<(NodeId, NodeMem)> {
             Map.entries(mem.nodes);
@@ -526,6 +547,7 @@ module {
             
             label vloop for ((vid, vec) in entries()) {
                 if (vec.billing.last_fee_distribution > min_ts) continue vloop;
+                vec.billing.last_fee_distribution := now;
                 let fee_subaccount = ?U.port2subaccount({
                         vid;
                         flow = #fee;
@@ -621,6 +643,9 @@ module {
             #seconds(7200), func() : async () { distributeFees(); }
         );
 
+        ignore Timer.recurringTimer<system>(
+            #seconds(3600), func() : async () { disburseOpCost(); }
+        );
     };
 
 };

@@ -201,7 +201,13 @@ module {
                 memo = null;
                 from_subaccount = from_subaccount;
             })) {
-                case (#ok(id)) #ok(id);
+                case (#ok(id)) {
+                    
+ 
+                    
+                    #ok(id);
+                 
+                };
                 case (#err(_e)) #err("Insufficient balance");
             };
             
@@ -471,7 +477,8 @@ module {
 
             let meta = vmod.nodeMeta(module_id);
             if (meta.ledger_slots.size() != ic_ledgers.size()) return #err("Ledgers required mismatch");
-
+            if (meta.create_allowed == false) return #err("Module doesn't allow creation");
+            
             let sources = switch (portMapSources(ic_ledgers, id, module_id, req.sources)) { case (#err(e)) return #err(e); case (#ok(x)) x; };
             let destinations = switch (portMapDestinations(ic_ledgers, id, module_id, req.destinations)) { case (#err(e)) return #err(e); case (#ok(x)) x; };
 

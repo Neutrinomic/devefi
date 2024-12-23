@@ -83,6 +83,10 @@ module {
         Nat64.fromNat(Int.abs(Time.now()));
     };
 
+    public func now_tid(id: Nat64) : Nat64 {
+        (((now()) / 1_000_000_000) <<32 ) | id;
+    };
+
     public func expectSourceAccount(can : Principal, req : [?ICRC55.InputAddress], idx : Nat) : Result.Result<?ICRC55.Account, ()> {
         if (req.size() <= idx) return #ok(null);
         if (Option.isNull(req[idx])) return #ok(null);
