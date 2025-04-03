@@ -15,7 +15,7 @@ import MU "mo:mosup";
 import Ver1 "./memory/v1";
 import ICRC55 "../ICRC55";
 import Chrono "mo:chronotrinite/client";
-
+import Nat8 "mo:base/Nat8";
 
 module {
     public module Mem {
@@ -237,6 +237,14 @@ module {
                     l.getFee();
                 };
             };
+        };
+
+        public func decimals(id : Principal) : Nat {
+            let ?ledger = get_ledger(id) else return U.trap("No ledger found");
+            Nat8.toNat(switch (ledger.cls) {
+                case (#icrc(l)) l.getMeta().decimals;
+                case (#icp(l)) l.getMeta().decimals;
+            });
         };
 
         public func balance(ledger : Principal, sa : ?Blob) : Nat {
