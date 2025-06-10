@@ -6,5 +6,5 @@
       "packtool": "cat mops.sources"
     }
   },
-  "dfx": "0.24.0"
+  "dfx": "0.27.0"
 }

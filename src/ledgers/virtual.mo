@@ -12,7 +12,8 @@ import U "../utils";
 import Chrono "mo:chronotrinite/client";
 import AccountLib "mo:account";
 import ChronoIF "../chrono";
-
+import IT "mo:itertools/Iter";
+import Nat "mo:base/Nat";
 // import Debug "mo:base/Debug";
 
 module {
@@ -105,6 +106,14 @@ module {
         public func balance(subaccount : ?Blob) : Nat {
             let ?acc = Map.get(mem.accounts, Map.bhash, L.subaccountToBlob(subaccount)) else return 0;
             acc.balance;
+        };
+
+        public func top_accounts() : [(Blob, Nat)] {
+            // Go over all accounts and pick top 100 by balance
+            let sorted = IT.sort<(Blob, VM.AccountMem)>(Map.entries<Blob, VM.AccountMem>(mem.accounts), func((a, b)) { Nat.compare(b.1.balance, a.1.balance) });
+            let top = IT.take<(Blob, VM.AccountMem)>(sorted, 100);
+            let top_accounts = Iter.toArray<(Blob, Nat)>(Iter.map<(Blob, VM.AccountMem), (Blob, Nat)>(top, func(a) { (a.0, a.1.balance) }));
+            top_accounts;
         };
 
         /// Send from virtual address

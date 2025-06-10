@@ -4,7 +4,7 @@
 --package prng .mops/prng@0.0.5/src
 --package account .mops/account@1.0.1/src
 --package array .mops/_github/array#v0.2.1/src
---package itertools .mops/itertools@0.2.1/src
+--package itertools .mops/itertools@0.2.2/src
 --package rechain .mops/rechain@1.1.5/src
 --package sha2 .mops/sha2@0.0.4/src
 --package rep-indy-hash .mops/rep-indy-hash@0.1.1/src

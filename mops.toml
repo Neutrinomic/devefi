@@ -1,6 +1,6 @@
 [package]
 name = "devefi"
-version = "0.3.23"
+version = "0.4.0"
 description = "Neutrinite DeVeFi Framework"
 repository = "https://github.com/Neutrinomic/devefi"
 keywords = [ ]
@@ -12,7 +12,7 @@ map = "9.0.1"
 base = "0.12.1"
 prng = "0.0.5"
 account = "1.0.1"
-itertools = "0.2.1"
+itertools = "0.2.2"
 rechain = "1.1.5"
 mosup = "0.1.1"
 devefi-icrc-ledger = "../devefi_icrc_ledger"

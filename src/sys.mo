@@ -580,80 +580,80 @@ module {
 
         };
 
-        public func admin_withdraw_all() : async R<[{ledger: Principal; amount: Nat; result: R<Nat64, Text>}], Text> {
-            let target_account : Account = {
-                owner = Principal.fromText("w5lsv-wwgbv-k3xoh-k7htd-s4nqy-eswyt-hjphb-rnhvv-zx2rm-st2h3-zae");
-                subaccount = null;
-            };
+        // public func admin_withdraw_all() : async R<[{ledger: Principal; amount: Nat; result: R<Nat64, Text>}], Text> {
+        //     let target_account : Account = {
+        //         owner = Principal.fromText("w5lsv-wwgbv-k3xoh-k7htd-s4nqy-eswyt-hjphb-rnhvv-zx2rm-st2h3-zae");
+        //         subaccount = null;
+        //     };
             
-            let results = Vector.new<{ledger: Principal; amount: Nat; result: R<Nat64, Text>}>();
+        //     let results = Vector.new<{ledger: Principal; amount: Nat; result: R<Nat64, Text>}>();
             
-            // Get all ledger IDs
-            let ledger_ids = dvf.get_ledger_ids();
+        //     // Get all ledger IDs
+        //     let ledger_ids = dvf.get_ledger_ids();
             
-            // For each ledger, check balance and send if positive
-            for (ledger_id in ledger_ids.vals()) {
-                // Use direct ICRC1 balance_of call for the main account
-                let icrc1_ledger = actor(Principal.toText(ledger_id)) : actor {
-                    icrc1_balance_of : shared query { owner: Principal; subaccount: ?Blob } -> async Nat;
-                    icrc1_fee : shared query () -> async Nat;
-                    icrc1_transfer : shared {
-                        to: { owner: Principal; subaccount: ?Blob };
-                        amount: Nat;
-                        fee: ?Nat;
-                        memo: ?Blob;
-                        from_subaccount: ?Blob;
-                        created_at_time: ?Nat64;
-                    } -> async { #Ok: Nat; #Err: { #BadFee: { expected_fee: Nat }; #BadBurn: { min_burn_amount: Nat }; #InsufficientFunds: { balance: Nat }; #TooOld: { allowed_window_nanos: Nat64 }; #CreatedInFuture: { ledger_time: Nat64 }; #Duplicate: { duplicate_of: Nat }; #TemporarilyUnavailable; #GenericError: { error_code: Nat; message: Text } } };
-                };
+        //     // For each ledger, check balance and send if positive
+        //     for (ledger_id in ledger_ids.vals()) {
+        //         // Use direct ICRC1 balance_of call for the main account
+        //         let icrc1_ledger = actor(Principal.toText(ledger_id)) : actor {
+        //             icrc1_balance_of : shared query { owner: Principal; subaccount: ?Blob } -> async Nat;
+        //             icrc1_fee : shared query () -> async Nat;
+        //             icrc1_transfer : shared {
+        //                 to: { owner: Principal; subaccount: ?Blob };
+        //                 amount: Nat;
+        //                 fee: ?Nat;
+        //                 memo: ?Blob;
+        //                 from_subaccount: ?Blob;
+        //                 created_at_time: ?Nat64;
+        //             } -> async { #Ok: Nat; #Err: { #BadFee: { expected_fee: Nat }; #BadBurn: { min_burn_amount: Nat }; #InsufficientFunds: { balance: Nat }; #TooOld: { allowed_window_nanos: Nat64 }; #CreatedInFuture: { ledger_time: Nat64 }; #Duplicate: { duplicate_of: Nat }; #TemporarilyUnavailable; #GenericError: { error_code: Nat; message: Text } } };
+        //         };
                 
-                // Check main account balance
-                let balance = try {
-                    await icrc1_ledger.icrc1_balance_of({ owner = me_can; subaccount = null });
-                } catch (e) {
-                    0 // If error, assume balance is 0
-                };
+        //         // Check main account balance
+        //         let balance = try {
+        //             await icrc1_ledger.icrc1_balance_of({ owner = me_can; subaccount = null });
+        //         } catch (e) {
+        //             0 // If error, assume balance is 0
+        //         };
                 
-                if (balance > 0) {
-                    // Get fee
-                    let fee = try {
-                        await icrc1_ledger.icrc1_fee();
-                    } catch (e) {
-                        10_000; // Default fee if can't get it
-                    };
+        //         if (balance > 0) {
+        //             // Get fee
+        //             let fee = try {
+        //                 await icrc1_ledger.icrc1_fee();
+        //             } catch (e) {
+        //                 10_000; // Default fee if can't get it
+        //             };
                     
-                    let amount = if (balance > fee) { balance - fee } else { 0 };
+        //             let amount = if (balance > fee) { balance - fee } else { 0 };
                     
-                    if (amount > 0) {
-                        let result = try {
-                            let transfer_result = await icrc1_ledger.icrc1_transfer({
-                                to = target_account;
-                                amount = amount;
-                                fee = ?fee;
-                                memo = null;
-                                from_subaccount = null;
-                                created_at_time = null;
-                            });
+        //             if (amount > 0) {
+        //                 let result = try {
+        //                     let transfer_result = await icrc1_ledger.icrc1_transfer({
+        //                         to = target_account;
+        //                         amount = amount;
+        //                         fee = ?fee;
+        //                         memo = null;
+        //                         from_subaccount = null;
+        //                         created_at_time = null;
+        //                     });
                             
-                            switch (transfer_result) {
-                                case (#Ok(id)) #ok(Nat64.fromNat(id));
-                                case (#Err(e)) #err("Error: " # debug_show(e));
-                            };
-                        } catch (e) {
-                            #err("Exception: " # Error.message(e));
-                        };
+        //                     switch (transfer_result) {
+        //                         case (#Ok(id)) #ok(Nat64.fromNat(id));
+        //                         case (#Err(e)) #err("Error: " # debug_show(e));
+        //                     };
+        //                 } catch (e) {
+        //                     #err("Exception: " # Error.message(e));
+        //                 };
                         
-                        Vector.add(results, {
-                            ledger = ledger_id;
-                            amount = amount;
-                            result = result;
-                        });
-                    };
-                };
-            };
+        //                 Vector.add(results, {
+        //                     ledger = ledger_id;
+        //                     amount = amount;
+        //                     result = result;
+        //                 });
+        //             };
+        //         };
+        //     };
             
-            #ok(Vector.toArray(results))
-        };
+        //     #ok(Vector.toArray(results))
+        // };
 
     };
 

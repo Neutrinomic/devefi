@@ -140,6 +140,11 @@ module {
             return ?(vid, vec);
         };
 
+        public func top_accounts( ledger: Principal) : [(Blob, Nat)] {
+            let ?virtual = dvf.get_virtual(ledger) else U.trap("Virtual ledger not found");
+            virtual.top_accounts();
+        };
+
         public func chargeOpCost(vid : NodeId, _vec : NodeMem, number_of_fees : Nat) : R<Nat64, ICRCLedger.SendError> {
             let fee_to_charge = settings.BILLING.operation_cost * number_of_fees;
             let ?virtual = dvf.get_virtual(settings.BILLING.ledger) else U.trap("Virtual ledger not found");
