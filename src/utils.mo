@@ -168,6 +168,7 @@ module {
 
     public func subaccount2port(subaccount : ?Blob) : ?Port {
         let ?sa = subaccount else return null;
+        if (sa.size() != 32) return null;
         let array = Blob.toArray(sa);
         let whobit = array[0];
         let id = array[1];
