@@ -4,7 +4,6 @@ import Principal "mo:base/Principal";
 import Option "mo:base/Option";
 import Result "mo:base/Result";
 import U "./utils";
-import Error "mo:base/Error";
 
 import Array "mo:base/Array";
 import ICRC55 "./ICRC55";
@@ -160,13 +159,26 @@ module {
 
             let to = switch(req.to) {
                 case (#external_account(#ic(acc))) {
-                    acc;
+                    if (acc.owner == me_can and from_subaccount == acc.subaccount) return #err("Can't transfer to the same account");         
+                    #icrc(acc);
+                };
+                case (#external_account(#icp(icp))) {
+                    if (ic_ledger != icp_ledger) return #err("Legacy addresses not supported in this ledger");
+                    switch(dvf.getRegisteredAccount(ic_ledger, icp)) {
+                        case (?acc) {
+                            if (acc.owner == me_can and from_subaccount == acc.subaccount) return #err("Can't transfer to the same account");         
+                            #icrc(acc);
+                        };
+                        case (null) {
+                            #icp(icp);
+                        }
+                    };
                 };
                 case (#external_account(#other(_))) {
                     return #err("Ledger not supported");
                 };
                 case (#account(acc)) {
-                    acc;
+                    #icrc(acc);
                 };
                 case (#node({node_id; endpoint_idx})) {
                     let ?(vid, vec) = core.getNode(#id(node_id)) else return #err("Node not found");
@@ -176,7 +188,7 @@ module {
                     let #ic(endpoint) = vec.destinations[Nat8.toNat(endpoint_idx)].endpoint else return #err("Destination endpoint ledger not supported");
                     if (req_ledger != endpoint.ledger) return #err("Ledger not same as destination ledger");
                     let account = U.onlyIC(vec.sources[Nat8.toNat(endpoint_idx)].endpoint).account;
-                    account;
+                    #icrc(account);
                 };
                 case (#node_billing(node_id)) {
                     let ?(vid, vec) = core.getNode(#id(node_id)) else return #err("Node not found");
@@ -187,12 +199,10 @@ module {
                         id = 0;
                     });
                     let account = {owner = me_can; subaccount = ?billing_subaccount};
-                    account;
+                    #icrc(account);
                 };
                 case (#temp(_x)) return #err("Not implemented");
             };
-
-            if (to.owner == me_can and from_subaccount == to.subaccount) return #err("Can't transfer to the same account");         
 
             switch(dvf.send({
                 ledger = ic_ledger;
@@ -202,11 +212,7 @@ module {
                 from_subaccount = from_subaccount;
             })) {
                 case (#ok(id)) {
-                    
- 
-                    
                     #ok(id);
-                 
                 };
                 case (#err(_e)) #err("Insufficient balance");
             };
@@ -259,10 +265,10 @@ module {
                     });
                     ignore dvf.send({
                         ledger = core._settings.BILLING.ledger;
-                        to = {
+                        to = #icrc({
                             owner = me_can;
                             subaccount = ?node_payment_account;
-                        };
+                        });
                         amount = payment_amount;
                         memo = null;
                         from_subaccount = caller_subaccount;
@@ -313,7 +319,6 @@ module {
                     allowed = core._settings.ALLOW_TEMP_NODE_CREATION;
                     expire_sec = core._settings.TEMP_NODE_EXPIRATION_SEC;
                 };
-                create_allowed = true;
                 supported_ledgers = core.get_supported_ledgers_info();
                 billing = core._settings.BILLING;
                 request_max_expire_sec = core._settings.REQUEST_MAX_EXPIRE_SEC;
@@ -412,7 +417,7 @@ module {
                 if (bal > 0) {
                     ignore dvf.send({
                         ledger = core._settings.BILLING.ledger;
-                        to = refund_acc;
+                        to = #icrc(refund_acc);
                         amount = bal;
                         memo = null;
                         from_subaccount = ?billing_subaccount;
@@ -436,7 +441,7 @@ module {
                 if (bal > 0) {
                     ignore dvf.send({
                         ledger = source.ledger;
-                        to = refund_acc;
+                        to = #icrc(refund_acc);
                         amount = bal;
                         memo = null;
                         from_subaccount = source.account.subaccount;

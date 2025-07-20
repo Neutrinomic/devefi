@@ -13,6 +13,7 @@ import Virtual "./virtual";
 import U "../utils";
 import MU "mo:mosup";
 import Ver1 "./memory/v1";
+import Ver2 "./memory/v2";
 import ICRC55 "../ICRC55";
 import Chrono "mo:chronotrinite/client";
 import Nat8 "mo:base/Nat8";
@@ -21,11 +22,12 @@ module {
     public module Mem {
         public module Ledgers {
             public let V1 = Ver1.Ledgers;
+            public let V2 = Ver2.Ledgers;
         };
     };
 
-    let VM = Mem.Ledgers.V1;
-    let VirtualMem = Ver1.Virtual;
+    let VM = Mem.Ledgers.V2;
+    let VirtualMem = Ver2.Virtual;
 
     public type Account = ICRCLedgerIF.Account;
     type R<A, B> = Result.Result<A, B>;
@@ -38,7 +40,7 @@ module {
         };
     };
 
-    public type MixedAccount = {
+    public type AccountMixed = {
         #icrc : Account;
         #icp : Blob;
     };
@@ -47,21 +49,22 @@ module {
         ledger : Principal;
         to : Account;
         fee : ?Nat;
-        from : MixedAccount;
+        from : AccountMixed;
         memo : ?Blob;
         created_at_time : ?Nat64;
         amount : Nat;
-        spender : ?MixedAccount;
+        spender : ?AccountMixed;
     };
 
     public type Sent = {
         ledger : Principal;
         id : Nat64;
+        block_id : Nat;
     };
 
     public type Send = {
         ledger : Principal;
-        to : Account;
+        to : AccountMixed;
         amount : Nat;
         memo : ?Blob;
         from_subaccount : ?Blob;
@@ -252,6 +255,11 @@ module {
             virtual.balance(sa);
         };
 
+        public func getRegisteredAccount(ledger : Principal, aid : Blob) : ?Account {
+            let ?virtual = get_virtual(ledger) else return U.trap("No ledger found");
+            virtual.getRegisteredAccount(aid);
+        };
+
         public func getErrors() : [[Text]] {
             let rez = Vector.new<[Text]>();
             for (ledger in Vector.vals(ledgercls)) {
@@ -301,7 +309,7 @@ module {
                     (#icrc(m), { id; cls = #icrc(l) });
                 };
                 case (#icp) {
-                    let m = ICPLedger.Mem.Ledger.V1.new();
+                    let m = ICPLedger.Mem.Ledger.V2.new();
                     let l = ICPLedger.Ledger<system>(m, Principal.toText(id), #last, me_can);
                     (#icp(m), { id; cls = #icp(l) });
                 };
@@ -337,8 +345,8 @@ module {
             );
 
             virt.onSent(
-                func(id) {
-                    emit(#sent({ id; ledger = cls.id }));
+                func(id, block_id) {
+                    emit(#sent({ id; ledger = cls.id; block_id }));
                 }
             );
 

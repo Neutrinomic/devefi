@@ -247,6 +247,7 @@ module {
         to: {
             #external_account: {
                 #ic : Account;
+                #icp : Blob;
                 #other: Blob;
             };
             #account: Account;
@@ -258,6 +259,7 @@ module {
             #temp : {id: Nat32; source_idx: EndpointIdx}
         };
         amount: Nat;
+        memo: ?Blob;
     };
 
     public type TransferResponse = {

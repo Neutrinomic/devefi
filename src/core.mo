@@ -19,7 +19,7 @@ import ICRCLedger "mo:devefi-icrc-ledger";
 import Prim "mo:⛔";
 import Ver1 "./memory/v1";
 import MU "mo:mosup";
-import Chrono "mo:chronotrinite/client"
+import Chrono "mo:chronotrinite/client";
 
 module {
 
@@ -157,7 +157,7 @@ module {
             let virtual_billing_acc = get_virtual_account(settings.BILLING.pylon_account);
 
             virtual.send({
-                to = virtual_billing_acc;
+                to = #icrc(virtual_billing_acc);
                 amount = fee_to_charge;
                 memo = null;
                 from_subaccount = billing_subaccount;
@@ -172,7 +172,7 @@ module {
             let ?virtual = dvf.get_virtual(settings.BILLING.ledger) else U.trap("Virtual ledger not found");
 
             ignore virtual.send({
-                to = settings.BILLING.pylon_account;
+                to = #icrc(settings.BILLING.pylon_account);
                 amount = balance;
                 memo = null;
                 from_subaccount = virtual_billing_acc.subaccount;
@@ -352,7 +352,7 @@ module {
                         id = 0;
                     });
                     ignore virtual.send({
-                        to = {owner = me_can; subaccount=fee_subaccount};
+                        to = #icrc({owner = me_can; subaccount=fee_subaccount});
                         amount = fee_to_charge;
                         memo = null;
                         from_subaccount = billing_subaccount;
@@ -394,6 +394,11 @@ module {
                 dvf.fee(endpoint.ledger);
             };
 
+            public func decimals(req: SourceReq) : Nat {
+                let endpoint = U.onlyIC(req.vec.sources[req.endpoint_idx].endpoint);
+                dvf.decimals(endpoint.ledger);
+            };
+
             public func getAccount(req: SourceReq) : ?Account {
                 if (req.endpoint_idx >= req.vec.sources.size()) return null;
                 ?U.onlyIC(req.vec.sources[req.endpoint_idx].endpoint).account
@@ -409,7 +414,7 @@ module {
                     amount_to_send : Nat;
                     tx_fee : Nat;
                     ledger_fee : Nat;
-                    to: Account;
+                    to: Ledgers.AccountMixed;
                 };
                 public func commit(intent: Intent) : Nat64 {
 
@@ -425,7 +430,7 @@ module {
                         });
 
                         ignore virtual.send({
-                            to = {owner = me_can; subaccount=fee_subaccount};
+                            to = #icrc({owner = me_can; subaccount=fee_subaccount});
                             amount = intent.tx_fee;
                             memo = null;
                             from_subaccount = intent.endpoint.account.subaccount;
@@ -448,7 +453,7 @@ module {
                         #source : { port : Nat };
                         #remote_destination : { node : NodeId; port : Nat };
                         #remote_source : { node : NodeId; port : Nat };
-                        #external_account : Account;
+                        #external_account : Ledgers.AccountMixed;
                     };
 
                 public func intent(
@@ -475,25 +480,25 @@ module {
                         case (_) 0;
                     };
 
-                    let to : Account = switch (location) {
+                    let to : Ledgers.AccountMixed = switch (location) {
                         case (#destination({ port })) {
                             let ?acc = U.onlyICDest(req.vec.destinations[port].endpoint).account else return #err(#AccountNotSet);
-                            acc;
+                            #icrc(acc);
                         };
 
                         case (#remote_destination({ node; port })) {
                             let ?to_vec = getNodeById(node) else return #err(#AccountNotSet);
                             let ?acc = U.onlyICDest(to_vec.destinations[port].endpoint).account else return #err(#AccountNotSet);
-                            acc;
+                            #icrc(acc);
                         };
 
                         case (#remote_source({ node; port })) {
                             let ?to_vec = getNodeById(node) else return #err(#AccountNotSet);
-                            U.onlyIC(to_vec.sources[port].endpoint).account;
+                            #icrc(U.onlyIC(to_vec.sources[port].endpoint).account);
                         };
 
                         case (#source({ port })) {
-                            U.onlyIC(req.vec.sources[port].endpoint).account;
+                            #icrc(U.onlyIC(req.vec.sources[port].endpoint).account);
                         };
 
                         case (#external_account(account)) {
@@ -570,26 +575,26 @@ module {
                     // U.log("Distributing balance " # debug_show(balance_collected));
 
                     ignore virtual.send({
-                        to = settings.BILLING.platform_account;
+                        to = #icrc(settings.BILLING.platform_account);
                         amount = balance_collected * settings.BILLING.split.platform / 100;
                         memo = null;
                         from_subaccount = fee_subaccount;
                     });
                     ignore virtual.send({
-                        to = vec.meta.author_account;
+                        to = #icrc(vec.meta.author_account);
                         amount = balance_collected * settings.BILLING.split.author / 100;
                         memo = null;
                         from_subaccount = fee_subaccount;
                     });
                     ignore virtual.send({
-                        to = settings.BILLING.pylon_account;
+                        to = #icrc(settings.BILLING.pylon_account);
                         amount = balance_collected * settings.BILLING.split.pylon / 100;
                         memo = null;
                         from_subaccount = fee_subaccount;
                     });
                     ignore do ? {
                         ignore virtual.send({
-                            to = get_virtual_account(vec.affiliate!);
+                            to = #icrc(get_virtual_account(vec.affiliate!));
                             amount = balance_collected * settings.BILLING.split.affiliate / 100;
                             memo = null;
                             from_subaccount = fee_subaccount;
@@ -623,7 +628,10 @@ module {
                         };
 
                     };
-                    case (_) ();
+                    case (#sent(s)) {
+                         U.log("sent " # debug_show(s));
+                    };
+                   
                 };
             }
         );
