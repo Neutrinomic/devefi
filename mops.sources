@@ -17,8 +17,8 @@
 --package cbor .mops/cbor@0.1.3/src
 --package xtended-numbers .mops/_github/xtended-numbers#v1.0.2/src
 --package mosup .mops/mosup@0.1.1/src
---package devefi-icrc-ledger ../devefi_icrc_ledger/src
+--package devefi-icrc-ledger .mops/devefi-icrc-ledger@2.0.0/src
 --package swb .mops/swb@1.1.1/src
 --package stableheapbtreemap .mops/stableheapbtreemap@1.5.0/src
---package devefi-icp-ledger ../devefi_icp_ledger/src
---package chronotrinite ../chronotrinite/src
+--package devefi-icp-ledger .mops/devefi-icp-ledger@2.0.0/src
+--package chronotrinite .mops/chronotrinite@0.1.1/src
