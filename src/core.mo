@@ -415,6 +415,7 @@ module {
                     tx_fee : Nat;
                     ledger_fee : Nat;
                     to: Ledgers.AccountMixed;
+                    memo: ?Blob;
                 };
                 public func commit(intent: Intent) : Nat64 {
 
@@ -442,7 +443,7 @@ module {
                         ledger = intent.endpoint.ledger;
                         to = intent.to;
                         amount = intent.amount_to_send;
-                        memo = null;
+                        memo = intent.memo;
                         from_subaccount = intent.endpoint.account.subaccount;
                     }) else U.trap("Internal error in source send commit");
                     bid;
@@ -460,6 +461,7 @@ module {
                     req: SourceReq,
                     location : Location,
                     amount : Nat,
+                    memo : ?Blob
                 ) : R<Intent, SourceSendErr> {
                     let endpoint = U.onlyIC(req.vec.sources[req.endpoint_idx].endpoint);
 
@@ -519,6 +521,7 @@ module {
                         ledger_fee;
                         amount_to_send;
                         to;
+                        memo;
                     });
                 };
 
