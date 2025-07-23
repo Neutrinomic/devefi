@@ -301,6 +301,19 @@ module {
             Vector.toArray(rez);
 
         };
+        // Clear pending transactions with > 200 tries
+        public func clearPendingTransactions() {
+            for (ledger in Vector.vals(ledgercls)) {
+                switch (ledger.cls) {
+                    case (#icrc(l)) {
+                        l.sender.clearPendingTransactions();
+                    };
+                    case (#icp(l)) {
+                        l.sender.clearPendingTransactions();
+                    };
+                };
+            };
+        };
 
         public func getPendingTransactions() : [PendingTransactions] {
             let rez = Vector.new<PendingTransactions>();
