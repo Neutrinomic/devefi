@@ -40,6 +40,12 @@ module {
         };
     };
 
+
+    public type PendingTransactions = {
+        id : Principal;
+        transactions : [ICRCLedger.TransactionShared];
+    };
+
     public type AccountMixed = {
         #icrc : Account;
         #icp : Blob;
@@ -139,6 +145,8 @@ module {
             };
             Vector.toArray(rez);
         };
+
+       
 
         public func get_ledger(id : Principal) : ?LedgerCls {
             for (ledger in Vector.vals(ledgercls)) {
@@ -292,6 +300,24 @@ module {
 
             Vector.toArray(rez);
 
+        };
+
+        public func getPendingTransactions() : [PendingTransactions] {
+            let rez = Vector.new<PendingTransactions>();
+            for (ledger in Vector.vals(ledgercls)) {
+                Vector.add(rez, {
+                    id = ledger.id;
+                    transactions = switch (ledger.cls) {
+                        case (#icrc(l)) {
+                            l.getPendingTransactions();
+                        };
+                        case (#icp(l)) {
+                            l.getPendingTransactions();
+                        };
+                    };
+                });
+            };
+            Vector.toArray(rez);
         };
 
         public func add_ledger<system>(id : Principal, ltype : { #icrc; #icp }) {
