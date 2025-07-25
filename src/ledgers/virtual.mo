@@ -131,7 +131,7 @@ module {
             let fee = ledger.getFee();
             if (tr.amount <= fee) return #err(#InsufficientFunds);
 
-            let id = getNextChronoId();
+            
 
             let { amount; to; from_subaccount } = tr;
             // If local just move the tokens in pooled ledger
@@ -152,7 +152,7 @@ module {
             switch(to_local_account) {
                 case (?to_account) {
                     chrono_insert_recieved({
-                        id;
+                        id=getNextChronoId();
                         from = #icrc({
                             owner = me_can;
                             subaccount = from_subaccount;
@@ -161,7 +161,7 @@ module {
                         amount = amount;
                     });
                     chrono_insert_sent({
-                        id;
+                        id=getNextChronoId();
                         to = #icrc(to_account);
                         from = from_subaccount;
                         amount = amount;
@@ -176,7 +176,7 @@ module {
                             to_subaccount = to_account.subaccount;
                         });
                     };
-                    #ok(id);
+                    #ok(1);
                 };
                 case (null) {
                     switch(ledger.send({
@@ -188,7 +188,7 @@ module {
                         case (#ok(id)) {
                             handle_outgoing_amount(from_subaccount, amount);
                             chrono_insert_sent({
-                                    id;
+                                    id=getNextChronoId();
                                     to = to;
                                     from = from_subaccount;
                                     amount = amount;
@@ -352,8 +352,9 @@ module {
                         memo = null;
                     }) else return;
 
+
                     chrono_insert_recieved({
-                        id;
+                        id=getNextChronoId();
                         from = tx.from;
                         to = tx.to.subaccount;
                         amount = tx.amount - ledger.getFee();
