@@ -73,6 +73,7 @@ module {
         chrono : Chrono.ChronoClient;
         ledger_id : Principal;
         me_can : Principal;
+        getNextChronoId : () -> Nat64;
     }) {
         let mem = MU.access(xmem);
 
@@ -130,7 +131,7 @@ module {
             let fee = ledger.getFee();
             if (tr.amount <= fee) return #err(#InsufficientFunds);
 
-            let id = ledger.genNextSendId(null);
+            let id = getNextChronoId();
 
             let { amount; to; from_subaccount } = tr;
             // If local just move the tokens in pooled ledger

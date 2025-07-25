@@ -108,6 +108,13 @@ module {
 
         var emitFunc : ?(Event -> ()) = null;
 
+        var tmp_chrono_id : Nat64 = 0;
+
+        public func getNextChronoId() : Nat64 {
+            tmp_chrono_id += 1;
+            tmp_chrono_id;
+        };
+
         public func get_ledger_idx(p : Principal) : ?Nat {
             for ((ledger, idx) in Vector.items(ledgercls)) {
                 if (ledger.id == p) {
@@ -372,8 +379,8 @@ module {
 
         public func init_virt<system>(mem : MU.MemShell<VirtualMem.Mem>, cls : LedgerCls) : Virtual.Virtual {
             let virt = switch (cls.cls) {
-                case (#icrc(l)) Virtual.Virtual<system>({xmem=mem; ledger=l; chrono; me_can; ledger_id=cls.id});
-                case (#icp(l)) Virtual.Virtual<system>({xmem=mem; ledger=l; chrono; me_can; ledger_id=cls.id});
+                case (#icrc(l)) Virtual.Virtual<system>({xmem=mem; ledger=l; chrono; me_can; ledger_id=cls.id; getNextChronoId});
+                case (#icp(l)) Virtual.Virtual<system>({xmem=mem; ledger=l; chrono; me_can; ledger_id=cls.id; getNextChronoId});
             };
 
             virt.onReceive(
