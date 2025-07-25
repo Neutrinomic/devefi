@@ -183,7 +183,7 @@ module {
                         from_subaccount = null; // pool account
                         to = to;
                         amount = amount;
-                        memo = null;
+                        memo = tr.memo;
                     })) {
                         case (#ok(id)) {
                             handle_outgoing_amount(from_subaccount, amount);
