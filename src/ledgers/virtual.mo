@@ -61,7 +61,7 @@ module {
         getFee : () -> Nat;
         isSent : Nat64 -> Bool;
         me : () -> Principal;
-        onReceive : (L.Transfer -> ()) -> ();
+        onReceive : (<system>L.Transfer -> ()) -> ();
         onSent : ((Nat64, Nat) -> ()) -> ();
         send : IcrcSender.TransactionInput -> R<Nat64, L.SendError>;
         getRegisteredAccount : Blob -> ?ICRCLedger.Account;
@@ -297,7 +297,7 @@ module {
         );
 
         ledger.onReceive(
-            func(tx) {
+            func<system>(tx : L.Transfer) {
                 // If we are sending from a subaccount to the pool it will always have from = #icrc and not #icp
                 switch (tx.from) {
                     case (#icrc(from)) {

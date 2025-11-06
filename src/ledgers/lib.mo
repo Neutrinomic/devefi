@@ -14,6 +14,7 @@ import U "../utils";
 import MU "mo:mosup";
 import Ver1 "./memory/v1";
 import Ver2 "./memory/v2";
+import Ver3 "./memory/v3";
 import ICRC55 "../ICRC55";
 import Chrono "mo:chronotrinite/client";
 import Nat8 "mo:base/Nat8";
@@ -23,11 +24,12 @@ module {
         public module Ledgers {
             public let V1 = Ver1.Ledgers;
             public let V2 = Ver2.Ledgers;
+            public let V3 = Ver3.Ledgers;
         };
     };
 
-    let VM = Mem.Ledgers.V2;
-    let VirtualMem = Ver2.Virtual;
+    let VM = Mem.Ledgers.V3;
+    let VirtualMem = Ver3.Virtual;
 
     public type Account = ICRCLedgerIF.Account;
     type R<A, B> = Result.Result<A, B>;
@@ -94,6 +96,7 @@ module {
         name : Text;
         decimals : Nat8;
         fee : Nat;
+        max_memo : Nat;
     };
 
     public class Ledgers<system>({
@@ -350,7 +353,7 @@ module {
 
             let (new_mem, new_cls) = switch (ltype) {
                 case (#icrc) {
-                    let m = ICRCLedger.Mem.Ledger.V1.new();
+                    let m = ICRCLedger.Mem.Ledger.V2.new();
                     let l = ICRCLedger.Ledger<system>(m, Principal.toText(id), #last, me_can);
                     (#icrc(m), { id; cls = #icrc(l) });
                 };
