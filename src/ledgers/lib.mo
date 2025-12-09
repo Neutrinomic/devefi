@@ -15,6 +15,7 @@ import MU "mo:mosup";
 import Ver1 "./memory/v1";
 import Ver2 "./memory/v2";
 import Ver3 "./memory/v3";
+import Ver4 "./memory/v4";
 import ICRC55 "../ICRC55";
 import Chrono "mo:chronotrinite/client";
 import Nat8 "mo:base/Nat8";
@@ -25,11 +26,14 @@ module {
             public let V1 = Ver1.Ledgers;
             public let V2 = Ver2.Ledgers;
             public let V3 = Ver3.Ledgers;
+            public let V4 = Ver4.Ledgers;
         };
     };
 
-    let VM = Mem.Ledgers.V3;
-    let VirtualMem = Ver3.Virtual;
+    let VM = Mem.Ledgers.V4;
+    let VirtualMem = Ver4.Virtual;
+
+    let CYCLE_RECURRING_TIME_SEC = 3;
 
     public type Account = ICRCLedgerIF.Account;
     type R<A, B> = Result.Result<A, B>;
@@ -353,13 +357,13 @@ module {
 
             let (new_mem, new_cls) = switch (ltype) {
                 case (#icrc) {
-                    let m = ICRCLedger.Mem.Ledger.V2.new();
-                    let l = ICRCLedger.Ledger<system>(m, Principal.toText(id), #last, me_can);
+                    let m = ICRCLedger.Mem.Ledger.V3.new();
+                    let l = ICRCLedger.Ledger<system>(m, {LEDGER_ID = id; START_FROM_BLOCK= #last; CYCLE_RECURRING_TIME_SEC; ME_CAN = me_can});
                     (#icrc(m), { id; cls = #icrc(l) });
                 };
                 case (#icp) {
                     let m = ICPLedger.Mem.Ledger.V2.new();
-                    let l = ICPLedger.Ledger<system>(m, Principal.toText(id), #last, me_can);
+                    let l = ICPLedger.Ledger<system>(m, {LEDGER_ID = id; START_FROM_BLOCK= #last; CYCLE_RECURRING_TIME_SEC; ME_CAN = me_can});
                     (#icp(m), { id; cls = #icp(l) });
                 };
             };
@@ -405,13 +409,13 @@ module {
         for (ledger in Vector.vals(mem.ledgers)) {
             switch (ledger.mem) {
                 case (#icrc(m)) {
-                    let cls = ICRCLedger.Ledger<system>(m, Principal.toText(ledger.id), #last, me_can);
+                    let cls = ICRCLedger.Ledger<system>(m, {LEDGER_ID = ledger.id; START_FROM_BLOCK= #last; CYCLE_RECURRING_TIME_SEC; ME_CAN = me_can});
 
                     Vector.add(ledgercls, { id = ledger.id; cls = #icrc(cls) });
                     Vector.add(virtualcls, init_virt<system>(ledger.virtual_mem, { id = ledger.id; cls = #icrc(cls) }));
                 };
                 case (#icp(m)) {
-                    let cls = ICPLedger.Ledger<system>(m, Principal.toText(ledger.id), #last, me_can);
+                    let cls = ICPLedger.Ledger<system>(m, {LEDGER_ID = ledger.id; START_FROM_BLOCK= #last; CYCLE_RECURRING_TIME_SEC; ME_CAN = me_can});
 
                     Vector.add(ledgercls, { id = ledger.id; cls = #icp(cls) });
                     Vector.add(virtualcls, init_virt<system>(ledger.virtual_mem, { id = ledger.id; cls = #icp(cls) }));
